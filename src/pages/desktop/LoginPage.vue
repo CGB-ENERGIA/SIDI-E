@@ -98,32 +98,48 @@
           </q-card>
         </div>
 
-        <!-- Botão "Ver Formulários" — ancora no rodapé da seção -->
+        <!-- Botão scroll — ancora no rodapé da seção -->
         <button class="scroll-cta" @click="scrollToFormularios">
-          Ver Formulários
+          Requisição de Materiais
           <span class="scroll-arrow">↓</span>
         </button>
       </section>
 
-      <!-- ── SEÇÃO 2: Formulários ────────────────────────────────── -->
+      <!-- ── SEÇÃO 2: Requisição de Materiais ───────────────────── -->
       <section class="formularios-section" ref="formulariosSection">
         <div class="formularios-content">
-          <img src="/favicon.ico" alt="CGB Energia" class="formularios-logo" />
-          <div class="formularios-title">CGB ENERGIA</div>
-          <div class="formularios-sub">PORTAL DE FORMULÁRIOS</div>
+
+          <div class="req-badge">
+            <q-icon name="engineering" size="22px" />
+            SEGURANÇA EM PRIMEIRO LUGAR
+          </div>
+
+          <div class="formularios-title">REQUISIÇÃO DE<br />MATERIAIS</div>
+
+          <div class="epi-pills">
+            <span class="pill"><q-icon name="visibility" size="16px" /> Óculos de Proteção</span>
+            <span class="pill"><q-icon name="back_hand" size="16px" /> Luvas Isolantes</span>
+            <span class="pill"><q-icon name="shield" size="16px" /> Capacete Dielétrico</span>
+            <span class="pill"><q-icon name="bolt" size="16px" /> Botina de Segurança</span>
+            <span class="pill"><q-icon name="safety_divider" size="16px" /> Protetor Auricular</span>
+            <span class="pill"><q-icon name="airline_seat_flat" size="16px" /> Cinto Paraquedista</span>
+          </div>
+
           <p class="formularios-desc">
-            Ambiente único para preencher, exportar e enviar os<br />
-            formulários operacionais da obra.
+            O uso correto dos EPIs é <strong>obrigatório</strong> antes de iniciar qualquer atividade.<br />
+            Solicite seus materiais de proteção abaixo e garanta sua segurança em campo.
           </p>
+
           <a
             href="https://cgbma.gpm.srv.br/ci/Geral/Login#IN061"
             target="_blank"
             rel="noopener noreferrer"
             class="req-btn"
           >
-            Fazer Requisição
-            <q-icon name="open_in_new" size="18px" class="q-ml-xs" />
+            <q-icon name="inventory" size="20px" class="q-mr-sm" />
+            Fazer Requisição de Materiais
           </a>
+
           <button class="back-cta" @click="scrollToLogin">
             ↑ Voltar ao login
           </button>
@@ -397,28 +413,65 @@ async function login () {
   margin-bottom: 8px;
 }
 
+.req-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(211, 47, 47, 0.15);
+  border: 1px solid rgba(211, 47, 47, 0.4);
+  color: #ef9a9a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  padding: 6px 16px;
+  border-radius: 100px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
 .formularios-title {
-  font-size: clamp(2.4rem, 6vw, 4.5rem);
+  font-size: clamp(2.2rem, 5.5vw, 4rem);
   font-weight: 900;
   letter-spacing: 0.04em;
   color: #ffffff;
-  line-height: 1;
+  line-height: 1.05;
+  text-align: center;
 }
 
-.formularios-sub {
-  font-size: 0.85rem;
-  letter-spacing: 0.28em;
-  color: #888;
-  text-transform: uppercase;
-  margin-top: -8px;
+.epi-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 560px;
+  margin: 4px 0;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #ccc;
+  font-size: 0.78rem;
+  padding: 5px 14px;
+  border-radius: 100px;
+  white-space: nowrap;
 }
 
 .formularios-desc {
-  font-size: 1rem;
-  color: #aaa;
+  font-size: 0.97rem;
+  color: #888;
   font-style: italic;
-  line-height: 1.6;
-  margin: 8px 0 16px;
+  line-height: 1.7;
+  margin: 4px 0 8px;
+  text-align: center;
+  max-width: 520px;
+}
+.formularios-desc strong {
+  color: #ef9a9a;
+  font-style: normal;
 }
 
 .req-btn {
