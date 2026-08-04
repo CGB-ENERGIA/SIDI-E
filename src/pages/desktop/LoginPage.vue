@@ -5,12 +5,14 @@
 
         <!-- Vídeo de fundo -->
         <video
+          ref="bgVideo"
           class="bg-video"
+          :class="{ 'bg-video--breathe': videoEnded }"
           autoplay
           muted
-          loop
           playsinline
           src="/login-bg.mp4"
+          @ended="onVideoEnded"
         />
         <!-- Overlay escuro sobre o vídeo -->
         <div class="bg-overlay" />
@@ -85,7 +87,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
 import { useQuasar } from 'quasar'
@@ -94,10 +96,17 @@ const router = useRouter()
 const authStore = useAuthStore()
 const $q = useQuasar()
 
+const bgVideo = ref(null)
+const videoEnded = ref(false)
+
 const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
 const loading = ref(false)
+
+function onVideoEnded () {
+  videoEnded.value = true
+}
 
 async function login () {
   loading.value = true
@@ -127,6 +136,17 @@ async function login () {
   height: 100%;
   object-fit: cover;
   z-index: 0;
+  transform-origin: center center;
+}
+
+.bg-video--breathe {
+  animation: breathe 8s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%   { transform: scale(1.00); filter: brightness(0.95); }
+  50%  { transform: scale(1.04); filter: brightness(1.05); }
+  100% { transform: scale(1.00); filter: brightness(0.95); }
 }
 
 .bg-overlay {
