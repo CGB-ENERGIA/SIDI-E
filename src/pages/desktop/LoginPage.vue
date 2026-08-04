@@ -278,6 +278,17 @@ async function login () {
 .login-input :deep(.q-field__control) {
   background: rgba(255, 255, 255, 0.07);
   border-radius: 8px;
+  padding: 0 16px;
+  min-height: 52px;
+}
+.login-input :deep(.q-field__native) {
+  padding: 10px 0;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+.login-input :deep(.q-field__label) {
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
 }
 .login-input :deep(.q-field__control:before) {
   border-color: rgba(79, 195, 247, 0.3);
