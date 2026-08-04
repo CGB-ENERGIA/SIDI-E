@@ -93,9 +93,9 @@ export default defineConfig(function (/* ctx */) {
       },
 
       manifest: {
-        name: 'GSTC Inspeções',
-        short_name: 'GSTC',
-        description: 'Sistema de Gestão de Evidências e Inspeções',
+        name: 'SIDI-E Inspeções',
+        short_name: 'SIDI-E',
+        description: 'Sistema de Inspeção e Documentação de Instalações Elétricas',
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#1a1a2e',

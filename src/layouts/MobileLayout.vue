@@ -58,7 +58,7 @@ const pageTitles = {
   MobileResumo: 'Resumo do Dia'
 }
 
-const pageTitle = computed(() => pageTitles[route.name] || 'GSTC')
+const pageTitle = computed(() => pageTitles[route.name] || 'SIDI-E')
 
 const canGoBack = computed(() =>
   route.name !== 'MobileHome' && route.name !== 'MobileLogin'

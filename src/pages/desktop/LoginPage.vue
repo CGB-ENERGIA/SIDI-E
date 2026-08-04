@@ -5,7 +5,7 @@
         <q-card style="width: 100%; max-width: 420px; border-radius: 20px;" class="q-pa-sm">
           <q-card-section class="text-center q-pt-lg">
             <q-icon name="electrical_services" size="64px" color="primary" />
-            <div class="text-h5 text-weight-bold q-mt-sm">GSTC</div>
+            <div class="text-h5 text-weight-bold q-mt-sm">SIDI-E</div>
             <div class="text-caption text-grey-6">Painel administrativo de inspeções</div>
           </q-card-section>
 

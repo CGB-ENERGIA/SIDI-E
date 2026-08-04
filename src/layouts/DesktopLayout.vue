@@ -7,7 +7,7 @@
 
         <q-toolbar-title class="flex items-center gap-2">
           <q-icon name="electrical_services" size="28px" />
-          <span class="text-weight-bold">GSTC</span>
+          <span class="text-weight-bold">SIDI-E</span>
           <span class="text-body2 text-blue-2 q-ml-xs">Inspeções</span>
         </q-toolbar-title>
 

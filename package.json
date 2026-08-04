@@ -1,8 +1,8 @@
 {
   "name": "gstc-app",
   "version": "1.0.0",
-  "description": "GSTC - Sistema de Gestão de Inspeções e Evidências",
-  "productName": "GSTC App",
+  "description": "SIDI-E - Sistema de Inspeção e Documentação de Instalações Elétricas",
+  "productName": "SIDI-E",
   "author": "CGB Engenharia",
   "private": true,
   "scripts": {

@@ -3,7 +3,7 @@
     <!-- Logo -->
     <div class="text-center q-mb-xl">
       <q-icon name="electrical_services" size="72px" color="primary" />
-      <div class="text-h5 text-weight-bold text-white q-mt-sm">GSTC</div>
+      <div class="text-h5 text-weight-bold text-white q-mt-sm">SIDI-E</div>
       <div class="text-caption text-grey-4">Sistema de Inspeções</div>
     </div>
 
