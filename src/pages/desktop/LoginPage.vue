@@ -6,7 +6,13 @@
           <q-card-section class="text-center q-pt-lg">
             <q-icon name="electrical_services" size="64px" color="primary" />
             <div class="text-h5 text-weight-bold q-mt-sm">SIDI-E</div>
-            <div class="text-caption text-grey-6">Painel administrativo de inspeções</div>
+            <div class="text-caption text-grey-5 q-mt-xs letra-destaque">
+              <span class="hl">SI</span>STEMA
+              <span class="hl">D</span>E
+              <span class="hl">I</span>NSPEÇÃO
+              DE
+              <span class="hl">E</span>PIS
+            </div>
           </q-card-section>
 
           <q-card-section class="q-px-lg q-pb-lg">
@@ -99,5 +105,15 @@ async function login () {
     radial-gradient(ellipse at top left, rgba(15, 52, 96, 0.35), transparent 50%),
     radial-gradient(ellipse at bottom right, rgba(233, 69, 96, 0.15), transparent 45%),
     linear-gradient(160deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+}
+
+.letra-destaque {
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+}
+
+.hl {
+  color: #4fc3f7;
+  font-weight: 700;
 }
 </style>
