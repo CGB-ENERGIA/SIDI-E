@@ -7,6 +7,7 @@
         <video
           ref="bgVideo"
           class="bg-video"
+          :class="{ 'bg-video--breathe': videoEnded }"
           autoplay
           muted
           playsinline
@@ -96,16 +97,21 @@ const authStore = useAuthStore()
 const $q = useQuasar()
 
 const bgVideo = ref(null)
+const videoEnded = ref(false)
 const videos = ['/login-bg.mp4', '/login-bg2.mp4']
 const currentVideoIndex = ref(0)
 const currentVideo = ref(videos[0])
 
 function onVideoEnded () {
-  const next = (currentVideoIndex.value + 1) % videos.length
-  currentVideoIndex.value = next
-  currentVideo.value = videos[next]
-  bgVideo.value?.load()
-  bgVideo.value?.play()
+  const next = currentVideoIndex.value + 1
+  if (next < videos.length) {
+    currentVideoIndex.value = next
+    currentVideo.value = videos[next]
+    bgVideo.value?.load()
+    bgVideo.value?.play()
+  } else {
+    videoEnded.value = true
+  }
 }
 
 async function login () {
