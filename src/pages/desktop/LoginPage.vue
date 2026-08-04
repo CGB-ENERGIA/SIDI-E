@@ -10,7 +10,7 @@
           muted
           loop
           playsinline
-          src="/video/login-bg.mp4"
+          src="/login-bg.mp4"
         />
         <!-- Overlay escuro sobre o vídeo -->
         <div class="bg-overlay" />
