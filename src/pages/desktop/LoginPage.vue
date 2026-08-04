@@ -7,17 +7,28 @@
         <video
           ref="bgVideo"
           class="bg-video"
-          :class="{ 'bg-video--breathe': videoEnded }"
+          :class="{ 'bg-video--ken-burns': videoEnded }"
           autoplay
           muted
           playsinline
           :src="currentVideo"
           @ended="onVideoEnded"
         />
-        <!-- Overlay escuro sobre o vídeo -->
+
+        <!-- Overlay base -->
         <div class="bg-overlay" />
 
-        <q-card style="width: 100%; max-width: 420px; border-radius: 20px; position: relative; z-index: 2;" class="q-pa-sm login-card">
+        <!-- Raio de luz diagonal — ativo só após o fim do vídeo -->
+        <Transition name="ray-fade">
+          <div v-if="videoEnded" class="light-ray" />
+        </Transition>
+
+        <!-- Vinheta pulsante — ativo só após o fim do vídeo -->
+        <Transition name="ray-fade">
+          <div v-if="videoEnded" class="vignette" />
+        </Transition>
+
+        <q-card style="width: 100%; max-width: 420px; border-radius: 20px; position: relative; z-index: 10;" class="q-pa-sm login-card">
           <q-card-section class="text-center q-pt-lg">
             <q-icon name="electrical_services" size="64px" color="primary" />
             <div class="text-h5 text-weight-bold q-mt-sm">SIDI-E</div>
@@ -87,7 +98,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
 import { useQuasar } from 'quasar'
@@ -114,6 +125,11 @@ function onVideoEnded () {
   }
 }
 
+const email = ref('')
+const password = ref('')
+const showPassword = ref(false)
+const loading = ref(false)
+
 async function login () {
   loading.value = true
   try {
@@ -132,9 +148,10 @@ async function login () {
   min-height: 100vh;
   position: relative;
   overflow: hidden;
-  background: #0f3460;
+  background: #060d1f;
 }
 
+/* ── Vídeo ─────────────────────────────────────────────── */
 .bg-video {
   position: absolute;
   inset: 0;
@@ -142,39 +159,92 @@ async function login () {
   height: 100%;
   object-fit: cover;
   z-index: 0;
-  transform-origin: center center;
+  transform-origin: 60% 50%;
+  will-change: transform;
 }
 
-.bg-video--breathe {
-  animation: breathe 8s ease-in-out infinite;
+/* Ken Burns cinematográfico: zoom lento para um canto, sem retorno */
+.bg-video--ken-burns {
+  animation: ken-burns 40s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
-@keyframes breathe {
-  0%   { transform: scale(1.00); filter: brightness(0.95); }
-  50%  { transform: scale(1.04); filter: brightness(1.05); }
-  100% { transform: scale(1.00); filter: brightness(0.95); }
+@keyframes ken-burns {
+  0%   { transform: scale(1.00) translate(0%,   0%); }
+  100% { transform: scale(1.08) translate(-1.5%, -1%); }
 }
 
+/* ── Overlay base ──────────────────────────────────────── */
 .bg-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    160deg,
-    rgba(10, 20, 50, 0.75) 0%,
-    rgba(15, 52, 96, 0.65) 50%,
-    rgba(10, 20, 40, 0.80) 100%
-  );
   z-index: 1;
+  background:
+    linear-gradient(to bottom, rgba(6,13,31,0.55) 0%, transparent 40%, rgba(6,13,31,0.70) 100%),
+    linear-gradient(160deg, rgba(10,20,50,0.60) 0%, rgba(15,52,96,0.45) 50%, rgba(6,13,31,0.65) 100%);
 }
 
+/* ── Raio de luz diagonal ──────────────────────────────── */
+.light-ray {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    112deg,
+    transparent 0%,
+    transparent 38%,
+    rgba(180, 220, 255, 0.055) 50%,
+    transparent 62%,
+    transparent 100%
+  );
+  background-size: 250% 250%;
+  animation: ray-sweep 9s ease-in-out infinite;
+}
+
+@keyframes ray-sweep {
+  0%   { background-position: 150% 150%; opacity: 0;   }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { background-position: -50% -50%; opacity: 0;   }
+}
+
+/* ── Vinheta pulsante ──────────────────────────────────── */
+.vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  border-radius: 0;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 55%,
+    rgba(4, 8, 20, 0.55) 100%
+  );
+  animation: vignette-pulse 6s ease-in-out infinite;
+}
+
+@keyframes vignette-pulse {
+  0%   { opacity: 0.7; }
+  50%  { opacity: 1.0; }
+  100% { opacity: 0.7; }
+}
+
+/* ── Fade-in dos efeitos ao entrar ─────────────────────── */
+.ray-fade-enter-active { transition: opacity 2s ease; }
+.ray-fade-enter-from   { opacity: 0; }
+
+/* ── Card ──────────────────────────────────────────────── */
 .login-card {
-  background: rgba(22, 33, 62, 0.82);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(79, 195, 247, 0.15);
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+  background: rgba(12, 22, 52, 0.78);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid rgba(79, 195, 247, 0.18);
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
+/* ── Tipografia ────────────────────────────────────────── */
 .letra-destaque {
   letter-spacing: 0.08em;
   font-size: 0.72rem;
