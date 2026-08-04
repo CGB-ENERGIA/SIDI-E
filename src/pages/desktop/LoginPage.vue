@@ -11,7 +11,7 @@
           autoplay
           muted
           playsinline
-          src="/login-bg.mp4"
+          :src="currentVideo"
           @ended="onVideoEnded"
         />
         <!-- Overlay escuro sobre o vídeo -->
@@ -98,14 +98,21 @@ const $q = useQuasar()
 
 const bgVideo = ref(null)
 const videoEnded = ref(false)
-
-const email = ref('')
-const password = ref('')
-const showPassword = ref(false)
-const loading = ref(false)
+const videos = ['/login-bg.mp4', '/login-bg2.mp4']
+const currentVideoIndex = ref(0)
+const currentVideo = ref(videos[0])
 
 function onVideoEnded () {
-  videoEnded.value = true
+  const next = currentVideoIndex.value + 1
+  if (next < videos.length) {
+    currentVideoIndex.value = next
+    currentVideo.value = videos[next]
+    videoEnded.value = false
+    bgVideo.value?.load()
+    bgVideo.value?.play()
+  } else {
+    videoEnded.value = true
+  }
 }
 
 async function login () {
