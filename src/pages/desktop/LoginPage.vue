@@ -48,11 +48,16 @@
                 type="email"
                 label="E-mail"
                 outlined
+                dark
                 dense
+                bg-color="transparent"
+                label-color="blue-3"
+                input-class="text-white"
                 autocomplete="username"
                 :rules="[v => !!v || 'Informe o e-mail']"
+                class="login-input"
               >
-                <template #prepend><q-icon name="email" /></template>
+                <template #prepend><q-icon name="email" color="blue-3" /></template>
               </q-input>
 
               <q-input
@@ -60,14 +65,20 @@
                 :type="showPassword ? 'text' : 'password'"
                 label="Senha"
                 outlined
+                dark
                 dense
+                bg-color="transparent"
+                label-color="blue-3"
+                input-class="text-white"
                 autocomplete="current-password"
                 :rules="[v => !!v || 'Informe a senha']"
+                class="login-input"
               >
-                <template #prepend><q-icon name="lock" /></template>
+                <template #prepend><q-icon name="lock" color="blue-3" /></template>
                 <template #append>
                   <q-icon
                     :name="showPassword ? 'visibility_off' : 'visibility'"
+                    color="blue-3"
                     class="cursor-pointer"
                     @click="showPassword = !showPassword"
                   />
@@ -80,14 +91,15 @@
                 rounded
                 color="primary"
                 label="Entrar"
-                class="full-width"
+                class="full-width q-mt-sm"
                 size="lg"
                 :loading="loading"
+                style="letter-spacing: 0.1em; font-weight: 700;"
               />
             </q-form>
 
-            <div class="text-center q-mt-lg">
-              <q-btn flat dense color="grey-7" label="Acessar app mobile" to="/m/login" />
+            <div class="text-center q-mt-md">
+              <q-btn flat dense color="blue-3" label="Acessar app mobile" to="/m/login" size="sm" />
             </div>
           </q-card-section>
         </q-card>
@@ -260,5 +272,21 @@ async function login () {
   height: 80px;
   object-fit: contain;
   filter: drop-shadow(0 0 12px rgba(79,195,247,0.4));
+}
+
+/* Inputs escuros com borda azul */
+.login-input :deep(.q-field__control) {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+.login-input :deep(.q-field__control:before) {
+  border-color: rgba(79, 195, 247, 0.3);
+}
+.login-input :deep(.q-field__control:hover:before) {
+  border-color: rgba(79, 195, 247, 0.7);
+}
+.login-input :deep(.q-field--focused .q-field__control:before) {
+  border-color: #4fc3f7;
+  box-shadow: 0 0 0 2px rgba(79, 195, 247, 0.15);
 }
 </style>

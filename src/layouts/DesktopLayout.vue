@@ -55,31 +55,49 @@
 
     <!-- Sidebar -->
     <q-drawer v-model="leftDrawerOpen" show-if-above :width="240" :breakpoint="700" bordered>
-      <q-scroll-area class="fit">
-        <div class="q-pa-md q-pb-sm">
-          <div class="text-caption text-grey-6 text-uppercase text-weight-bold q-mb-sm">Menu</div>
+      <div class="column fit">
+        <q-scroll-area class="col">
+          <div class="q-pa-md q-pb-sm">
+            <div class="text-caption text-grey-6 text-uppercase text-weight-bold q-mb-sm">Menu</div>
+          </div>
+          <q-list padding>
+            <q-item
+              v-for="item in menuItems"
+              :key="item.to"
+              :to="item.to"
+              clickable
+              v-ripple
+              active-class="text-primary bg-blue-1"
+              rounded
+              class="q-mb-xs"
+            >
+              <q-item-section avatar>
+                <q-icon :name="item.icon" />
+              </q-item-section>
+              <q-item-section>{{ item.label }}</q-item-section>
+              <q-item-section v-if="item.badge" side>
+                <q-badge :color="item.badgeColor || 'primary'">{{ item.badge }}</q-badge>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-scroll-area>
+
+        <!-- Logout fixo no rodapé da sidebar -->
+        <div class="q-pa-md">
+          <q-separator class="q-mb-md" />
+          <div class="text-caption text-grey-6 q-mb-xs ellipsis">{{ authStore.desktopUser?.email }}</div>
+          <q-btn
+            flat
+            no-caps
+            class="full-width text-left"
+            align="left"
+            icon="logout"
+            label="Sair"
+            color="negative"
+            @click="logout"
+          />
         </div>
-        <q-list padding>
-          <q-item
-            v-for="item in menuItems"
-            :key="item.to"
-            :to="item.to"
-            clickable
-            v-ripple
-            active-class="text-primary bg-blue-1"
-            rounded
-            class="q-mb-xs"
-          >
-            <q-item-section avatar>
-              <q-icon :name="item.icon" />
-            </q-item-section>
-            <q-item-section>{{ item.label }}</q-item-section>
-            <q-item-section v-if="item.badge" side>
-              <q-badge :color="item.badgeColor || 'primary'">{{ item.badge }}</q-badge>
-            </q-item-section>
-          </q-item>
-        </q-list>
-      </q-scroll-area>
+      </div>
     </q-drawer>
 
     <!-- Page content -->
