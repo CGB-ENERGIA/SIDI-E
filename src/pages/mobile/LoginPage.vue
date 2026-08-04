@@ -20,7 +20,9 @@
           class="q-mb-md"
           :rules="[v => !!v || 'Informe o prefixo']"
           hint="Ex: EQ-01, A-03"
+          style="text-transform: uppercase;"
           @blur="buscarEquipe"
+          @update:model-value="val => form.prefixo = val.toUpperCase()"
         >
           <template #prepend>
             <q-icon name="badge" />
@@ -44,8 +46,35 @@
           <template #prepend><q-icon name="check_circle" color="positive" /></template>
         </q-input>
 
-        <div v-if="equipeNaoEncontrada" class="text-negative text-caption q-mb-md">
-          <q-icon name="error" /> Equipe não encontrada. Verifique o prefixo.
+        <!-- Equipe não encontrada -->
+        <div v-if="equipeNaoEncontrada" class="q-mb-md">
+          <div class="text-negative text-caption q-mb-sm">
+            <q-icon name="error" /> Equipe "{{ form.prefixo }}" não encontrada.
+          </div>
+
+          <!-- Solicitação de cadastro -->
+          <q-card flat class="bg-orange-1" style="border-radius: 10px; border: 1px solid #ff9800;">
+            <q-card-section class="q-pa-sm">
+              <div class="text-caption text-orange-9 q-mb-xs">
+                <q-icon name="info" /> Equipe não cadastrada no sistema.
+              </div>
+              <q-btn
+                v-if="!solicitacaoEnviada"
+                unelevated
+                rounded
+                color="orange"
+                icon="send"
+                label="Solicitar Cadastro ao Admin"
+                class="full-width q-mt-xs"
+                size="sm"
+                :loading="enviandoSolicitacao"
+                @click="solicitarCadastro"
+              />
+              <div v-else class="text-positive text-caption text-center q-mt-xs">
+                <q-icon name="check_circle" /> Solicitação enviada! Aguarde aprovação do administrador.
+              </div>
+            </q-card-section>
+          </q-card>
         </div>
 
         <!-- Collaborators -->
@@ -137,6 +166,8 @@ const loading = ref(false)
 const buscandoEquipe = ref(false)
 const equipeEncontrada = ref(null)
 const equipeNaoEncontrada = ref(false)
+const enviandoSolicitacao = ref(false)
+const solicitacaoEnviada = ref(false)
 
 const today = new Date().toISOString().split('T')[0]
 
@@ -159,6 +190,7 @@ async function buscarEquipe () {
   buscandoEquipe.value = true
   equipeEncontrada.value = null
   equipeNaoEncontrada.value = false
+  solicitacaoEnviada.value = false
 
   try {
     if (onlineStore.isOnline) {
@@ -178,6 +210,31 @@ async function buscarEquipe () {
     equipeNaoEncontrada.value = !equipeEncontrada.value
   } finally {
     buscandoEquipe.value = false
+  }
+}
+
+async function solicitarCadastro () {
+  if (!onlineStore.isOnline) {
+    $q.notify({ type: 'warning', message: 'Sem internet. Conecte-se para solicitar o cadastro.' })
+    return
+  }
+
+  enviandoSolicitacao.value = true
+  try {
+    const { error } = await supabase
+      .from('team_requests')
+      .insert({ prefixo: form.value.prefixo.trim().toUpperCase() })
+
+    if (error) throw error
+    solicitacaoEnviada.value = true
+    $q.notify({
+      type: 'positive',
+      message: 'Solicitação enviada! O administrador será notificado.'
+    })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro ao enviar solicitação: ' + e.message })
+  } finally {
+    enviandoSolicitacao.value = false
   }
 }
 
