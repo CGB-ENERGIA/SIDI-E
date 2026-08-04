@@ -78,6 +78,9 @@
               <q-item-section v-if="item.badge" side>
                 <q-badge :color="item.badgeColor || 'primary'">{{ item.badge }}</q-badge>
               </q-item-section>
+              <q-item-section v-if="item.badgeDynamic && pendingCount > 0" side>
+                <q-badge color="orange">{{ pendingCount }}</q-badge>
+              </q-item-section>
             </q-item>
           </q-list>
         </q-scroll-area>
@@ -108,11 +111,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
 import { useOnlineStore } from 'src/stores/online'
 import { useEvidenceStore } from 'src/stores/evidence'
+import { supabase } from 'src/services/supabase'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -121,13 +125,25 @@ const evidenceStore = useEvidenceStore()
 
 const leftDrawerOpen = ref(true)
 const profileMenu = ref(false)
+const pendingCount = ref(0)
+
+onMounted(async () => {
+  try {
+    const { count } = await supabase
+      .from('team_requests')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending')
+    pendingCount.value = count || 0
+  } catch {}
+})
 
 const menuItems = [
   { icon: 'dashboard', label: 'Dashboard', to: '/dashboard' },
   { icon: 'groups', label: 'Equipes', to: '/equipes' },
   { icon: 'task', label: 'Atividades', to: '/atividades' },
   { icon: 'photo_library', label: 'Evidências', to: '/evidencias' },
-  { icon: 'assessment', label: 'Relatórios', to: '/relatorios' }
+  { icon: 'assessment', label: 'Relatórios', to: '/relatorios' },
+  { icon: 'pending_actions', label: 'Solicitações', to: '/solicitacoes', badgeDynamic: true }
 ]
 
 async function triggerSync () {

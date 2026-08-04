@@ -42,6 +42,11 @@ const routes = [
         path: 'relatorios',
         name: 'Relatorios',
         component: () => import('src/pages/desktop/ReportsPage.vue')
+      },
+      {
+        path: 'solicitacoes',
+        name: 'Solicitacoes',
+        component: () => import('src/pages/desktop/SolicitacoesPage.vue')
       }
     ]
   },
