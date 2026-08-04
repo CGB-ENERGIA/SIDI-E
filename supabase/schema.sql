@@ -1,4 +1,4 @@
--- GSTC Inspeções — schema Supabase
+-- SIDI-E — Sistema de Inspeção e Documentação de Instalações Elétricas
 -- Execute no SQL Editor do projeto Supabase
 
 -- Extensions
@@ -122,10 +122,16 @@ create policy "anon_storage_read" on storage.objects
   for select to anon
   using (bucket_id = 'evidencias');
 
--- Seed sample activities
-insert into public.activities (nome, descricao, tipo) values
-  ('Troca de poste', 'Substituição de poste de distribuição', 'servico'),
-  ('Manutenção de rede', 'Manutenção preventiva em rede elétrica', 'manutencao'),
-  ('Inspeção de segurança', 'Inspeção de conformidade e EPIs', 'inspecao'),
-  ('Atendimento emergência', 'Chamado emergencial', 'emergencia')
+-- Seed activities
+insert into public.activities (nome, tipo) values
+  ('Inspeção de Subestação', 'inspecao'),
+  ('Manutenção de Transformador', 'manutencao'),
+  ('Troca de Cabo Energizado', 'servico'),
+  ('Inspeção de Rede de Distribuição', 'inspecao'),
+  ('Podagem de Árvore sob Rede', 'manutencao'),
+  ('Religamento de Circuito', 'servico'),
+  ('Vistoria de Poste', 'inspecao'),
+  ('Atendimento Emergência', 'emergencia'),
+  ('Manutenção de Rede', 'manutencao'),
+  ('Troca de Poste', 'servico')
 on conflict do nothing;
