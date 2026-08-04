@@ -42,48 +42,42 @@
           </q-card-section>
 
           <q-card-section class="q-px-lg q-pb-lg">
-            <q-form @submit.prevent="login" class="q-gutter-md">
-              <q-input
-                v-model="email"
-                type="email"
-                label="E-mail"
-                outlined
-                dark
-                dense
-                bg-color="transparent"
-                label-color="blue-3"
-                input-class="text-white"
-                autocomplete="username"
-                :rules="[v => !!v || 'Informe o e-mail']"
-                class="login-input"
-              >
-                <template #prepend><q-icon name="email" color="blue-3" /></template>
-              </q-input>
+            <q-form @submit.prevent="login" class="form-gap">
 
-              <q-input
-                v-model="password"
-                :type="showPassword ? 'text' : 'password'"
-                label="Senha"
-                outlined
-                dark
-                dense
-                bg-color="transparent"
-                label-color="blue-3"
-                input-class="text-white"
-                autocomplete="current-password"
-                :rules="[v => !!v || 'Informe a senha']"
-                class="login-input"
-              >
-                <template #prepend><q-icon name="lock" color="blue-3" /></template>
-                <template #append>
-                  <q-icon
-                    :name="showPassword ? 'visibility_off' : 'visibility'"
-                    color="blue-3"
-                    class="cursor-pointer"
-                    @click="showPassword = !showPassword"
+              <!-- Campo email -->
+              <div class="field-wrap">
+                <div class="field-icon"><q-icon name="email" size="20px" /></div>
+                <div class="field-body">
+                  <label class="field-label">E-mail</label>
+                  <input
+                    v-model="email"
+                    type="email"
+                    autocomplete="username"
+                    class="field-input"
+                    placeholder="seu@email.com"
+                    required
                   />
-                </template>
-              </q-input>
+                </div>
+              </div>
+
+              <!-- Campo senha -->
+              <div class="field-wrap">
+                <div class="field-icon"><q-icon name="lock" size="20px" /></div>
+                <div class="field-body">
+                  <label class="field-label">Senha</label>
+                  <input
+                    v-model="password"
+                    :type="showPassword ? 'text' : 'password'"
+                    autocomplete="current-password"
+                    class="field-input"
+                    placeholder="••••••••"
+                    required
+                  />
+                </div>
+                <button type="button" class="field-toggle" @click="showPassword = !showPassword">
+                  <q-icon :name="showPassword ? 'visibility_off' : 'visibility'" size="20px" />
+                </button>
+              </div>
 
               <q-btn
                 type="submit"
@@ -94,7 +88,7 @@
                 class="full-width q-mt-sm"
                 size="lg"
                 :loading="loading"
-                style="letter-spacing: 0.1em; font-weight: 700;"
+                style="letter-spacing: 0.12em; font-weight: 700;"
               />
             </q-form>
 
@@ -274,30 +268,73 @@ async function login () {
   filter: drop-shadow(0 0 12px rgba(79,195,247,0.4));
 }
 
-/* Inputs transparentes com borda azul */
-.login-input :deep(.q-field__control) {
-  background: rgba(255, 255, 255, 0.07);
-  border-radius: 8px;
-  padding: 0 16px;
-  min-height: 52px;
+/* ── Formulário customizado ────────────────────────────── */
+.form-gap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
-.login-input :deep(.q-field__native) {
-  padding: 10px 0;
-  font-size: 0.95rem;
-  letter-spacing: 0.02em;
+
+.field-wrap {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(79, 195, 247, 0.25);
+  border-radius: 12px;
+  padding: 10px 16px;
+  gap: 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-.login-input :deep(.q-field__label) {
-  font-size: 0.82rem;
-  letter-spacing: 0.04em;
-}
-.login-input :deep(.q-field__control:before) {
-  border-color: rgba(79, 195, 247, 0.3);
-}
-.login-input :deep(.q-field__control:hover:before) {
-  border-color: rgba(79, 195, 247, 0.7);
-}
-.login-input :deep(.q-field--focused .q-field__control:before) {
+.field-wrap:focus-within {
   border-color: #4fc3f7;
-  box-shadow: 0 0 0 2px rgba(79, 195, 247, 0.15);
+  box-shadow: 0 0 0 3px rgba(79, 195, 247, 0.12);
+}
+
+.field-icon {
+  color: #4fc3f7;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.field-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.field-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: #4fc3f7;
+  text-transform: uppercase;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.field-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  width: 100%;
+  font-family: inherit;
+}
+.field-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.field-toggle {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #4fc3f7;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  flex-shrink: 0;
 }
 </style>
