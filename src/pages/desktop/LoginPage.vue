@@ -247,13 +247,13 @@ async function login () {
 
 /* ── Card ──────────────────────────────────────────────── */
 .login-card {
-  background: rgba(12, 22, 52, 0.78);
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
-  border: 1px solid rgba(79, 195, 247, 0.18);
+  background: rgba(6, 14, 34, 0.42);
+  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  border: 1px solid rgba(79, 195, 247, 0.22);
   box-shadow:
-    0 8px 40px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    0 8px 48px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 /* ── Tipografia ────────────────────────────────────────── */
@@ -274,9 +274,9 @@ async function login () {
   filter: drop-shadow(0 0 12px rgba(79,195,247,0.4));
 }
 
-/* Inputs escuros com borda azul */
+/* Inputs transparentes com borda azul */
 .login-input :deep(.q-field__control) {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.07);
   border-radius: 8px;
 }
 .login-input :deep(.q-field__control:before) {
