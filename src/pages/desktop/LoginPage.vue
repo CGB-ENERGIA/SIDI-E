@@ -247,13 +247,13 @@ async function login () {
 
 /* ── Card ──────────────────────────────────────────────── */
 .login-card {
-  background: rgba(6, 14, 34, 0.42);
-  backdrop-filter: blur(18px) saturate(1.6);
-  -webkit-backdrop-filter: blur(18px) saturate(1.6);
-  border: 1px solid rgba(79, 195, 247, 0.22);
+  background: transparent !important;
+  backdrop-filter: blur(22px) saturate(1.8);
+  -webkit-backdrop-filter: blur(22px) saturate(1.8);
+  border: 1px solid rgba(79, 195, 247, 0.25);
   box-shadow:
-    0 8px 48px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 8px 48px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
 }
 
 /* ── Tipografia ────────────────────────────────────────── */
