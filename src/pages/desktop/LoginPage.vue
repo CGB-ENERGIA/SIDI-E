@@ -2,6 +2,10 @@
   <q-layout view="hHh lpR fFf">
     <q-page-container>
 
+      <!-- Wrapper que bloqueia scroll livre -->
+      <div class="page-wrapper">
+      <div class="page-slider" :class="{ 'slide-down': showRequisicao }">
+
       <!-- ── SEÇÃO 1: Login (100vh) ─────────────────────────────── -->
       <section class="login-section" ref="loginSection">
 
@@ -98,15 +102,15 @@
           </q-card>
         </div>
 
-        <!-- Botão scroll — ancora no rodapé da seção -->
-        <button class="scroll-cta" @click="scrollToFormularios">
+        <!-- Botão que desce para seção 2 -->
+        <button class="scroll-cta" @click="showRequisicao = true">
           Requisição de Materiais
           <span class="scroll-arrow">↓</span>
         </button>
       </section>
 
       <!-- ── SEÇÃO 2: Requisição de Materiais ───────────────────── -->
-      <section class="formularios-section" ref="formulariosSection">
+      <section class="formularios-section">
         <div class="formularios-content">
 
           <div class="req-badge">
@@ -140,11 +144,14 @@
             Fazer Requisição de Materiais
           </a>
 
-          <button class="back-cta" @click="scrollToLogin">
+          <button class="back-cta" @click="showRequisicao = false">
             ↑ Voltar ao login
           </button>
         </div>
       </section>
+
+      </div><!-- /page-slider -->
+      </div><!-- /page-wrapper -->
 
     </q-page-container>
   </q-layout>
@@ -160,8 +167,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 const $q = useQuasar()
 
-const loginSection = ref(null)
-const formulariosSection = ref(null)
+const showRequisicao = ref(false)
 
 const bgVideo = ref(null)
 const videoEnded = ref(false)
@@ -181,13 +187,6 @@ function onVideoEnded () {
   }
 }
 
-function scrollToFormularios () {
-  formulariosSection.value?.scrollIntoView({ behavior: 'smooth' })
-}
-
-function scrollToLogin () {
-  loginSection.value?.scrollIntoView({ behavior: 'smooth' })
-}
 
 const email = ref('')
 const password = ref('')
@@ -208,6 +207,23 @@ async function login () {
 </script>
 
 <style scoped>
+/* ── Wrapper: bloqueia scroll livre ────────────────────── */
+.page-wrapper {
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+.page-slider {
+  height: 200vh;
+  transition: transform 0.75s cubic-bezier(0.77, 0, 0.18, 1);
+  will-change: transform;
+}
+
+.page-slider.slide-down {
+  transform: translateY(-100vh);
+}
+
 /* ── SEÇÃO 1 ────────────────────────────────────────────── */
 .login-section {
   position: relative;
