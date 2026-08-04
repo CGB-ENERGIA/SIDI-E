@@ -6,7 +6,7 @@
         <q-btn flat dense round icon="menu" aria-label="Menu" @click="leftDrawerOpen = !leftDrawerOpen" />
 
         <q-toolbar-title class="flex items-center gap-2">
-          <q-icon name="electrical_services" size="28px" />
+          <img src="/favicon.ico" alt="CGB Energia" style="width:28px;height:28px;object-fit:contain;vertical-align:middle;" />
           <span class="text-weight-bold">SIDI-E</span>
           <span class="text-body2 text-blue-2 q-ml-xs">Inspeções</span>
         </q-toolbar-title>

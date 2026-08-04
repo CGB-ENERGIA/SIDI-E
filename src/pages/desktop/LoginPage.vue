@@ -30,7 +30,7 @@
 
         <q-card style="width: 100%; max-width: 420px; border-radius: 20px; position: relative; z-index: 10;" class="q-pa-sm login-card">
           <q-card-section class="text-center q-pt-lg">
-            <q-icon name="electrical_services" size="64px" color="primary" />
+            <img src="/favicon.ico" alt="CGB Energia" class="company-logo-login" />
             <div class="text-h5 text-weight-bold q-mt-sm">SIDI-E</div>
             <div class="text-caption text-grey-5 q-mt-xs letra-destaque">
               <span class="hl">SI</span>STEMA
@@ -253,5 +253,12 @@ async function login () {
 .hl {
   color: #4fc3f7;
   font-weight: 700;
+}
+
+.company-logo-login {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 12px rgba(79,195,247,0.4));
 }
 </style>

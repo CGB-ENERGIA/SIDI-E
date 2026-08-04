@@ -2,7 +2,7 @@
   <q-page class="mobile-page flex column items-center justify-center q-pa-lg">
     <!-- Logo -->
     <div class="text-center q-mb-xl">
-      <q-icon name="electrical_services" size="72px" color="primary" />
+      <img src="/favicon.ico" alt="CGB Energia" class="company-logo-mobile" />
       <div class="text-h5 text-weight-bold text-white q-mt-sm">SIDI-E</div>
       <div class="text-caption text-grey-4">Sistema de Inspeções</div>
     </div>
@@ -207,3 +207,11 @@ async function login () {
   }
 }
 </script>
+
+<style scoped>
+.company-logo-mobile {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+}
+</style>
