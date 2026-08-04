@@ -114,7 +114,8 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useQuasar } from 'quasar'
 
 const props = defineProps({
-  tipo: { type: String, default: 'atividade' }
+  tipo: { type: String, default: 'atividade' },
+  equipe: { type: String, default: '' }
 })
 
 const emit = defineEmits(['captured', 'cancel'])
@@ -173,6 +174,17 @@ async function switchCamera () {
   await startCamera()
 }
 
+function getCoords () {
+  return new Promise(resolve => {
+    if (!navigator.geolocation) return resolve(null)
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy }),
+      () => resolve(null),
+      { timeout: 5000, maximumAge: 30000 }
+    )
+  })
+}
+
 async function capture () {
   if (!videoEl.value || !canvasEl.value) return
   processing.value = true
@@ -180,6 +192,9 @@ async function capture () {
   // Flash effect
   flashing.value = true
   setTimeout(() => { flashing.value = false }, 200)
+
+  // Request GPS in parallel with drawing
+  const coordsPromise = getCoords()
 
   const video = videoEl.value
   const canvas = canvasEl.value
@@ -189,7 +204,6 @@ async function capture () {
 
   const ctx = canvas.getContext('2d')
 
-  // Flip horizontally if using front camera
   if (facingMode === 'user') {
     ctx.scale(-1, 1)
     ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height)
@@ -197,14 +211,34 @@ async function capture () {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
   }
 
-  // Add timestamp watermark
+  stopCamera()
+
+  const coords = await coordsPromise
+
+  // Build watermark lines
   const now = new Date()
-  const stamp = now.toLocaleString('pt-BR')
-  ctx.font = 'bold 18px sans-serif'
-  ctx.fillStyle = 'rgba(0,0,0,0.5)'
-  ctx.fillRect(8, canvas.height - 36, ctx.measureText(stamp).width + 20, 28)
+  const lines = [
+    now.toLocaleString('pt-BR'),
+    props.equipe || '',
+    coords
+      ? `GPS: ${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)} (±${Math.round(coords.acc)}m)`
+      : 'GPS: indisponível'
+  ].filter(Boolean)
+
+  const fontSize = Math.max(16, Math.round(canvas.width * 0.022))
+  ctx.font = `bold ${fontSize}px sans-serif`
+  const lineH = fontSize + 6
+  const pad = 10
+  const boxH = lines.length * lineH + pad
+  const boxW = Math.max(...lines.map(l => ctx.measureText(l).width)) + pad * 2
+
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'
+  ctx.fillRect(0, canvas.height - boxH, boxW, boxH)
+
   ctx.fillStyle = 'white'
-  ctx.fillText(stamp, 18, canvas.height - 14)
+  lines.forEach((line, i) => {
+    ctx.fillText(line, pad, canvas.height - boxH + pad + fontSize + i * lineH)
+  })
 
   capturedImage.value = canvas.toDataURL('image/jpeg', 0.85)
 
@@ -212,8 +246,6 @@ async function capture () {
     capturedBlob.value = blob
     processing.value = false
   }, 'image/jpeg', 0.85)
-
-  stopCamera()
 }
 
 function retake () {

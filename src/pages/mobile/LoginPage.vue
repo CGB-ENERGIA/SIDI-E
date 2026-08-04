@@ -161,12 +161,14 @@ async function buscarEquipe () {
   equipeNaoEncontrada.value = false
 
   try {
-    if (onlineStore.isOnline) {
-      const { data } = await supabase
+    const testMode = import.meta.env.VITE_TEST_MODE === 'true'
+    if (onlineStore.isOnline && !testMode) {
+      const { data, error } = await supabase
         .from('teams')
         .select('*')
         .eq('prefixo', prefixo)
         .single()
+      if (error) throw error
       equipeEncontrada.value = data || null
     } else {
       equipeEncontrada.value = await offlineDB.getTeamByPrefixo(prefixo)

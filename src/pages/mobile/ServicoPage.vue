@@ -107,22 +107,34 @@
       />
     </div>
 
-    <!-- Step 2: Activity + photos -->
+    <!-- Step 2: Activity -->
     <div v-if="step === 2">
-      <!-- Select activity -->
+      <!-- Select or type activity -->
       <q-select
         v-model="form.activity"
-        :options="activities"
+        :options="filteredActivities"
         option-label="nome"
-        option-value="id"
         label="Atividade / Serviço *"
         outlined
         class="q-mb-md"
-        :rules="[v => !!v || 'Selecione a atividade']"
-        emit-value
-        map-options
+        :rules="[v => !!v || 'Informe a atividade']"
+        use-input
+        input-debounce="0"
+        new-value-mode="add-unique"
+        @filter="filterActivities"
+        @new-value="createActivity"
+        hint="Selecione da lista ou digite um serviço personalizado"
       >
         <template #prepend><q-icon name="task" /></template>
+        <template #no-option="{ inputValue }">
+          <q-item clickable @click="createActivity(inputValue, v => { form.activity = v })">
+            <q-item-section>
+              <q-item-label class="text-primary">
+                <q-icon name="add" /> Adicionar "{{ inputValue }}"
+              </q-item-label>
+            </q-item-section>
+          </q-item>
+        </template>
       </q-select>
 
       <!-- Description -->
@@ -135,44 +147,6 @@
         class="q-mb-md"
       />
 
-      <!-- Activity photos (min 2 per team) -->
-      <div class="text-subtitle2 text-weight-bold q-mb-sm">
-        <q-icon name="photo_library" class="q-mr-xs" />
-        Fotos da atividade
-        <q-badge
-          :color="atividadePhotos.length >= minPhotos ? 'positive' : 'orange'"
-          :label="`${atividadePhotos.length} / ${minPhotos} mín.`"
-          class="q-ml-sm"
-        />
-      </div>
-
-      <div class="text-caption text-grey-6 q-mb-sm">
-        Mínimo de {{ minPhotos }} foto(s) por equipe.
-        Você pode adicionar mais para melhor documentação.
-      </div>
-
-      <div class="photo-grid q-mb-md">
-        <div v-for="(photo, idx) in atividadePhotos" :key="idx" class="relative-position">
-          <img :src="photo.previewUrl" class="photo-thumb" />
-          <q-btn
-            round dense icon="close" color="negative" size="xs"
-            class="absolute-top-right q-ma-xs"
-            @click="removeAtividadePhoto(idx)"
-          />
-        </div>
-        <!-- Add more button tile -->
-        <div
-          class="flex items-center justify-center bg-grey-2 rounded-borders cursor-pointer"
-          style="aspect-ratio: 1; border: 2px dashed #ccc; border-radius: 8px;"
-          @click="openCamera('atividade')"
-        >
-          <div class="text-center">
-            <q-icon name="add_a_photo" size="28px" color="grey-5" />
-            <div class="text-caption text-grey-5 q-mt-xs">Adicionar</div>
-          </div>
-        </div>
-      </div>
-
       <div class="flex gap-sm">
         <q-btn outline rounded color="grey" label="Voltar" class="col" @click="step = 1" />
         <q-btn
@@ -182,7 +156,7 @@
           label="Próximo"
           icon-right="arrow_forward"
           class="col"
-          :disable="!form.activity || atividadePhotos.length < minPhotos"
+          :disable="!form.activity"
           @click="step = 3"
         />
       </div>
@@ -216,13 +190,6 @@
                 <q-item-label>{{ epiPhotos.length }} foto(s) ✓</q-item-label>
               </q-item-section>
             </q-item>
-            <q-item>
-              <q-item-section avatar><q-icon name="photo_library" color="primary" /></q-item-section>
-              <q-item-section>
-                <q-item-label caption>Fotos da atividade</q-item-label>
-                <q-item-label>{{ atividadePhotos.length }} foto(s) ✓</q-item-label>
-              </q-item-section>
-            </q-item>
           </q-list>
         </q-card-section>
       </q-card>
@@ -253,6 +220,7 @@
     <CameraCapture
       v-if="showCamera"
       :tipo="cameraTipo"
+      :equipe="`${session.prefixo} — ${session.equipeName}`"
       @captured="onPhotoCaptured"
       @cancel="showCamera = false"
     />
@@ -284,30 +252,51 @@ const cameraTipo = ref('epi')
 const activities = ref([])
 
 const epiPhotos = ref([])
-const atividadePhotos = ref([])
+const filteredActivities = ref([])
 
 const form = ref({
   activity: null,
+  activityLabel: '',
   descricao: ''
 })
 
-const minPhotos = 2
-
 const selectedActivityName = computed(() => {
-  const act = activities.value.find(a => a.id === form.value.activity)
-  return act?.nome || ''
+  if (!form.value.activity) return ''
+  if (typeof form.value.activity === 'string') return form.value.activity
+  return form.value.activity.nome || ''
 })
 
+function filterActivities (val, update) {
+  update(() => {
+    if (!val) {
+      filteredActivities.value = activities.value
+    } else {
+      const needle = val.toLowerCase()
+      filteredActivities.value = activities.value.filter(a => a.nome.toLowerCase().includes(needle))
+    }
+  })
+}
+
+function createActivity (val, done) {
+  if (val.trim()) {
+    done(val.trim(), 'add-unique')
+  }
+}
+
 onMounted(async () => {
-  // Load activities (online first, then local)
+  const testMode = import.meta.env.VITE_TEST_MODE === 'true'
   try {
-    if (onlineStore.isOnline) {
-      const { data } = await supabase.from('activities').select('*').order('nome')
+    if (onlineStore.isOnline && !testMode) {
+      const { data, error } = await supabase.from('activities').select('*').order('nome')
+      if (error) throw error
       activities.value = data || []
+    } else {
+      activities.value = await offlineDB.getActivities()
     }
   } catch {
-    // fallback empty
+    activities.value = await offlineDB.getActivities()
   }
+  filteredActivities.value = activities.value
 })
 
 function openCamera (tipo) {
@@ -317,22 +306,13 @@ function openCamera (tipo) {
 
 function onPhotoCaptured (blob) {
   const previewUrl = URL.createObjectURL(blob)
-  if (cameraTipo.value === 'epi') {
-    epiPhotos.value.push({ blob, previewUrl })
-  } else {
-    atividadePhotos.value.push({ blob, previewUrl })
-  }
+  epiPhotos.value.push({ blob, previewUrl })
   showCamera.value = false
 }
 
 function removeEpiPhoto (idx) {
   URL.revokeObjectURL(epiPhotos.value[idx].previewUrl)
   epiPhotos.value.splice(idx, 1)
-}
-
-function removeAtividadePhoto (idx) {
-  URL.revokeObjectURL(atividadePhotos.value[idx].previewUrl)
-  atividadePhotos.value.splice(idx, 1)
 }
 
 async function saveService () {
@@ -344,23 +324,18 @@ async function saveService () {
     await offlineDB.saveService({
       id: serviceId,
       teamId: session.equipeId,
-      activityId: form.value.activity,
+      activityId: typeof form.value.activity === 'object' ? form.value.activity?.id : null,
       activityName: selectedActivityName.value,
       descricao: form.value.descricao,
       colaboradores: session.colaboradores,
       data: session.data
     })
 
-    // Save all photos locally
-    const allPhotos = [
-      ...epiPhotos.value.map(p => ({ ...p, tipo: 'epi' })),
-      ...atividadePhotos.value.map(p => ({ ...p, tipo: 'atividade' }))
-    ]
-
-    for (const photo of allPhotos) {
+    // Save EPI photos locally
+    for (const photo of epiPhotos.value) {
       await offlineDB.savePhoto({
         serviceId,
-        tipo: photo.tipo,
+        tipo: 'epi',
         blob: photo.blob
       })
     }

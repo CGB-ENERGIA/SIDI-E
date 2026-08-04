@@ -34,6 +34,15 @@ export const offlineDB = {
     return db.teams.where('prefixo').equals(prefixo).first()
   },
 
+  // ── Activities ────────────────────────────────────────────────
+  async saveActivity (activity) {
+    return db.activities.put(activity)
+  },
+
+  async getActivities () {
+    return db.activities.toArray()
+  },
+
   // ── Services ──────────────────────────────────────────────────
   async saveService (service) {
     return db.services.put({ ...service, syncStatus: 'pending', createdAt: new Date().toISOString() })
