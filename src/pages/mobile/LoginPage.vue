@@ -161,8 +161,7 @@ async function buscarEquipe () {
   equipeNaoEncontrada.value = false
 
   try {
-    const testMode = import.meta.env.VITE_TEST_MODE === 'true'
-    if (onlineStore.isOnline && !testMode) {
+    if (onlineStore.isOnline) {
       const { data, error } = await supabase
         .from('teams')
         .select('*')
@@ -175,7 +174,6 @@ async function buscarEquipe () {
     }
     equipeNaoEncontrada.value = !equipeEncontrada.value
   } catch {
-    // Try offline fallback
     equipeEncontrada.value = await offlineDB.getTeamByPrefixo(prefixo)
     equipeNaoEncontrada.value = !equipeEncontrada.value
   } finally {

@@ -12,11 +12,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   // ── Desktop auth (Supabase) ───────────────────────────────────
   async function desktopLogin (email, password) {
-    const testMode = import.meta.env.VITE_TEST_MODE === 'true'
-    if (testMode) {
-      desktopUser.value = { id: 'test-user', email, role: 'admin' }
-      return
-    }
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
     desktopUser.value = data.user
@@ -24,21 +19,17 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function desktopLogout () {
-    const testMode = import.meta.env.VITE_TEST_MODE === 'true'
-    if (!testMode) await supabase.auth.signOut()
+    await supabase.auth.signOut()
     desktopUser.value = null
   }
 
   async function loadDesktopSession () {
-    const testMode = import.meta.env.VITE_TEST_MODE === 'true'
-    if (testMode) return
     const { data } = await supabase.auth.getSession()
     desktopUser.value = data.session?.user ?? null
   }
 
   // ── Mobile auth (team prefix + collaborators, local only) ─────
   function mobileLogin (sessionData) {
-    // sessionData: { prefixo, equipeId, colaboradores[], data }
     const session = { ...sessionData, loginAt: new Date().toISOString() }
     mobileSession.value = session
     LocalStorage.set('gstc_mobile_session', session)

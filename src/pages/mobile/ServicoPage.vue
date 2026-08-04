@@ -284,9 +284,8 @@ function createActivity (val, done) {
 }
 
 onMounted(async () => {
-  const testMode = import.meta.env.VITE_TEST_MODE === 'true'
   try {
-    if (onlineStore.isOnline && !testMode) {
+    if (onlineStore.isOnline) {
       const { data, error } = await supabase.from('activities').select('*').order('nome')
       if (error) throw error
       activities.value = data || []
