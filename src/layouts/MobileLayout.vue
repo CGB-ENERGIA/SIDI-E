@@ -1,5 +1,21 @@
 <template>
   <q-layout view="hHh lpR fFf">
+
+    <!-- PWA install banner -->
+    <transition name="slide-up">
+      <div v-if="showInstallBanner" class="pwa-install-banner">
+        <img src="/icons/icon-192x192.png" class="pwa-banner-icon" alt="SIDI-E" />
+        <div class="pwa-banner-text">
+          <div class="pwa-banner-title">Instalar SIDI-E</div>
+          <div class="pwa-banner-sub">Acesse offline, mais rápido</div>
+        </div>
+        <q-btn unelevated rounded dense color="white" text-color="primary"
+          label="Instalar" class="pwa-banner-btn" @click="installPwa" />
+        <q-btn flat round dense icon="close" color="white" size="sm"
+          class="q-ml-xs" @click="showInstallBanner = false" />
+      </div>
+    </transition>
+
     <!-- Header only shown when logged in -->
     <q-header v-if="authStore.isMobileLoggedIn" elevated class="bg-primary">
       <q-toolbar>
@@ -38,7 +54,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
 import { useOnlineStore } from 'src/stores/online'
@@ -50,6 +66,36 @@ const router = useRouter()
 const authStore = useAuthStore()
 const onlineStore = useOnlineStore()
 const $q = useQuasar()
+
+// ── PWA install prompt ────────────────────────────────
+const showInstallBanner = ref(false)
+let deferredPrompt = null
+
+function onBeforeInstallPrompt (e) {
+  e.preventDefault()
+  deferredPrompt = e
+  // Só mostra se não estiver rodando como PWA instalada
+  if (window.matchMedia('(display-mode: standalone)').matches) return
+  showInstallBanner.value = true
+}
+
+async function installPwa () {
+  if (!deferredPrompt) return
+  showInstallBanner.value = false
+  deferredPrompt.prompt()
+  const { outcome } = await deferredPrompt.userChoice
+  if (outcome === 'accepted') {
+    $q.notify({ type: 'positive', message: 'SIDI-E instalado com sucesso!' })
+  }
+  deferredPrompt = null
+}
+
+onMounted(() => {
+  window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt)
+})
 
 const pageTitles = {
   MobileLogin: 'Entrar',
@@ -84,3 +130,62 @@ function logoutConfirm () {
   })
 }
 </script>
+
+<style scoped>
+.pwa-install-banner {
+  position: fixed;
+  bottom: 16px;
+  left: 12px;
+  right: 12px;
+  z-index: 9999;
+  background: linear-gradient(135deg, #0f3460, #1a1a2e);
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+.pwa-banner-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.pwa-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.pwa-banner-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.pwa-banner-sub {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.55);
+  margin-top: 1px;
+}
+
+.pwa-banner-btn {
+  flex-shrink: 0;
+  font-weight: 700;
+  padding: 4px 14px;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s;
+}
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translateY(80px);
+  opacity: 0;
+}
+</style>
