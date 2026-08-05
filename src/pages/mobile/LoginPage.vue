@@ -120,7 +120,7 @@
               <div class="row items-center">
                 <q-btn flat dense round icon="edit" size="xs" color="grey-4"
                   @click="editarColaborador(col)" title="Alterar nome" />
-                <q-btn v-if="form.colaboradores.length > 1" flat dense round icon="close"
+                <q-btn v-if="form.colaboradores.length > 2" flat dense round icon="close"
                   size="xs" color="negative" @click="removeColaborador(idx)" />
               </div>
             </div>
@@ -162,7 +162,7 @@
                   </q-item>
                 </template>
               </q-select>
-              <q-btn v-if="form.colaboradores.length > 1" flat round dense
+              <q-btn v-if="form.colaboradores.length > 2" flat round dense
                 icon="remove_circle" color="negative" @click="removeColaborador(idx)" />
             </div>
 
@@ -250,7 +250,10 @@ const today = new Date().toISOString().split('T')[0]
 
 const form = ref({
   prefixo: '',
-  colaboradores: [{ nome: '', validated: false, validating: false, isNew: false }],
+  colaboradores: [
+    { nome: '', validated: false, validating: false, isNew: false },
+    { nome: '', validated: false, validating: false, isNew: false }
+  ],
   data: today
 })
 
@@ -260,7 +263,7 @@ const colaboradoresPendentes = computed(() =>
 
 const podeEntrar = computed(() =>
   equipeEncontrada.value &&
-  form.value.colaboradores.length > 0 &&
+  form.value.colaboradores.length >= 2 &&
   form.value.colaboradores.every(c => c.validated)
 )
 
@@ -296,15 +299,21 @@ function onEquipeSelecionada (equipe) {
     form.value.prefixo = equipe.prefixo
     equipeNaoEncontrada.value = false
     solicitacaoEnviada.value = false
-    // Reseta colaboradores ao trocar equipe
-    form.value.colaboradores = [{ nome: '', validated: false, validating: false, isNew: false }]
+    // Reseta colaboradores ao trocar equipe (mínimo 2)
+    form.value.colaboradores = [
+      { nome: '', validated: false, validating: false, isNew: false },
+      { nome: '', validated: false, validating: false, isNew: false }
+    ]
     loadTeamCollaborators(equipe.id)
   } else {
     form.value.prefixo = ''
     equipeNaoEncontrada.value = false
     teamCollaborators.value = []
     filteredCollabs.value = []
-    form.value.colaboradores = [{ nome: '', validated: false, validating: false, isNew: false }]
+    form.value.colaboradores = [
+      { nome: '', validated: false, validating: false, isNew: false },
+      { nome: '', validated: false, validating: false, isNew: false }
+    ]
   }
 }
 
