@@ -43,6 +43,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
 import { useOnlineStore } from 'src/stores/online'
 import { useQuasar } from 'quasar'
+import { supabase } from 'src/services/supabase'
 
 const route = useRoute()
 const router = useRouter()
@@ -70,7 +71,14 @@ function logoutConfirm () {
     message: 'Deseja realmente encerrar o turno? Dados offline serão sincronizados antes de sair.',
     cancel: true,
     persistent: true
-  }).onOk(() => {
+  }).onOk(async () => {
+    const session = authStore.mobileSession
+    if (session?.equipeId && onlineStore.isOnline) {
+      await supabase
+        .from('active_sessions')
+        .delete()
+        .eq('team_id', session.equipeId)
+    }
     authStore.mobileLogout()
     router.replace('/m/login')
   })

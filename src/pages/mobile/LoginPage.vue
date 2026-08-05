@@ -417,6 +417,24 @@ async function validarColaborador (col) {
 
   try {
     if (onlineStore.isOnline) {
+      // Verifica se já está em turno ativo em outra equipe
+      const { data: sessaoAtiva } = await supabase
+        .from('active_sessions')
+        .select('prefixo, team_id')
+        .ilike('colaborador', nome)
+        .neq('team_id', equipeEncontrada.value.id)
+        .maybeSingle()
+
+      if (sessaoAtiva) {
+        col.nome = ''
+        col.validated = false
+        $q.notify({
+          type: 'negative',
+          message: `"${nome}" já está em turno ativo na equipe ${sessaoAtiva.prefixo}.`
+        })
+        return
+      }
+
       // Verifica se já existe no banco
       const { data: existing } = await supabase
         .from('collaborators')
@@ -498,6 +516,18 @@ async function login () {
     const nomes = form.value.colaboradores
       .filter(c => c.validated && c.nome.trim())
       .map(c => c.nome.trim().toUpperCase())
+
+    // Registra sessão ativa para cada colaborador (online)
+    if (onlineStore.isOnline) {
+      await supabase.from('active_sessions').insert(
+        nomes.map(nome => ({
+          team_id: equipeEncontrada.value.id,
+          prefixo: form.value.prefixo.toUpperCase(),
+          colaborador: nome,
+          data: form.value.data
+        }))
+      )
+    }
 
     authStore.mobileLogin({
       prefixo: form.value.prefixo.toUpperCase(),
