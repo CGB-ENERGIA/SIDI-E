@@ -34,7 +34,7 @@
         <!-- Card de login centralizado -->
         <div class="login-center">
           <q-card style="width: 100%; max-width: 420px; border-radius: 20px;" class="q-pa-sm login-card">
-            <q-card-section class="text-center q-pt-lg">
+            <q-card-section class="text-center q-pt-lg brand-header">
               <div class="logo-shine-wrap">
                 <img src="/icons/icon-512x512.png" alt="CGB Energia" class="company-logo-login" />
               </div>
@@ -366,6 +366,13 @@ async function login () {
   box-shadow: 0 8px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 
+/* ── Brand header: force stacked layout ────────────────── */
+.brand-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 /* ── Logo shine ────────────────────────────────────────── */
 .logo-shine-wrap {
   position: relative;
@@ -406,7 +413,7 @@ async function login () {
 
 /* ── SIDI-E gradient text shine ────────────────────────── */
 .sidi-shine {
-  display: inline-block;
+  display: block;
   background: linear-gradient(
     90deg,
     #ffffff 0%,
@@ -432,7 +439,7 @@ async function login () {
 /* ── Subtitle sweep ─────────────────────────────────────── */
 .subtitle-shine-wrap {
   position: relative;
-  display: inline-block;
+  display: block;
   overflow: hidden;
 }
 

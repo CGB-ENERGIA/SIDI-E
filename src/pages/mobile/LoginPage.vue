@@ -1,7 +1,7 @@
 <template>
   <q-page class="mobile-page flex column items-center justify-center q-pa-lg">
     <!-- Logo -->
-    <div class="text-center q-mb-xl">
+    <div class="text-center q-mb-xl brand-header">
       <div class="logo-shine-wrap">
         <img src="/icons/icon-512x512.png" alt="CGB Energia" class="company-logo-mobile" />
       </div>
@@ -556,6 +556,12 @@ async function login () {
 </script>
 
 <style scoped>
+.brand-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .company-logo-mobile {
   width: 80px;
   height: 80px;
@@ -598,7 +604,7 @@ async function login () {
 
 /* ── SIDI-E gradient text shine ────────────────────────── */
 .sidi-shine {
-  display: inline-block;
+  display: block;
   background: linear-gradient(
     90deg,
     #ffffff 0%,
@@ -624,7 +630,7 @@ async function login () {
 /* ── Subtitle sweep ─────────────────────────────────────── */
 .subtitle-shine-wrap {
   position: relative;
-  display: inline-block;
+  display: block;
   overflow: hidden;
 }
 
