@@ -141,6 +141,7 @@
                 outlined dense use-input fill-input hide-selected
                 new-value-mode="add-unique"
                 input-debounce="0"
+                behavior="menu"
                 class="col input-upper"
                 @filter="filterCollab"
                 @update:model-value="v => onCollabSelected(col, v)"
