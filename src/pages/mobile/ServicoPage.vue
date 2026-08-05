@@ -341,14 +341,14 @@ async function saveService () {
   try {
     const serviceId = `local_${Date.now()}`
 
-    // Save service record
+    // Save service record (spread reactive arrays/objects to plain values for IndexedDB)
     await offlineDB.saveService({
       id: serviceId,
       teamId: session.equipeId,
       activityId: typeof form.value.activity === 'object' ? form.value.activity?.id : null,
       activityName: selectedActivityName.value,
       descricao: form.value.descricao,
-      colaboradores: session.colaboradores,
+      colaboradores: [...(session.colaboradores || [])],
       data: session.data
     })
 
