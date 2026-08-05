@@ -8,6 +8,7 @@ export const useEvidenceStore = defineStore('evidence', () => {
   const currentService = ref(null)
   const photos = ref([])
   const syncing = ref(false)
+  const lastSyncErrors = ref([])
 
   function startService (payload) {
     currentService.value = {
@@ -38,7 +39,6 @@ export const useEvidenceStore = defineStore('evidence', () => {
     return photoWithId
   }
 
-  // Remove foto da memória E do IndexedDB
   async function removePhoto (photoId) {
     photos.value = photos.value.filter(p => p.id !== photoId)
     await offlineDB.deletePhoto(photoId)
@@ -51,17 +51,38 @@ export const useEvidenceStore = defineStore('evidence', () => {
     return id
   }
 
+  /**
+   * @returns {{ ok: boolean, synced: number, remaining: number, errors: string[] }}
+   */
   async function syncPending () {
     const online = useOnlineStore()
-    if (!online.isOnline || syncing.value) return
+    if (!online.isOnline) {
+      return { ok: false, synced: 0, remaining: online.pendingCount, errors: ['Sem conexão'] }
+    }
+    if (syncing.value) {
+      return { ok: false, synced: 0, remaining: online.pendingCount, errors: ['Sincronização já em andamento'] }
+    }
 
     syncing.value = true
+    lastSyncErrors.value = []
+    let synced = 0
+
     try {
+      const before = await offlineDB.getPendingCount()
       await syncPendingServices()
       await syncPendingPhotos()
+      const remaining = await offlineDB.getPendingCount()
+      online.setPendingCount(remaining)
+      synced = Math.max(0, before - remaining)
+
+      return {
+        ok: remaining === 0,
+        synced,
+        remaining,
+        errors: [...lastSyncErrors.value]
+      }
     } finally {
       syncing.value = false
-      // Atualiza contagem após sync
       const count = await offlineDB.getPendingCount()
       online.setPendingCount(count)
     }
@@ -71,13 +92,15 @@ export const useEvidenceStore = defineStore('evidence', () => {
     const pendingServices = await offlineDB.getPendingServices()
     for (const svc of pendingServices) {
       try {
+        const activityId = resolveActivityId(svc.activityId)
+
         const payload = {
-          team_id:       svc.teamId,
-          activity_id:   svc.activityId,
-          activity_name: svc.activityName,
+          team_id:       svc.teamId || null,
+          activity_id:   activityId,
+          activity_name: svc.activityName || null,
           descricao:     svc.descricao || null,
           colaboradores: svc.colaboradores || [],
-          data:          svc.data,
+          data:          svc.data || null,
           status:        'concluido',
           sync_status:   'synced'
         }
@@ -89,44 +112,67 @@ export const useEvidenceStore = defineStore('evidence', () => {
         if (error) throw error
         await offlineDB.markServiceSynced(svc.id, data.id)
       } catch (e) {
-        console.error('Sync service failed:', svc.id, e.message)
-        await offlineDB.markServiceError(svc.id) // incrementa tentativas, marca 'error' após 3
+        const msg = e?.message || String(e)
+        console.error('Sync service failed:', svc.id, msg)
+        lastSyncErrors.value.push(`Serviço: ${msg}`)
+        await offlineDB.markServiceError(svc.id)
       }
     }
+  }
+
+  function resolveActivityId (activityId) {
+    if (!activityId) return null
+    if (typeof activityId === 'object') return activityId.id || null
+    if (typeof activityId === 'string') {
+      const looksUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(activityId)
+      return looksUuid ? activityId : null
+    }
+    return null
   }
 
   async function syncPendingPhotos () {
     const pendingPhotos = await offlineDB.getPendingPhotos()
     for (const photo of pendingPhotos) {
       try {
+        if (!photo.blob) {
+          throw new Error('Foto sem dados locais (blob ausente)')
+        }
+
         let serviceId = photo.serviceId
-        if (typeof serviceId === 'string' && serviceId.startsWith('local_')) {
-          const { db } = await import('src/services/localDB')
-          const localSvc = await db.services.get(serviceId)
-          if (localSvc?.remoteId) serviceId = localSvc.remoteId
-          else continue // serviço ainda não sincronizou, tenta na próxima rodada
+        if (
+          typeof serviceId === 'string' &&
+          (serviceId.startsWith('local_') || serviceId.startsWith('legacy_') || !/^[0-9a-f-]{36}$/i.test(serviceId))
+        ) {
+          const remoteId = await offlineDB.resolveRemoteServiceId(serviceId, photo.createdAt)
+          if (!remoteId) {
+            // Serviço ainda não sincronizou — tenta na próxima rodada
+            continue
+          }
+          serviceId = remoteId
         }
 
         const filename = `${serviceId}/${photo.tipo}_${photo.id}_${Date.now()}.jpg`
         const file = new File([photo.blob], filename, { type: 'image/jpeg' })
         await storage.uploadPhoto('evidencias', filename, file)
 
-        await supabase.from('evidence_photos').insert({
+        const { error } = await supabase.from('evidence_photos').insert({
           service_id: serviceId,
           tipo:       photo.tipo,
           file_path:  filename,
           created_at: photo.createdAt
         })
+        if (error) throw error
 
         await offlineDB.markPhotoSynced(photo.id, filename)
       } catch (e) {
-        console.error('Sync photo failed:', photo.id, e.message)
-        await offlineDB.markPhotoError(photo.id) // marca 'error' após 3 tentativas
+        const msg = e?.message || String(e)
+        console.error('Sync photo failed:', photo.id, msg)
+        lastSyncErrors.value.push(`Foto: ${msg}`)
+        await offlineDB.markPhotoError(photo.id)
       }
     }
   }
 
-  // Desktop: busca evidências do Supabase com fallback local mínimo
   async function fetchEvidences (filters = {}) {
     try {
       let query = supabase
@@ -147,7 +193,7 @@ export const useEvidenceStore = defineStore('evidence', () => {
   }
 
   return {
-    currentService, photos, syncing,
+    currentService, photos, syncing, lastSyncErrors,
     startService, addPhoto, removePhoto,
     saveServiceLocally, syncPending, fetchEvidences
   }

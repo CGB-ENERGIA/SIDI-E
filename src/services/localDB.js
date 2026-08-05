@@ -11,7 +11,25 @@ db.version(1).stores({
   syncQueue:     '++id, entity, action, attempts, createdAt'
 })
 
-// syncStatus values: 'pending' | 'synced' | 'error'
+// v2: índice localId para vincular fotos (serviceId local_*) ao serviço sincronizado
+db.version(2).stores({
+  teams:         'id, prefixo, nome, status, createdAt',
+  collaborators: '++id, teamId, nome',
+  activities:    'id, nome, tipo',
+  services:      '++id, localId, teamId, activityId, data, syncStatus, attempts, createdAt',
+  evidencePhotos:'++id, serviceId, tipo, syncStatus, attempts, createdAt',
+  syncQueue:     '++id, entity, action, attempts, createdAt'
+}).upgrade(async tx => {
+  const rows = await tx.table('services').toArray()
+  for (const row of rows) {
+    if (!row.localId) {
+      const localId = (typeof row.id === 'string' && String(row.id).startsWith('local_'))
+        ? row.id
+        : `legacy_${row.id}`
+      await tx.table('services').update(row.id, { localId })
+    }
+  }
+})
 
 export const offlineDB = {
   // ── Teams ─────────────────────────────────────────────────────
@@ -51,13 +69,26 @@ export const offlineDB = {
   },
 
   // ── Services ──────────────────────────────────────────────────
+  /**
+   * Salva serviço offline. Retorna o localId (string local_*) usado pelas fotos.
+   * PK Dexie continua autoincrement; localId é o vínculo estável.
+   */
   async saveService (service) {
-    return db.services.put({
-      ...service,
+    const localId = service.localId ||
+      (typeof service.id === 'string' && service.id.startsWith('local_') ? service.id : null) ||
+      `local_${Date.now()}`
+
+    // Não forçar id string no store ++id (quebra a PK)
+    const { id: _ignore, ...rest } = service
+    const record = {
+      ...rest,
+      localId,
       syncStatus: service.syncStatus || 'pending',
       attempts: service.attempts || 0,
       createdAt: service.createdAt || new Date().toISOString()
-    })
+    }
+    await db.services.put(record)
+    return localId
   },
 
   async getAllServices () {
@@ -79,8 +110,64 @@ export const offlineDB = {
   },
 
   async deleteService (id) {
-    await db.evidencePhotos.where('serviceId').equals(id).delete()
+    const svc = await db.services.get(id)
+    if (svc?.localId) {
+      await db.evidencePhotos.where('serviceId').equals(svc.localId).delete()
+    }
     return db.services.delete(id)
+  },
+
+  /**
+   * Resolve UUID remoto a partir do serviceId gravado na foto (local_*).
+   */
+  async resolveRemoteServiceId (serviceId, photoCreatedAt = null) {
+    if (!serviceId) return null
+
+    // Já é UUID remoto
+    if (
+      typeof serviceId === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(serviceId)
+    ) {
+      return serviceId
+    }
+
+    // Busca por localId (vínculo correto)
+    let svc = await db.services.where('localId').equals(String(serviceId)).first()
+    if (svc?.remoteId) return svc.remoteId
+
+    // Busca direta pela PK (legado)
+    svc = await db.services.get(serviceId)
+    if (svc?.remoteId) return svc.remoteId
+
+    // Recuperação: foto órfã (serviço já syncou com PK numérica sem localId)
+    if (typeof serviceId === 'string' && serviceId.startsWith('local_')) {
+      const synced = (await db.services.toArray())
+        .filter(s => s.remoteId && s.syncStatus === 'synced')
+        .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+
+      if (!synced.length) return null
+
+      if (photoCreatedAt) {
+        const photoTime = new Date(photoCreatedAt).getTime()
+        const closest = synced
+          .map(s => ({ s, dist: Math.abs(new Date(s.createdAt).getTime() - photoTime) }))
+          .sort((a, b) => a.dist - b.dist)[0]
+        // Janela de 30 min — típico do fluxo offline → sync
+        if (closest && Number.isFinite(closest.dist) && closest.dist < 30 * 60 * 1000) {
+          // Repara o vínculo para próximas tentativas
+          await db.services.update(closest.s.id, { localId: serviceId })
+          return closest.s.remoteId
+        }
+      }
+
+      // Fallback: único serviço synced recente
+      if (synced.length === 1) {
+        await db.services.update(synced[0].id, { localId: serviceId })
+        return synced[0].remoteId
+      }
+    }
+
+    return null
   },
 
   // ── Photos ────────────────────────────────────────────────────

@@ -339,20 +339,21 @@ function removeEpiPhoto (idx) {
 async function saveService () {
   saving.value = true
   try {
-    const serviceId = `local_${Date.now()}`
-
     // Save service record (spread reactive arrays/objects to plain values for IndexedDB)
-    await offlineDB.saveService({
-      id: serviceId,
+    const activityId = typeof form.value.activity === 'object'
+      ? (form.value.activity?.id || null)
+      : null
+
+    const serviceId = await offlineDB.saveService({
       teamId: session.equipeId,
-      activityId: typeof form.value.activity === 'object' ? form.value.activity?.id : null,
+      activityId,
       activityName: selectedActivityName.value,
       descricao: form.value.descricao,
       colaboradores: [...(session.colaboradores || [])],
       data: session.data
     })
 
-    // Save EPI photos locally
+    // Save EPI photos locally (serviceId = local_* estável)
     for (const photo of epiPhotos.value) {
       await offlineDB.savePhoto({
         serviceId,

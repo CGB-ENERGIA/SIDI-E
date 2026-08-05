@@ -127,9 +127,18 @@ async function syncNow () {
   }
   syncing.value = true
   try {
-    await evidenceStore.syncPending()
+    const result = await evidenceStore.syncPending()
     await load()
-    $q.notify({ type: 'positive', message: 'Sincronização concluída!' })
+    if (result.ok) {
+      $q.notify({ type: 'positive', message: 'Sincronização concluída!' })
+    } else if (result.errors?.length) {
+      $q.notify({ type: 'warning', message: result.errors[0], timeout: 5000 })
+    } else {
+      $q.notify({
+        type: 'warning',
+        message: `Não foi possível enviar ${result.remaining} item(ns). Tente novamente.`
+      })
+    }
   } catch (e) {
     $q.notify({ type: 'negative', message: e.message })
   } finally {

@@ -111,13 +111,25 @@ async function triggerSync () {
   }
   syncing.value = true
   try {
-    await evidenceStore.syncPending()
-    $q.notify({
-      type: onlineStore.pendingCount === 0 ? 'positive' : 'warning',
-      message: onlineStore.pendingCount === 0
-        ? 'Sincronização concluída!'
-        : `Ainda restam ${onlineStore.pendingCount} pendência(s).`
-    })
+    const result = await evidenceStore.syncPending()
+    if (result.ok) {
+      $q.notify({ type: 'positive', message: 'Sincronização concluída!' })
+    } else if (result.errors?.length) {
+      $q.notify({
+        type: 'warning',
+        message: result.errors[0],
+        caption: result.remaining > 0 ? `${result.remaining} pendência(s) restante(s)` : undefined,
+        timeout: 5000
+      })
+    } else if (result.remaining > 0) {
+      $q.notify({
+        type: 'warning',
+        message: `Não foi possível enviar ${result.remaining} item(ns). Tente novamente.`,
+        timeout: 4000
+      })
+    } else {
+      $q.notify({ type: 'positive', message: 'Sincronização concluída!' })
+    }
   } catch (e) {
     $q.notify({ type: 'negative', message: 'Erro ao sincronizar: ' + e.message })
   } finally {
