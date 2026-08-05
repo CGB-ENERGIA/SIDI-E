@@ -74,7 +74,7 @@ export default defineConfig(function (/* ctx */) {
         description: 'Sistema de Inspeção e Documentação de Instalações Elétricas',
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#1a1a2e',
+        background_color: '#0f3460',
         theme_color: '#0f3460',
         start_url: '/m/login',
         scope: '/',
