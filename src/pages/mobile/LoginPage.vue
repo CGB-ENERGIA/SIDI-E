@@ -286,9 +286,9 @@ onMounted(async () => {
     } else {
       allTeams.value = await offlineDB.getTeams?.() || []
     }
-    // Salva no IndexedDB para uso offline
+    // Salva no IndexedDB para uso offline (spread garante objeto plain, não Proxy Vue)
     if (allTeams.value.length) {
-      for (const t of allTeams.value) await offlineDB.saveTeam(t)
+      for (const t of allTeams.value) await offlineDB.saveTeam({ ...t })
     }
   } catch (e) {
     console.error('Erro ao carregar equipes:', e)

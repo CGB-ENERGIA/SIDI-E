@@ -307,8 +307,8 @@ onMounted(async () => {
       const { data, error } = await supabase.from('activities').select('*').order('nome')
       if (error) throw error
       activities.value = data || []
-      // Cacheia para uso offline
-      for (const a of activities.value) await offlineDB.saveActivity(a)
+      // Cacheia para uso offline (spread = plain object, não Proxy Vue)
+      for (const a of activities.value) await offlineDB.saveActivity({ ...a })
     } else {
       activities.value = await offlineDB.getActivities()
     }

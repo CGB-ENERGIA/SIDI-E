@@ -22,7 +22,7 @@ export const useActivitiesStore = defineStore('activities', () => {
         if (err) throw err
         activities.value = data || []
         for (const act of activities.value) {
-          await db.activities.put(act)
+          await db.activities.put({ ...act })
         }
       } else {
         activities.value = await db.activities.toArray()
@@ -43,7 +43,7 @@ export const useActivitiesStore = defineStore('activities', () => {
       .single()
     if (err) throw err
     activities.value.push(data)
-    await db.activities.put(data)
+    await db.activities.put({ ...data })
     return data
   }
 
@@ -57,7 +57,7 @@ export const useActivitiesStore = defineStore('activities', () => {
     if (err) throw err
     const idx = activities.value.findIndex(a => a.id === id)
     if (idx !== -1) activities.value[idx] = data
-    await db.activities.put(data)
+    await db.activities.put({ ...data })
     return data
   }
 

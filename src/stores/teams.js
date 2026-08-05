@@ -21,10 +21,10 @@ export const useTeamsStore = defineStore('teams', () => {
           .order('prefixo')
         if (err) throw err
         teams.value = data
-        // Cache teams and their collaborators locally
+        // Cache teams and their collaborators locally (spread = plain object, não Proxy Vue)
         for (const team of data) {
           const { collaborators, ...teamData } = team
-          await offlineDB.saveTeam(teamData)
+          await offlineDB.saveTeam({ ...teamData })
           if (collaborators?.length) {
             for (const c of collaborators) await offlineDB.saveCollaborator({ ...c, teamId: team.id })
           }
@@ -48,7 +48,7 @@ export const useTeamsStore = defineStore('teams', () => {
       .single()
     if (err) throw err
     teams.value.push(data)
-    await offlineDB.saveTeam(data)
+    await offlineDB.saveTeam({ ...data })
     return data
   }
 
@@ -62,7 +62,7 @@ export const useTeamsStore = defineStore('teams', () => {
     if (err) throw err
     const idx = teams.value.findIndex(t => t.id === id)
     if (idx !== -1) teams.value[idx] = data
-    await offlineDB.saveTeam(data)
+    await offlineDB.saveTeam({ ...data })
     return data
   }
 
