@@ -215,6 +215,9 @@ async function capture () {
 
   const coords = await coordsPromise
 
+  // Reset transform antes de desenhar o watermark (câmera frontal usa scale(-1,1))
+  ctx.setTransform(1, 0, 0, 1, 0, 0)
+
   // Build watermark lines
   const now = new Date()
   const lines = [
