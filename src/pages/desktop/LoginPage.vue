@@ -35,14 +35,18 @@
         <div class="login-center">
           <q-card style="width: 100%; max-width: 420px; border-radius: 20px;" class="q-pa-sm login-card">
             <q-card-section class="text-center q-pt-lg">
-              <img src="/favicon.ico" alt="CGB Energia" class="company-logo-login" />
-              <div class="text-h5 text-weight-bold q-mt-sm">SIDI-E</div>
-              <div class="text-caption text-grey-5 q-mt-xs letra-destaque">
-                <span class="hl">SI</span>STEMA
-                <span class="hl">D</span>E
-                <span class="hl">I</span>NSPEÇÃO
-                DE
-                <span class="hl">E</span>PIS
+              <div class="logo-shine-wrap">
+                <img src="/icons/icon-512x512.png" alt="CGB Energia" class="company-logo-login" />
+              </div>
+              <div class="text-h5 text-weight-bold q-mt-sm sidi-shine">SIDI-E</div>
+              <div class="subtitle-shine-wrap q-mt-xs">
+                <div class="text-caption text-grey-5 letra-destaque">
+                  <span class="hl">SI</span>STEMA
+                  <span class="hl">D</span>E
+                  <span class="hl">I</span>NSPEÇÃO
+                  DE
+                  <span class="hl">E</span>PIS
+                </div>
               </div>
             </q-card-section>
 
@@ -362,13 +366,103 @@ async function login () {
   box-shadow: 0 8px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 
-.letra-destaque { letter-spacing: 0.08em; font-size: 0.72rem; }
-.hl { color: #4fc3f7; font-weight: 700; }
+/* ── Logo shine ────────────────────────────────────────── */
+.logo-shine-wrap {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  border-radius: 20px;
+}
+
+.logo-shine-wrap::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  left: -120%;
+  width: 55%;
+  height: 140%;
+  background: linear-gradient(
+    108deg,
+    transparent 25%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 75%
+  );
+  transform: skewX(-10deg);
+  animation: logo-shine 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes logo-shine {
+  0%   { left: -120%; }
+  40%  { left: 160%; }
+  100% { left: 160%; }
+}
 
 .company-logo-login {
   width: 80px; height: 80px; object-fit: contain;
+  display: block;
   filter: drop-shadow(0 0 12px rgba(79,195,247,0.4));
 }
+
+/* ── SIDI-E gradient text shine ────────────────────────── */
+.sidi-shine {
+  display: inline-block;
+  background: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    #ffffff 30%,
+    #b3e5fc 48%,
+    #ffffff 66%,
+    #ffffff 100%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: text-shine 4s ease-in-out infinite;
+  animation-delay: 0.25s;
+}
+
+@keyframes text-shine {
+  0%   { background-position: 150% center; }
+  40%  { background-position: -80% center; }
+  100% { background-position: -80% center; }
+}
+
+/* ── Subtitle sweep ─────────────────────────────────────── */
+.subtitle-shine-wrap {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+}
+
+.subtitle-shine-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 55%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.75),
+    transparent
+  );
+  transform: skewX(-12deg);
+  animation: subtitle-shine 4s ease-in-out infinite;
+  animation-delay: 0.5s;
+  pointer-events: none;
+}
+
+@keyframes subtitle-shine {
+  0%   { left: -120%; }
+  40%  { left: 160%; }
+  100% { left: 160%; }
+}
+
+.letra-destaque { letter-spacing: 0.08em; font-size: 0.72rem; }
+.hl { color: #4fc3f7; font-weight: 700; }
 
 /* ── Inputs ────────────────────────────────────────────── */
 .form-gap { display: flex; flex-direction: column; gap: 16px; }
