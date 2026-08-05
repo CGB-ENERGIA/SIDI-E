@@ -1,14 +1,14 @@
 import Dexie from 'dexie'
 
-export const db = new Dexie('GSTCOfflineDB')
+export const db = new Dexie('SIDIE_v1')
 
 db.version(1).stores({
-  teams:         '++id, prefixo, nome, status, createdAt',
-  collaborators: '++id, teamId, nome, funcao',
-  activities:    '++id, nome, descricao, tipo',
-  services:      '++id, teamId, activityId, data, status, syncStatus, createdAt',
-  evidencePhotos:'++id, serviceId, tipo, filePath, blob, syncStatus, attempts, createdAt',
-  syncQueue:     '++id, entity, action, payload, attempts, createdAt'
+  teams:         'id, prefixo, nome, status, createdAt',
+  collaborators: '++id, teamId, nome',
+  activities:    'id, nome, tipo',
+  services:      '++id, teamId, activityId, data, syncStatus, attempts, createdAt',
+  evidencePhotos:'++id, serviceId, tipo, syncStatus, attempts, createdAt',
+  syncQueue:     '++id, entity, action, attempts, createdAt'
 })
 
 // syncStatus values: 'pending' | 'synced' | 'error'
