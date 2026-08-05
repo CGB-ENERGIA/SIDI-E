@@ -2,18 +2,14 @@
   <q-page class="mobile-page flex column items-center justify-center q-pa-lg">
     <!-- Logo -->
     <div class="text-center q-mb-xl brand-header">
-      <div class="logo-shine-wrap">
-        <img src="/icons/icon-512x512.png" alt="CGB Energia" class="company-logo-mobile" />
-      </div>
+      <img src="/icons/icon-512x512.png" alt="CGB Energia" class="company-logo-mobile" />
       <div class="sidi-shine text-h5 text-weight-bold q-mt-sm">SIDI-E</div>
-      <div class="subtitle-shine-wrap q-mt-xs">
-        <div class="text-caption text-grey-4 letra-destaque">
-          <span class="hl">SI</span>STEMA
-          <span class="hl">D</span>E
-          <span class="hl">I</span>NSPEÇÃO
-          DE
-          <span class="hl">E</span>PIS
-        </div>
+      <div class="text-caption text-grey-4 letra-destaque q-mt-xs">
+        <span class="hl">SI</span>STEMA
+        <span class="hl">D</span>E
+        <span class="hl">I</span>NSPEÇÃO
+        DE
+        <span class="hl">E</span>PIS
       </div>
     </div>
 
@@ -562,105 +558,84 @@ async function login () {
   align-items: center;
 }
 
+/* ── Logo: light pass on the image itself ──────────────── */
 .company-logo-mobile {
   width: 80px;
   height: 80px;
   object-fit: contain;
   display: block;
-  filter: drop-shadow(0 0 12px rgba(79, 195, 247, 0.4));
-}
-
-/* ── Logo shine ────────────────────────────────────────── */
-.logo-shine-wrap {
-  position: relative;
-  display: inline-block;
-  overflow: hidden;
-  border-radius: 20px;
-}
-
-.logo-shine-wrap::after {
-  content: '';
-  position: absolute;
-  top: -20%;
-  left: -120%;
-  width: 55%;
-  height: 140%;
-  background: linear-gradient(
-    108deg,
-    transparent 25%,
-    rgba(255, 255, 255, 0.55) 50%,
-    transparent 75%
+  filter: drop-shadow(0 0 10px rgba(79, 195, 247, 0.28));
+  -webkit-mask-image: linear-gradient(
+    105deg,
+    #000 38%,
+    rgba(0, 0, 0, 0.72) 50%,
+    #000 62%
   );
-  transform: skewX(-10deg);
-  animation: logo-shine 4s ease-in-out infinite;
-  pointer-events: none;
+  mask-image: linear-gradient(
+    105deg,
+    #000 38%,
+    rgba(0, 0, 0, 0.72) 50%,
+    #000 62%
+  );
+  -webkit-mask-size: 220% 100%;
+  mask-size: 220% 100%;
+  animation: element-shine 6.5s ease-in-out infinite;
 }
 
-@keyframes logo-shine {
-  0%   { left: -120%; }
-  40%  { left: 160%; }
-  100% { left: 160%; }
-}
-
-/* ── SIDI-E gradient text shine ────────────────────────── */
+/* ── SIDI-E: soft gradient on the text ─────────────────── */
 .sidi-shine {
   display: block;
   background: linear-gradient(
     90deg,
     #ffffff 0%,
-    #ffffff 30%,
-    #b3e5fc 48%,
-    #ffffff 66%,
+    #ffffff 42%,
+    #d7f0ff 50%,
+    #ffffff 58%,
     #ffffff 100%
   );
-  background-size: 250% 100%;
+  background-size: 220% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: text-shine 4s ease-in-out infinite;
-  animation-delay: 0.25s;
+  animation: element-shine 6.5s ease-in-out infinite;
+  animation-delay: 0.45s;
 }
 
-@keyframes text-shine {
-  0%   { background-position: 150% center; }
-  40%  { background-position: -80% center; }
-  100% { background-position: -80% center; }
-}
-
-/* ── Subtitle sweep ─────────────────────────────────────── */
-.subtitle-shine-wrap {
-  position: relative;
+/* ── Subtitle: soft shine only on acronym letters ──────── */
+.letra-destaque {
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
   display: block;
-  overflow: hidden;
+  color: #9e9e9e;
 }
 
-.subtitle-shine-wrap::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -120%;
-  width: 55%;
-  height: 100%;
+.hl {
+  font-weight: 700;
   background: linear-gradient(
     90deg,
-    transparent,
-    rgba(255, 255, 255, 0.75),
-    transparent
+    #4fc3f7 0%,
+    #4fc3f7 42%,
+    #e3f7ff 50%,
+    #4fc3f7 58%,
+    #4fc3f7 100%
   );
-  transform: skewX(-12deg);
-  animation: subtitle-shine 4s ease-in-out infinite;
-  animation-delay: 0.5s;
-  pointer-events: none;
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: element-shine 6.5s ease-in-out infinite;
 }
 
-@keyframes subtitle-shine {
-  0%   { left: -120%; }
-  40%  { left: 160%; }
-  100% { left: 160%; }
-}
+.hl:nth-of-type(1) { animation-delay: 0.9s; }
+.hl:nth-of-type(2) { animation-delay: 1.15s; }
+.hl:nth-of-type(3) { animation-delay: 1.4s; }
+.hl:nth-of-type(4) { animation-delay: 1.65s; }
 
-.letra-destaque { letter-spacing: 0.08em; font-size: 0.72rem; }
-.hl { color: #4fc3f7; font-weight: 700; }
+@keyframes element-shine {
+  0%   { background-position: 140% center; -webkit-mask-position: 140% center; mask-position: 140% center; }
+  35%  { background-position: -40% center; -webkit-mask-position: -40% center; mask-position: -40% center; }
+  100% { background-position: -40% center; -webkit-mask-position: -40% center; mask-position: -40% center; }
+}
 
 /* Chip de colaborador validado */
 .collab-chip {
