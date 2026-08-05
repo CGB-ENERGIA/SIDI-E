@@ -3,18 +3,21 @@
     <div class="flex items-center justify-between q-mb-lg">
       <div>
         <div class="text-h5 text-weight-bold">Solicitações de Cadastro</div>
-        <div class="text-caption text-grey-5">Equipes aguardando autorização para acesso ao sistema</div>
+        <div class="text-caption text-grey-5">Gerenciamento de equipes e colaboradores registrados</div>
       </div>
       <q-btn flat icon="refresh" label="Atualizar" color="primary" @click="fetchAll" :loading="loading" />
     </div>
 
-    <!-- Abas: Pendentes / Aprovadas / Rejeitadas -->
+    <!-- Abas -->
     <q-tabs v-model="tab" class="q-mb-md" align="left" indicator-color="primary" active-color="primary">
       <q-tab name="pending" label="Pendentes">
         <q-badge v-if="pendentes.length" color="orange" floating>{{ pendentes.length }}</q-badge>
       </q-tab>
       <q-tab name="approved" label="Aprovadas" />
       <q-tab name="rejected" label="Rejeitadas" />
+      <q-tab name="collaborators" label="Colaboradores">
+        <q-badge v-if="collaborators.length" color="primary" floating>{{ collaborators.length }}</q-badge>
+      </q-tab>
     </q-tabs>
 
     <!-- PENDENTES -->
@@ -25,11 +28,7 @@
       </div>
 
       <div class="row q-gutter-md">
-        <div
-          v-for="req in pendentes"
-          :key="req.id"
-          class="col-12 col-sm-6 col-md-4"
-        >
+        <div v-for="req in pendentes" :key="req.id" class="col-12 col-sm-6 col-md-4">
           <q-card flat bordered style="border-radius: 14px; border: 2px solid #ff9800;">
             <q-card-section class="q-pb-sm">
               <div class="flex items-center gap-sm q-mb-xs">
@@ -48,26 +47,8 @@
             <q-separator />
 
             <q-card-actions class="q-px-md q-py-sm">
-              <q-btn
-                unelevated
-                rounded
-                color="positive"
-                icon="check"
-                label="Aprovar"
-                size="sm"
-                class="col"
-                @click="openApprove(req)"
-              />
-              <q-btn
-                flat
-                rounded
-                color="negative"
-                icon="close"
-                label="Rejeitar"
-                size="sm"
-                class="col"
-                @click="rejeitar(req)"
-              />
+              <q-btn unelevated rounded color="positive" icon="check" label="Aprovar" size="sm" class="col" @click="openApprove(req)" />
+              <q-btn flat rounded color="negative" icon="close" label="Rejeitar" size="sm" class="col" @click="rejeitar(req)" />
             </q-card-actions>
           </q-card>
         </div>
@@ -125,6 +106,89 @@
       </q-list>
     </div>
 
+    <!-- COLABORADORES -->
+    <div v-if="tab === 'collaborators'">
+      <!-- Barra de busca + resumo -->
+      <div class="flex items-center q-mb-md gap-sm">
+        <q-input
+          v-model="collabSearch"
+          outlined
+          dense
+          placeholder="Buscar por nome ou equipe..."
+          clearable
+          style="max-width: 380px;"
+          class="col"
+        >
+          <template #prepend><q-icon name="search" /></template>
+        </q-input>
+        <q-space />
+        <div class="text-caption text-grey-5">
+          {{ filteredCollaborators.length }} colaborador(es) encontrado(s)
+        </div>
+      </div>
+
+      <div v-if="!collaborators.length && !loading" class="text-center text-grey q-py-xl">
+        <q-icon name="group_off" size="48px" />
+        <div class="q-mt-sm">Nenhum colaborador cadastrado ainda</div>
+      </div>
+
+      <div v-else>
+        <q-table
+          :rows="filteredCollaborators"
+          :columns="collabColumns"
+          row-key="id"
+          flat
+          bordered
+          style="border-radius: 14px;"
+          :rows-per-page-options="[20, 50, 100, 0]"
+          rows-per-page-label="Por página"
+          no-data-label="Nenhum resultado encontrado"
+          :loading="loading"
+        >
+          <!-- Avatar + nome -->
+          <template #body-cell-nome="{ row }">
+            <q-td>
+              <div class="flex items-center gap-sm">
+                <q-avatar color="primary" text-color="white" size="34px" style="font-size: 0.75rem; font-weight: 700;">
+                  {{ initials(row.nome) }}
+                </q-avatar>
+                <span class="text-weight-bold">{{ row.nome }}</span>
+              </div>
+            </q-td>
+          </template>
+
+          <!-- Equipe -->
+          <template #body-cell-equipe="{ row }">
+            <q-td>
+              <div>
+                <span class="text-weight-bold text-primary">{{ row.teams?.prefixo || '—' }}</span>
+                <div class="text-caption text-grey-5">{{ row.teams?.nome || '' }}</div>
+              </div>
+            </q-td>
+          </template>
+
+          <!-- Data de cadastro -->
+          <template #body-cell-created_at="{ row }">
+            <q-td class="text-caption text-grey-5">
+              {{ formatDate(row.created_at) }}
+            </q-td>
+          </template>
+
+          <!-- Ações -->
+          <template #body-cell-acoes="{ row }">
+            <q-td class="text-center">
+              <q-btn
+                flat round dense icon="delete" color="negative" size="sm"
+                @click="excluirColaborador(row)"
+              >
+                <q-tooltip>Remover colaborador</q-tooltip>
+              </q-btn>
+            </q-td>
+          </template>
+        </q-table>
+      </div>
+    </div>
+
     <!-- Dialog de aprovação -->
     <q-dialog v-model="approveDialog" persistent>
       <q-card style="min-width: 380px; border-radius: 16px;">
@@ -136,55 +200,17 @@
         </q-card-section>
 
         <q-card-section class="q-gutter-md">
-          <q-input
-            v-model="form.nome"
-            label="Nome da equipe *"
-            outlined
-            dense
-            autofocus
-            :rules="[v => !!v || 'Obrigatório']"
-            hint="Ex: Equipe Elétrica Norte"
-          />
-          <q-input
-            v-model="form.responsavel"
-            label="Responsável"
-            outlined
-            dense
-          />
+          <q-input v-model="form.nome" label="Nome da equipe *" outlined dense autofocus :rules="[v => !!v || 'Obrigatório']" hint="Ex: Equipe Elétrica Norte" />
+          <q-input v-model="form.responsavel" label="Responsável" outlined dense />
           <div class="row q-gutter-sm">
-            <q-select
-              v-model="form.base"
-              :options="bases"
-              label="Base"
-              outlined
-              dense
-              class="col"
-              clearable
-            />
-            <q-select
-              v-model="form.processo"
-              :options="processos"
-              label="Processo"
-              outlined
-              dense
-              class="col"
-              clearable
-            />
+            <q-select v-model="form.base" :options="bases" label="Base" outlined dense class="col" clearable />
+            <q-select v-model="form.processo" :options="processos" label="Processo" outlined dense class="col" clearable />
           </div>
         </q-card-section>
 
         <q-card-actions align="right" class="q-pb-md q-px-md">
           <q-btn flat rounded label="Cancelar" color="grey" v-close-popup />
-          <q-btn
-            unelevated
-            rounded
-            label="Confirmar Aprovação"
-            color="positive"
-            icon="check"
-            :loading="saving"
-            :disable="!form.nome"
-            @click="confirmarAprovacao"
-          />
+          <q-btn unelevated rounded label="Confirmar Aprovação" color="positive" icon="check" :loading="saving" :disable="!form.nome" @click="confirmarAprovacao" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -202,6 +228,8 @@ const tab = ref('pending')
 const loading = ref(false)
 const saving = ref(false)
 const requests = ref([])
+const collaborators = ref([])
+const collabSearch = ref('')
 const approveDialog = ref(false)
 const selectedReq = ref(null)
 
@@ -214,17 +242,36 @@ const pendentes  = computed(() => requests.value.filter(r => r.status === 'pendi
 const aprovadas  = computed(() => requests.value.filter(r => r.status === 'approved'))
 const rejeitadas = computed(() => requests.value.filter(r => r.status === 'rejected'))
 
+const collabColumns = [
+  { name: 'nome',       label: 'Colaborador', field: 'nome',       align: 'left',   sortable: true },
+  { name: 'equipe',     label: 'Equipe',      field: 'equipe',     align: 'left',   sortable: false },
+  { name: 'created_at', label: 'Cadastrado em', field: 'created_at', align: 'left', sortable: true },
+  { name: 'acoes',      label: 'Ações',       field: 'acoes',      align: 'center', sortable: false }
+]
+
+const filteredCollaborators = computed(() => {
+  const q = collabSearch.value?.trim().toUpperCase() || ''
+  if (!q) return collaborators.value
+  return collaborators.value.filter(c =>
+    c.nome?.toUpperCase().includes(q) ||
+    c.teams?.prefixo?.toUpperCase().includes(q) ||
+    c.teams?.nome?.toUpperCase().includes(q)
+  )
+})
+
 onMounted(fetchAll)
 
 async function fetchAll () {
   loading.value = true
   try {
-    const { data, error } = await supabase
-      .from('team_requests')
-      .select('*')
-      .order('requested_at', { ascending: false })
-    if (error) throw error
-    requests.value = data || []
+    const [reqRes, collabRes] = await Promise.all([
+      supabase.from('team_requests').select('*').order('requested_at', { ascending: false }),
+      supabase.from('collaborators').select('id, nome, created_at, team_id, teams(prefixo, nome)').order('nome')
+    ])
+    if (reqRes.error) throw reqRes.error
+    if (collabRes.error) throw collabRes.error
+    requests.value = reqRes.data || []
+    collaborators.value = collabRes.data || []
   } catch (e) {
     $q.notify({ type: 'negative', message: 'Erro ao carregar: ' + e.message })
   } finally {
@@ -243,21 +290,17 @@ async function confirmarAprovacao () {
   saving.value = true
   try {
     const { error: teamErr } = await supabase.from('teams').insert({
-      prefixo:    selectedReq.value.prefixo,
-      nome:       form.value.nome,
+      prefixo:     selectedReq.value.prefixo,
+      nome:        form.value.nome,
       responsavel: form.value.responsavel || null,
-      base:       form.value.base || null,
-      processo:   form.value.processo || null
+      base:        form.value.base || null,
+      processo:    form.value.processo || null
     })
     if (teamErr) throw teamErr
 
     const { error: reqErr } = await supabase
       .from('team_requests')
-      .update({
-        status: 'approved',
-        reviewed_at: new Date().toISOString(),
-        reviewed_by: 'italo.fontes@cgbengenharia.com.br'
-      })
+      .update({ status: 'approved', reviewed_at: new Date().toISOString(), reviewed_by: 'italo.fontes@cgbengenharia.com.br' })
       .eq('id', selectedReq.value.id)
     if (reqErr) throw reqErr
 
@@ -282,11 +325,7 @@ async function rejeitar (req) {
     try {
       const { error } = await supabase
         .from('team_requests')
-        .update({
-          status: 'rejected',
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: 'italo.fontes@cgbengenharia.com.br'
-        })
+        .update({ status: 'rejected', reviewed_at: new Date().toISOString(), reviewed_by: 'italo.fontes@cgbengenharia.com.br' })
         .eq('id', req.id)
       if (error) throw error
       await fetchAll()
@@ -297,8 +336,34 @@ async function rejeitar (req) {
   })
 }
 
+async function excluirColaborador (row) {
+  $q.dialog({
+    title: 'Remover colaborador',
+    message: `Remover <strong>${row.nome}</strong> da equipe <strong>${row.teams?.prefixo || ''}</strong>?`,
+    html: true,
+    cancel: true,
+    ok: { label: 'Remover', color: 'negative', unelevated: true }
+  }).onOk(async () => {
+    try {
+      const { error } = await supabase.from('collaborators').delete().eq('id', row.id)
+      if (error) throw error
+      collaborators.value = collaborators.value.filter(c => c.id !== row.id)
+      $q.notify({ type: 'positive', message: `${row.nome} removido com sucesso.` })
+    } catch (e) {
+      $q.notify({ type: 'negative', message: 'Erro ao remover: ' + e.message })
+    }
+  })
+}
+
+function initials (nome) {
+  if (!nome) return '?'
+  const parts = nome.trim().split(' ').filter(Boolean)
+  if (parts.length === 1) return parts[0].charAt(0)
+  return parts[0].charAt(0) + parts[parts.length - 1].charAt(0)
+}
+
 function formatDate (iso) {
-  if (!iso) return '-'
+  if (!iso) return '—'
   return new Date(iso).toLocaleString('pt-BR', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit'
