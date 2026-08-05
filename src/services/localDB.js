@@ -3,22 +3,15 @@ import Dexie from 'dexie'
 export const db = new Dexie('GSTCOfflineDB')
 
 db.version(1).stores({
-  // Teams & collaborators
-  teams: '++id, prefixo, nome, status, createdAt',
+  teams:         '++id, prefixo, nome, status, createdAt',
   collaborators: '++id, teamId, nome, funcao',
-
-  // Activities & services
-  activities: '++id, nome, descricao, tipo',
-  services: '++id, teamId, activityId, data, status, syncStatus, createdAt',
-
-  // Evidence photos
-  evidencePhotos: '++id, serviceId, tipo, filePath, blob, syncStatus, createdAt',
-
-  // Pending sync queue
-  syncQueue: '++id, entity, action, payload, attempts, createdAt'
+  activities:    '++id, nome, descricao, tipo',
+  services:      '++id, teamId, activityId, data, status, syncStatus, createdAt',
+  evidencePhotos:'++id, serviceId, tipo, filePath, blob, syncStatus, attempts, createdAt',
+  syncQueue:     '++id, entity, action, payload, attempts, createdAt'
 })
 
-// Sync status values: 'pending' | 'synced' | 'error'
+// syncStatus values: 'pending' | 'synced' | 'error'
 
 export const offlineDB = {
   // ── Teams ─────────────────────────────────────────────────────
@@ -34,6 +27,20 @@ export const offlineDB = {
     return db.teams.where('prefixo').equals(prefixo).first()
   },
 
+  async deleteTeam (id) {
+    await db.collaborators.where('teamId').equals(id).delete()
+    return db.teams.delete(id)
+  },
+
+  // ── Collaborators ─────────────────────────────────────────────
+  async saveCollaborator (collab) {
+    return db.collaborators.put(collab)
+  },
+
+  async getCollaboratorsByTeam (teamId) {
+    return db.collaborators.where('teamId').equals(teamId).toArray()
+  },
+
   // ── Activities ────────────────────────────────────────────────
   async saveActivity (activity) {
     return db.activities.put(activity)
@@ -45,7 +52,16 @@ export const offlineDB = {
 
   // ── Services ──────────────────────────────────────────────────
   async saveService (service) {
-    return db.services.put({ ...service, syncStatus: 'pending', createdAt: new Date().toISOString() })
+    return db.services.put({
+      ...service,
+      syncStatus: service.syncStatus || 'pending',
+      attempts: service.attempts || 0,
+      createdAt: service.createdAt || new Date().toISOString()
+    })
+  },
+
+  async getAllServices () {
+    return db.services.toArray()
   },
 
   async getPendingServices () {
@@ -56,12 +72,24 @@ export const offlineDB = {
     return db.services.update(id, { syncStatus: 'synced', remoteId })
   },
 
+  async markServiceError (id) {
+    const svc = await db.services.get(id)
+    const attempts = (svc?.attempts || 0) + 1
+    return db.services.update(id, { syncStatus: attempts >= 3 ? 'error' : 'pending', attempts })
+  },
+
+  async deleteService (id) {
+    await db.evidencePhotos.where('serviceId').equals(id).delete()
+    return db.services.delete(id)
+  },
+
   // ── Photos ────────────────────────────────────────────────────
   async savePhoto (photo) {
     return db.evidencePhotos.put({
       ...photo,
       syncStatus: 'pending',
-      createdAt: new Date().toISOString()
+      attempts: 0,
+      createdAt: photo.createdAt || new Date().toISOString()
     })
   },
 
@@ -75,6 +103,25 @@ export const offlineDB = {
 
   async markPhotoSynced (id, filePath) {
     return db.evidencePhotos.update(id, { syncStatus: 'synced', filePath, blob: null })
+  },
+
+  async markPhotoError (id) {
+    const photo = await db.evidencePhotos.get(id)
+    const attempts = (photo?.attempts || 0) + 1
+    return db.evidencePhotos.update(id, { syncStatus: attempts >= 3 ? 'error' : 'pending', attempts })
+  },
+
+  async deletePhoto (id) {
+    return db.evidencePhotos.delete(id)
+  },
+
+  // ── Contagem total de pendentes ───────────────────────────────
+  async getPendingCount () {
+    const [services, photos] = await Promise.all([
+      db.services.where('syncStatus').equals('pending').count(),
+      db.evidencePhotos.where('syncStatus').equals('pending').count()
+    ])
+    return services + photos
   },
 
   // ── Sync Queue ────────────────────────────────────────────────

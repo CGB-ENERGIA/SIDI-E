@@ -11,37 +11,63 @@
       <q-card-section class="q-pa-lg">
         <div class="text-h6 text-weight-bold q-mb-lg">Entrar como equipe</div>
 
-        <!-- Team prefix -->
-        <q-input
-          v-model="form.prefixo"
+        <!-- Prefixo com autocomplete das equipes -->
+        <q-select
+          v-model="equipeEncontrada"
+          :options="filteredTeams"
+          option-value="id"
+          option-label="prefixo"
           label="Prefixo da equipe *"
           outlined
           dense
+          use-input
+          clearable
           class="q-mb-md"
           :rules="[v => !!v || 'Informe o prefixo']"
-          hint="Ex: EQ-01, A-03"
-          style="text-transform: uppercase;"
-          @blur="buscarEquipe"
-          @update:model-value="val => form.prefixo = val.toUpperCase()"
+          input-debounce="200"
+          :loading="teamsLoading"
+          @filter="filterTeams"
+          @update:model-value="onEquipeSelecionada"
+          @blur="buscarEquipePorDigitacao"
         >
           <template #prepend>
             <q-icon name="badge" />
           </template>
-          <template #append v-if="buscandoEquipe">
-            <q-spinner-dots size="20px" color="primary" />
+          <template #append>
+            <q-spinner-dots v-if="buscandoEquipe" size="18px" color="primary" />
           </template>
-        </q-input>
+          <template #option="{ itemProps, opt }">
+            <q-item v-bind="itemProps">
+              <q-item-section avatar>
+                <q-avatar size="32px" color="primary" text-color="white" style="font-size:0.75rem;font-weight:700;">
+                  {{ opt.prefixo.charAt(0) }}
+                </q-avatar>
+              </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-weight-bold">{{ opt.prefixo }}</q-item-label>
+                <q-item-label caption>{{ opt.nome }}</q-item-label>
+              </q-item-section>
+            </q-item>
+          </template>
+          <template #no-option="{ inputValue }">
+            <q-item>
+              <q-item-section class="text-grey">
+                {{ inputValue ? `Nenhuma equipe encontrada para "${inputValue}"` : 'Digite o prefixo da equipe' }}
+              </q-item-section>
+            </q-item>
+          </template>
+        </q-select>
 
-        <!-- Team name (auto-filled) -->
+        <!-- Equipe selecionada -->
         <q-input
           v-if="equipeEncontrada"
-          v-model="equipeEncontrada.nome"
-          label="Equipe"
+          :model-value="equipeEncontrada.nome"
+          label="Responsável"
           outlined
           dense
           readonly
-          class="q-mb-md"
-          bg-color="green-1"
+          dark
+          class="q-mb-md equipe-confirmada"
         >
           <template #prepend><q-icon name="check_circle" color="positive" /></template>
         </q-input>
@@ -89,16 +115,30 @@
             :key="idx"
             class="flex items-center gap-sm q-mb-sm"
           >
-            <q-input
-              v-model="col.nome"
+            <q-select
+              :model-value="col.nome"
+              @update:model-value="v => col.nome = (v || '').toUpperCase()"
+              @input-value="v => col.nome = v.toUpperCase()"
+              :options="filteredCollabs"
               :label="`Colaborador ${idx + 1}`"
               outlined
               dense
-              class="col"
+              use-input
+              new-value-mode="add-unique"
+              input-debounce="150"
+              class="col input-upper"
               :rules="[v => !!v || 'Informe o nome']"
+              @filter="filterCollab"
             >
               <template #prepend><q-icon name="person" /></template>
-            </q-input>
+              <template #no-option="{ inputValue }">
+                <q-item>
+                  <q-item-section class="text-grey text-caption">
+                    {{ inputValue ? 'Novo colaborador: ' + inputValue.toUpperCase() : 'Nenhum colaborador salvo' }}
+                  </q-item-section>
+                </q-item>
+              </template>
+            </q-select>
             <q-btn
               v-if="form.colaboradores.length > 1"
               flat
@@ -149,7 +189,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
 import { offlineDB } from 'src/services/localDB'
@@ -169,6 +209,57 @@ const equipeNaoEncontrada = ref(false)
 const enviandoSolicitacao = ref(false)
 const solicitacaoEnviada = ref(false)
 
+const allTeams = ref([])
+const teamsLoading = ref(false)
+const teamInput = ref('')
+
+// ── Colaboradores com sugestões ───────────────────────────
+const teamCollaborators = ref([]) // nomes salvos da equipe selecionada
+const filteredCollabs   = ref([]) // filtrado enquanto digita
+
+async function loadTeamCollaborators (teamId) {
+  teamCollaborators.value = []
+  filteredCollabs.value   = []
+  if (!teamId || !onlineStore.isOnline) return
+  try {
+    const { data } = await supabase
+      .from('collaborators')
+      .select('nome')
+      .eq('team_id', teamId)
+      .order('nome')
+    const unique = [...new Set((data || []).map(c => c.nome.trim().toUpperCase()))]
+    teamCollaborators.value = unique
+    filteredCollabs.value   = unique
+  } catch { /* silencioso */ }
+}
+
+function filterCollab (val, update) {
+  update(() => {
+    const needle = (val || '').toUpperCase()
+    filteredCollabs.value = needle
+      ? teamCollaborators.value.filter(n => n.includes(needle))
+      : teamCollaborators.value
+  })
+}
+
+async function saveNovoColaborador (nome, teamId) {
+  if (!nome || !teamId || !onlineStore.isOnline) return
+  const jaExiste = teamCollaborators.value.includes(nome.toUpperCase())
+  if (jaExiste) return
+  try {
+    await supabase.from('collaborators').insert({ team_id: teamId, nome: nome.toUpperCase() })
+    teamCollaborators.value = [...teamCollaborators.value, nome.toUpperCase()].sort()
+  } catch { /* silencioso */ }
+}
+
+const filteredTeams = computed(() => {
+  if (!teamInput.value) return allTeams.value
+  const needle = teamInput.value.toUpperCase()
+  return allTeams.value.filter(t =>
+    t.prefixo.includes(needle) || (t.nome || '').toUpperCase().includes(needle)
+  )
+})
+
 const today = new Date().toISOString().split('T')[0]
 
 const form = ref({
@@ -178,27 +269,71 @@ const form = ref({
 })
 
 const podeEntrar = computed(() =>
-  form.value.prefixo &&
   equipeEncontrada.value &&
   form.value.colaboradores.every(c => c.nome.trim())
 )
 
-async function buscarEquipe () {
+onMounted(async () => {
+  teamsLoading.value = true
+  try {
+    if (onlineStore.isOnline) {
+      const { data, error } = await supabase.from('teams').select('*').order('prefixo')
+      if (error) throw error
+      allTeams.value = data || []
+    } else {
+      allTeams.value = await offlineDB.getTeams?.() || []
+    }
+    // Salva no IndexedDB para uso offline
+    if (allTeams.value.length) {
+      for (const t of allTeams.value) await offlineDB.saveTeam(t)
+    }
+  } catch (e) {
+    console.error('Erro ao carregar equipes:', e)
+    allTeams.value = await offlineDB.getTeams?.() || []
+  } finally {
+    teamsLoading.value = false
+  }
+})
+
+function filterTeams (val, update) {
+  teamInput.value = val
+  update()
+}
+
+function onEquipeSelecionada (equipe) {
+  if (equipe) {
+    form.value.prefixo = equipe.prefixo
+    equipeNaoEncontrada.value = false
+    solicitacaoEnviada.value = false
+    loadTeamCollaborators(equipe.id)
+  } else {
+    form.value.prefixo = ''
+    equipeNaoEncontrada.value = false
+    teamCollaborators.value = []
+    filteredCollabs.value   = []
+  }
+}
+
+async function buscarEquipePorDigitacao () {
+  // Só busca manualmente se nada foi selecionado na lista
+  if (equipeEncontrada.value) return
   const prefixo = form.value.prefixo.trim().toUpperCase()
   if (!prefixo) return
 
+  // Tenta achar na lista local primeiro
+  const local = allTeams.value.find(t => t.prefixo === prefixo)
+  if (local) {
+    equipeEncontrada.value = local
+    equipeNaoEncontrada.value = false
+    return
+  }
+
   buscandoEquipe.value = true
-  equipeEncontrada.value = null
   equipeNaoEncontrada.value = false
   solicitacaoEnviada.value = false
-
   try {
     if (onlineStore.isOnline) {
-      const { data, error } = await supabase
-        .from('teams')
-        .select('*')
-        .eq('prefixo', prefixo)
-        .single()
+      const { data, error } = await supabase.from('teams').select('*').eq('prefixo', prefixo).single()
       if (error) throw error
       equipeEncontrada.value = data || null
     } else {
@@ -249,11 +384,18 @@ function removeColaborador (idx) {
 async function login () {
   loading.value = true
   try {
+    const nomes = form.value.colaboradores.map(c => c.nome.trim().toUpperCase()).filter(Boolean)
+
+    // Salva colaboradores novos no banco em paralelo
+    if (equipeEncontrada.value?.id && onlineStore.isOnline) {
+      await Promise.allSettled(nomes.map(n => saveNovoColaborador(n, equipeEncontrada.value.id)))
+    }
+
     authStore.mobileLogin({
       prefixo: form.value.prefixo.toUpperCase(),
       equipeId: equipeEncontrada.value.id,
       equipeName: equipeEncontrada.value.nome,
-      colaboradores: form.value.colaboradores.map(c => c.nome.trim()),
+      colaboradores: nomes,
       data: form.value.data
     })
     router.replace('/m/home')
@@ -270,5 +412,23 @@ async function login () {
   width: 80px;
   height: 80px;
   object-fit: contain;
+}
+
+/* Campo equipe confirmada — texto visível no tema escuro */
+:deep(.equipe-confirmada .q-field__native) {
+  color: #e8f5e9 !important;
+  font-weight: 600;
+}
+:deep(.equipe-confirmada .q-field__control) {
+  border-color: #43a047 !important;
+  background: rgba(67, 160, 71, 0.08) !important;
+}
+:deep(.equipe-confirmada .q-field__label) {
+  color: #66bb6a !important;
+}
+
+/* Colaboradores sempre em maiúsculas visualmente */
+:deep(.input-upper .q-field__native) {
+  text-transform: uppercase;
 }
 </style>

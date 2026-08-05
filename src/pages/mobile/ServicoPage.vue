@@ -228,7 +228,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
 import { useEvidenceStore } from 'src/stores/evidence'
@@ -250,6 +250,18 @@ const saving = ref(false)
 const showCamera = ref(false)
 const cameraTipo = ref('epi')
 const activities = ref([])
+
+// Wake Lock — mantém tela ligada durante o registro no campo
+let wakeLock = null
+async function acquireWakeLock () {
+  if ('wakeLock' in navigator) {
+    try { wakeLock = await navigator.wakeLock.request('screen') } catch {}
+  }
+}
+function releaseWakeLock () {
+  wakeLock?.release().catch(() => {})
+  wakeLock = null
+}
 
 const epiPhotos = ref([])
 const filteredActivities = ref([])
@@ -284,11 +296,19 @@ function createActivity (val, done) {
 }
 
 onMounted(async () => {
+  acquireWakeLock()
+  // Re-adquire Wake Lock quando a página volta ao foco (ex.: após tirar foto)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') acquireWakeLock()
+  })
+
   try {
     if (onlineStore.isOnline) {
       const { data, error } = await supabase.from('activities').select('*').order('nome')
       if (error) throw error
       activities.value = data || []
+      // Cacheia para uso offline
+      for (const a of activities.value) await offlineDB.saveActivity(a)
     } else {
       activities.value = await offlineDB.getActivities()
     }
@@ -297,6 +317,8 @@ onMounted(async () => {
   }
   filteredActivities.value = activities.value
 })
+
+onUnmounted(releaseWakeLock)
 
 function openCamera (tipo) {
   cameraTipo.value = tipo

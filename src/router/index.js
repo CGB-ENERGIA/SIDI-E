@@ -26,7 +26,8 @@ const routes = [
       {
         path: 'equipes',
         name: 'Equipes',
-        component: () => import('src/pages/desktop/TeamsPage.vue')
+        component: () => import('src/pages/desktop/TeamsPage.vue'),
+        meta: { adminOnly: true }
       },
       {
         path: 'atividades',
@@ -123,6 +124,11 @@ export default defineRouter(function () {
     }
 
     if (to.meta.guestOnly && authStore.isDesktopLoggedIn) {
+      return { path: '/dashboard' }
+    }
+
+    // Restrict admin-only pages
+    if (to.meta.adminOnly && authStore.desktopUser?.email !== 'italo.fontes@cgbengenharia.com.br') {
       return { path: '/dashboard' }
     }
 

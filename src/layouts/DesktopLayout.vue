@@ -111,7 +111,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
 import { useOnlineStore } from 'src/stores/online'
@@ -137,14 +137,21 @@ onMounted(async () => {
   } catch {}
 })
 
-const menuItems = [
-  { icon: 'dashboard', label: 'Dashboard', to: '/dashboard' },
-  { icon: 'groups', label: 'Equipes', to: '/equipes' },
-  { icon: 'task', label: 'Atividades', to: '/atividades' },
-  { icon: 'photo_library', label: 'Evidências', to: '/evidencias' },
-  { icon: 'assessment', label: 'Relatórios', to: '/relatorios' },
-  { icon: 'pending_actions', label: 'Solicitações', to: '/solicitacoes', badgeDynamic: true }
+const ADMIN_EMAIL = 'italo.fontes@cgbengenharia.com.br'
+const isAdmin = computed(() => authStore.desktopUser?.email === ADMIN_EMAIL)
+
+const allMenuItems = [
+  { icon: 'dashboard',       label: 'Dashboard',    to: '/dashboard' },
+  { icon: 'groups',          label: 'Equipes',       to: '/equipes', adminOnly: true },
+  { icon: 'task',            label: 'Atividades',    to: '/atividades' },
+  { icon: 'photo_library',   label: 'Evidências',    to: '/evidencias' },
+  { icon: 'assessment',      label: 'Relatórios',    to: '/relatorios' },
+  { icon: 'pending_actions', label: 'Solicitações',  to: '/solicitacoes', badgeDynamic: true }
 ]
+
+const menuItems = computed(() =>
+  allMenuItems.filter(item => !item.adminOnly || isAdmin.value)
+)
 
 async function triggerSync () {
   await evidenceStore.syncPending()

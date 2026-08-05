@@ -87,7 +87,13 @@ const services = ref([])
 const photoCount = ref(0)
 const syncing = ref(false)
 
-onMounted(load)
+onMounted(async () => {
+  await load()
+  // Auto-sincroniza ao abrir a página se houver pendentes e houver internet
+  if (onlineStore.isOnline && pendingCount.value > 0) {
+    await syncNow()
+  }
+})
 
 async function load () {
   const allServices = await db.services.toArray()

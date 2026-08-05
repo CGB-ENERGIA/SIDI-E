@@ -19,7 +19,7 @@ export default defineConfig(function (/* ctx */) {
 
     build: {
       target: {
-        browser: ['es2019', 'edge88', 'firefox78', 'chrome87', 'safari13.1'],
+        browser: ['es2022', 'chrome100', 'firefox100', 'safari15'],
         node: 'node20'
       },
 
@@ -57,39 +57,15 @@ export default defineConfig(function (/* ctx */) {
     animations: [],
 
     pwa: {
-      workboxMode: 'GenerateSW',
+      workboxMode: 'InjectManifest',
       injectPwaMetaTags: true,
       swFilename: 'sw.js',
       manifestFilename: 'manifest.json',
       useCredentialsForManifestTag: false,
 
-      extendGenerateSWOptions (cfg) {
-        cfg.skipWaiting = true
-        cfg.clientsClaim = true
-        cfg.runtimeCaching = [
-          {
-            urlPattern: ({ url }) => url.hostname.endsWith('supabase.co'),
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-api',
-              expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 7 * 24 * 60 * 60
-              }
-            }
-          },
-          {
-            urlPattern: ({ request }) => request.destination === 'image',
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'images',
-              expiration: {
-                maxEntries: 500,
-                maxAgeSeconds: 30 * 24 * 60 * 60
-              }
-            }
-          }
-        ]
+      extendInjectManifestOptions (cfg) {
+        cfg.swSrc = 'src-pwa/custom-service-worker.js'
+        cfg.maximumFileSizeToCacheInBytes = 5 * 1024 * 1024 // 5MB
       },
 
       manifest: {

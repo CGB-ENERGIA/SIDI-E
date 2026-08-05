@@ -1,205 +1,321 @@
 <template>
-  <q-page class="q-pa-lg">
-    <div class="flex items-center justify-between q-mb-lg">
-      <div class="text-h5 text-weight-bold">Equipes</div>
-      <q-btn unelevated rounded color="primary" icon="add" label="Nova equipe" @click="openForm()" />
+  <q-page class="teams-page">
+
+    <!-- Acesso restrito -->
+    <div v-if="!isAdmin" class="access-denied">
+      <q-icon name="lock" size="64px" class="q-mb-md" style="color:#ef4444;opacity:.6" />
+      <div class="denied-title">Acesso restrito</div>
+      <div class="denied-sub">Você não tem permissão para acessar esta página.</div>
     </div>
 
-    <!-- Search -->
-    <q-input
-      v-model="search"
-      outlined
-      dense
-      placeholder="Buscar equipe..."
-      class="q-mb-md"
-      style="max-width: 360px;"
-      clearable
-    >
-      <template #prepend><q-icon name="search" /></template>
-    </q-input>
+    <template v-else>
+      <!-- ── Header ─────────────────────────────────────────── -->
+      <div class="teams-header">
+        <div>
+          <div class="teams-title">Equipes</div>
+          <div class="teams-sub">{{ filtered.length }} de {{ teamsStore.teams.length }} equipes</div>
+        </div>
+        <div class="header-actions">
+          <button class="action-btn" @click="openCreate">
+            <q-icon name="add" size="16px" /> Nova equipe
+          </button>
+        </div>
+      </div>
 
-    <!-- Teams table -->
-    <q-card flat bordered style="border-radius: 16px;">
-      <q-table
-        :rows="filteredTeams"
-        :columns="columns"
-        row-key="id"
-        flat
-        :loading="teamsStore.loading"
-        :filter="search"
-      >
-        <template #body-cell-prefixo="{ row }">
-          <q-td>
-            <q-chip dense color="primary" text-color="white">{{ row.prefixo }}</q-chip>
-          </q-td>
-        </template>
+      <!-- ── Filtros ─────────────────────────────────────────── -->
+      <div class="filters-bar">
+        <div class="search-wrap">
+          <q-icon name="search" size="18px" style="color:#4b5680" />
+          <input
+            v-model="search"
+            class="search-input"
+            placeholder="Buscar por prefixo, nome ou responsável…"
+          />
+        </div>
 
-        <template #body-cell-colaboradores="{ row }">
-          <q-td>
-            <q-chip
-              v-for="c in (row.collaborators || []).slice(0, 3)"
-              :key="c.id"
-              dense
-              size="sm"
-              icon="person"
-            >{{ c.nome }}</q-chip>
-            <q-chip v-if="(row.collaborators?.length || 0) > 3" dense size="sm" color="grey-3">
-              +{{ row.collaborators.length - 3 }}
-            </q-chip>
-          </q-td>
-        </template>
+        <select v-model="filterBase" class="filter-select">
+          <option value="">Todas as bases</option>
+          <option v-for="b in bases" :key="b" :value="b">{{ b }}</option>
+        </select>
 
-        <template #body-cell-status="{ row }">
-          <q-td>
-            <q-badge
-              :color="row.status === 'ativo' ? 'positive' : 'grey'"
-              :label="row.status === 'ativo' ? 'Ativo' : 'Inativo'"
-            />
-          </q-td>
-        </template>
+        <select v-model="filterProcesso" class="filter-select">
+          <option value="">Todos os processos</option>
+          <option v-for="p in processos" :key="p" :value="p">{{ p }}</option>
+        </select>
 
-        <template #body-cell-acoes="{ row }">
-          <q-td class="text-right">
-            <q-btn flat round dense icon="edit" color="primary" @click="openForm(row)" />
-            <q-btn flat round dense icon="people" color="secondary" @click="openCollaborators(row)" />
-            <q-btn flat round dense icon="delete" color="negative" @click="confirmDelete(row)" />
-          </q-td>
-        </template>
-      </q-table>
-    </q-card>
+        <select v-model="filterStatus" class="filter-select">
+          <option value="">Qualquer status</option>
+          <option value="ativo">Ativo</option>
+          <option value="inativo">Inativo</option>
+        </select>
 
-    <!-- Team form dialog -->
-    <q-dialog v-model="showForm" persistent>
-      <q-card style="min-width: 400px; border-radius: 16px;">
-        <q-card-section class="text-h6 text-weight-bold">
-          {{ editingTeam ? 'Editar equipe' : 'Nova equipe' }}
-        </q-card-section>
-        <q-separator />
-        <q-card-section class="q-pa-lg">
-          <q-input v-model="form.prefixo" label="Prefixo *" outlined dense class="q-mb-md"
-            hint="Ex: EQ-01, A-03" :rules="[v => !!v || 'Obrigatório']" />
-          <q-input v-model="form.nome" label="Nome da equipe *" outlined dense class="q-mb-md"
-            :rules="[v => !!v || 'Obrigatório']" />
-          <q-input v-model="form.descricao" label="Descrição" outlined dense type="textarea" rows="2" class="q-mb-md" />
-          <q-select v-model="form.status" :options="['ativo', 'inativo']" label="Status" outlined dense />
-        </q-card-section>
-        <q-separator />
-        <q-card-actions align="right" class="q-pa-md">
-          <q-btn flat label="Cancelar" v-close-popup />
-          <q-btn unelevated rounded color="primary" :label="editingTeam ? 'Salvar' : 'Criar'"
-            :loading="saving" @click="saveTeam" />
-        </q-card-actions>
-      </q-card>
+        <button v-if="hasFilters" class="clear-btn" @click="clearFilters">
+          <q-icon name="close" size="14px" /> Limpar
+        </button>
+      </div>
+
+      <!-- ── Tabela ──────────────────────────────────────────── -->
+      <div class="table-wrap">
+        <div v-if="teamsStore.loading" class="table-loading">
+          <q-spinner-dots size="40px" color="primary" />
+        </div>
+
+        <table v-else class="teams-table">
+          <thead>
+            <tr>
+              <th @click="sortBy('prefixo')" class="sortable">Prefixo <sort-icon col="prefixo" /></th>
+              <th @click="sortBy('nome')" class="sortable">Nome <sort-icon col="nome" /></th>
+              <th>Responsável</th>
+              <th>Base</th>
+              <th>Processo</th>
+              <th>Status</th>
+              <th class="col-actions">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="team in paginated" :key="team.id" class="team-row">
+              <td>
+                <span class="prefix-chip">{{ team.prefixo }}</span>
+              </td>
+              <td class="cell-nome">{{ team.nome }}</td>
+              <td class="cell-resp">{{ team.responsavel || '—' }}</td>
+              <td>
+                <span class="base-tag">{{ team.base || '—' }}</span>
+              </td>
+              <td>
+                <span class="proc-tag" :class="`proc-${(team.processo||'').toLowerCase()}`">
+                  {{ team.processo || '—' }}
+                </span>
+              </td>
+              <td>
+                <span class="status-dot" :class="team.status === 'ativo' ? 'dot-on' : 'dot-off'" />
+                {{ team.status === 'ativo' ? 'Ativo' : 'Inativo' }}
+              </td>
+              <td class="cell-actions">
+                <button class="icon-btn edit-btn" title="Editar" @click="openEdit(team)">
+                  <q-icon name="edit" size="16px" />
+                </button>
+                <button class="icon-btn del-btn" title="Excluir" @click="confirmDelete(team)">
+                  <q-icon name="delete_outline" size="16px" />
+                </button>
+              </td>
+            </tr>
+            <tr v-if="!paginated.length">
+              <td colspan="7" class="empty-row">Nenhuma equipe encontrada</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Paginação -->
+        <div class="pagination" v-if="totalPages > 1">
+          <button class="page-btn" :disabled="page === 1" @click="page--">‹</button>
+          <button
+            v-for="p in totalPages" :key="p"
+            class="page-btn" :class="{ active: p === page }"
+            @click="page = p"
+          >{{ p }}</button>
+          <button class="page-btn" :disabled="page === totalPages" @click="page++">›</button>
+        </div>
+      </div>
+    </template>
+
+    <!-- ── Dialog editar/criar ────────────────────────────── -->
+    <q-dialog v-model="showDialog" persistent>
+      <div class="edit-dialog">
+        <div class="dialog-header">
+          <div class="dialog-title">{{ isEditing ? 'Editar equipe' : 'Nova equipe' }}</div>
+          <button class="dialog-close" @click="showDialog = false"><q-icon name="close" size="20px" /></button>
+        </div>
+
+        <div class="dialog-body">
+          <div class="field-row">
+            <div class="field-col">
+              <label class="field-lbl">Prefixo *</label>
+              <input v-model="form.prefixo" class="field-inp" placeholder="MA-PDS-M001M" :disabled="isEditing" />
+            </div>
+            <div class="field-col">
+              <label class="field-lbl">Nome da equipe *</label>
+              <input v-model="form.nome" class="field-inp" placeholder="Nome do responsável" />
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-col">
+              <label class="field-lbl">Responsável</label>
+              <input v-model="form.responsavel" class="field-inp" />
+            </div>
+            <div class="field-col">
+              <label class="field-lbl">Supervisor</label>
+              <input v-model="form.supervisor" class="field-inp" />
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-col">
+              <label class="field-lbl">Base</label>
+              <select v-model="form.base" class="field-inp">
+                <option value="">— Selecione —</option>
+                <option v-for="b in bases" :key="b" :value="b">{{ b }}</option>
+              </select>
+            </div>
+            <div class="field-col">
+              <label class="field-lbl">Processo</label>
+              <select v-model="form.processo" class="field-inp">
+                <option value="">— Selecione —</option>
+                <option v-for="p in processos" :key="p" :value="p">{{ p }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-col">
+              <label class="field-lbl">Gerência</label>
+              <input v-model="form.gerencia" class="field-inp" />
+            </div>
+            <div class="field-col">
+              <label class="field-lbl">Status</label>
+              <select v-model="form.status" class="field-inp">
+                <option value="ativo">Ativo</option>
+                <option value="inativo">Inativo</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="dialog-footer">
+          <button class="btn-cancel" @click="showDialog = false">Cancelar</button>
+          <button class="btn-save" :class="{ loading: saving }" @click="saveTeam" :disabled="saving">
+            <q-spinner-dots v-if="saving" size="16px" />
+            <template v-else>
+              <q-icon name="save" size="16px" />
+              {{ isEditing ? 'Salvar alterações' : 'Criar equipe' }}
+            </template>
+          </button>
+        </div>
+      </div>
     </q-dialog>
 
-    <!-- Collaborators dialog -->
-    <q-dialog v-model="showCollaborators" persistent>
-      <q-card style="min-width: 440px; max-width: 600px; border-radius: 16px;">
-        <q-card-section>
-          <div class="text-h6 text-weight-bold">
-            Colaboradores — {{ selectedTeam?.prefixo }}
-          </div>
-          <div class="text-caption text-grey-6">{{ selectedTeam?.nome }}</div>
-        </q-card-section>
-        <q-separator />
-        <q-card-section>
-          <q-list separator>
-            <q-item v-for="c in selectedTeam?.collaborators || []" :key="c.id" dense>
-              <q-item-section avatar>
-                <q-avatar size="28px" color="blue-2" text-color="primary">
-                  {{ c.nome?.charAt(0) }}
-                </q-avatar>
-              </q-item-section>
-              <q-item-section>
-                <q-item-label>{{ c.nome }}</q-item-label>
-                <q-item-label caption>{{ c.funcao || 'Eletricista' }}</q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <q-btn flat round dense icon="delete" color="negative" size="sm"
-                  @click="removeColaborador(c)" />
-              </q-item-section>
-            </q-item>
-          </q-list>
-
-          <!-- Add collaborator form -->
-          <q-separator class="q-my-md" />
-          <div class="text-subtitle2 q-mb-sm">Adicionar colaborador</div>
-          <div class="row q-gutter-sm">
-            <q-input v-model="newColaborador.nome" label="Nome" outlined dense class="col" />
-            <q-input v-model="newColaborador.funcao" label="Função" outlined dense class="col" />
-          </div>
-          <q-btn class="q-mt-sm" unelevated rounded color="primary" icon="add" label="Adicionar"
-            :loading="addingColaborador" @click="addColaborador" />
-        </q-card-section>
-        <q-card-actions align="right">
-          <q-btn flat label="Fechar" v-close-popup />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
   </q-page>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useTeamsStore } from 'src/stores/teams'
+import { useAuthStore } from 'src/stores/auth'
 import { useQuasar } from 'quasar'
 
+const ADMIN_EMAIL = 'italo.fontes@cgbengenharia.com.br'
+
 const teamsStore = useTeamsStore()
+const authStore  = useAuthStore()
 const $q = useQuasar()
 
-const search = ref('')
-const showForm = ref(false)
-const showCollaborators = ref(false)
-const saving = ref(false)
-const addingColaborador = ref(false)
-const editingTeam = ref(null)
-const selectedTeam = ref(null)
-const newColaborador = ref({ nome: '', funcao: 'Eletricista' })
+const isAdmin = computed(() => authStore.desktopUser?.email === ADMIN_EMAIL)
 
-const form = ref({ prefixo: '', nome: '', descricao: '', status: 'ativo' })
+// ── Filtros ─────────────────────────────────────────────
+const search        = ref('')
+const filterBase    = ref('')
+const filterProcesso = ref('')
+const filterStatus  = ref('')
+const page          = ref(1)
+const perPage       = 20
+const sortCol       = ref('prefixo')
+const sortAsc       = ref(true)
 
-onMounted(() => teamsStore.fetchTeams())
-
-const filteredTeams = computed(() =>
-  teamsStore.teams.filter(t =>
-    !search.value ||
-    t.prefixo?.toLowerCase().includes(search.value.toLowerCase()) ||
-    t.nome?.toLowerCase().includes(search.value.toLowerCase())
-  )
+const hasFilters = computed(() =>
+  search.value || filterBase.value || filterProcesso.value || filterStatus.value
 )
 
-const columns = [
-  { name: 'prefixo', label: 'Prefixo', field: 'prefixo', align: 'left', sortable: true },
-  { name: 'nome', label: 'Nome', field: 'nome', align: 'left', sortable: true },
-  { name: 'colaboradores', label: 'Colaboradores', field: 'colaboradores', align: 'left' },
-  { name: 'status', label: 'Status', field: 'status', align: 'center', sortable: true },
-  { name: 'acoes', label: 'Ações', field: 'acoes', align: 'right' }
-]
-
-function openForm (team = null) {
-  editingTeam.value = team
-  form.value = team
-    ? { prefixo: team.prefixo, nome: team.nome, descricao: team.descricao, status: team.status }
-    : { prefixo: '', nome: '', descricao: '', status: 'ativo' }
-  showForm.value = true
+function clearFilters () {
+  search.value = filterBase.value = filterProcesso.value = filterStatus.value = ''
+  page.value = 1
 }
 
-function openCollaborators (team) {
-  selectedTeam.value = team
-  newColaborador.value = { nome: '', funcao: 'Eletricista' }
-  showCollaborators.value = true
+function sortBy (col) {
+  if (sortCol.value === col) sortAsc.value = !sortAsc.value
+  else { sortCol.value = col; sortAsc.value = true }
+}
+
+// Listas únicas para selects
+const bases = computed(() => {
+  const s = new Set(teamsStore.teams.map(t => t.base).filter(Boolean))
+  return [...s].sort()
+})
+const processos = computed(() => {
+  const s = new Set(teamsStore.teams.map(t => t.processo).filter(Boolean))
+  return [...s].sort()
+})
+
+// ── Dados filtrados ──────────────────────────────────────
+const filtered = computed(() => {
+  const q = search.value.toLowerCase()
+  return teamsStore.teams
+    .filter(t => {
+      if (q && !t.prefixo?.toLowerCase().includes(q) &&
+                !t.nome?.toLowerCase().includes(q) &&
+                !t.responsavel?.toLowerCase().includes(q)) return false
+      if (filterBase.value    && t.base     !== filterBase.value)    return false
+      if (filterProcesso.value && t.processo !== filterProcesso.value) return false
+      if (filterStatus.value  && t.status   !== filterStatus.value)  return false
+      return true
+    })
+    .sort((a, b) => {
+      const va = (a[sortCol.value] || '').toString()
+      const vb = (b[sortCol.value] || '').toString()
+      return sortAsc.value ? va.localeCompare(vb) : vb.localeCompare(va)
+    })
+})
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / perPage)))
+const paginated  = computed(() => {
+  const start = (page.value - 1) * perPage
+  return filtered.value.slice(start, start + perPage)
+})
+
+// ── Dialog ───────────────────────────────────────────────
+const showDialog = ref(false)
+const saving     = ref(false)
+const isEditing  = ref(false)
+const editingId  = ref(null)
+
+const emptyForm = () => ({ prefixo: '', nome: '', responsavel: '', supervisor: '', gerencia: '', base: '', processo: '', status: 'ativo' })
+const form = ref(emptyForm())
+
+function openCreate () {
+  isEditing.value = false
+  editingId.value = null
+  form.value = emptyForm()
+  showDialog.value = true
+}
+
+function openEdit (team) {
+  isEditing.value = true
+  editingId.value = team.id
+  form.value = {
+    prefixo:    team.prefixo    || '',
+    nome:       team.nome       || '',
+    responsavel: team.responsavel || '',
+    supervisor:  team.supervisor  || '',
+    gerencia:    team.gerencia    || '',
+    base:        team.base        || '',
+    processo:    team.processo    || '',
+    status:      team.status      || 'ativo'
+  }
+  showDialog.value = true
 }
 
 async function saveTeam () {
+  if (!form.value.prefixo || !form.value.nome) {
+    $q.notify({ type: 'warning', message: 'Prefixo e nome são obrigatórios.' })
+    return
+  }
   saving.value = true
   try {
-    if (editingTeam.value) {
-      await teamsStore.updateTeam(editingTeam.value.id, form.value)
+    if (isEditing.value) {
+      await teamsStore.updateTeam(editingId.value, { ...form.value })
+      $q.notify({ type: 'positive', message: 'Equipe atualizada!' })
     } else {
-      await teamsStore.createTeam(form.value)
+      await teamsStore.createTeam({ ...form.value })
+      $q.notify({ type: 'positive', message: 'Equipe criada!' })
     }
-    showForm.value = false
-    $q.notify({ type: 'positive', message: 'Equipe salva com sucesso!' })
+    showDialog.value = false
   } catch (e) {
     $q.notify({ type: 'negative', message: e.message })
   } finally {
@@ -207,36 +323,13 @@ async function saveTeam () {
   }
 }
 
-async function addColaborador () {
-  if (!newColaborador.value.nome) return
-  addingColaborador.value = true
-  try {
-    const result = await teamsStore.addCollaborator(selectedTeam.value.id, newColaborador.value)
-    selectedTeam.value = teamsStore.teams.find(t => t.id === selectedTeam.value.id)
-    newColaborador.value = { nome: '', funcao: 'Eletricista' }
-    $q.notify({ type: 'positive', message: 'Colaborador adicionado!' })
-  } catch (e) {
-    $q.notify({ type: 'negative', message: e.message })
-  } finally {
-    addingColaborador.value = false
-  }
-}
-
-async function removeColaborador (c) {
-  try {
-    await teamsStore.removeCollaborator(c.id, selectedTeam.value.id)
-    selectedTeam.value = teamsStore.teams.find(t => t.id === selectedTeam.value.id)
-  } catch (e) {
-    $q.notify({ type: 'negative', message: e.message })
-  }
-}
-
 function confirmDelete (team) {
   $q.dialog({
     title: 'Excluir equipe',
-    message: `Tem certeza que deseja excluir a equipe ${team.prefixo}?`,
-    cancel: true,
-    color: 'negative'
+    message: `Excluir <b>${team.prefixo}</b> — ${team.nome}?<br/>Esta ação não pode ser desfeita.`,
+    html: true,
+    cancel: { flat: true, label: 'Cancelar' },
+    ok: { unelevated: true, color: 'negative', label: 'Excluir' }
   }).onOk(async () => {
     try {
       await teamsStore.deleteTeam(team.id)
@@ -246,4 +339,235 @@ function confirmDelete (team) {
     }
   })
 }
+
+onMounted(() => { if (isAdmin.value) teamsStore.fetchTeams() })
 </script>
+
+<style scoped>
+/* ── Page ─────────────────────────────────────────────── */
+.teams-page {
+  padding: 32px 36px;
+  background: #0d1117;
+  min-height: 100vh;
+  color: #e6edf3;
+}
+
+/* ── Access denied ───────────────────────────────────── */
+.access-denied {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  gap: 8px;
+}
+.denied-title { font-size: 1.5rem; font-weight: 700; color: #ef4444; }
+.denied-sub   { color: #5a6a8c; font-size: 0.9rem; }
+
+/* ── Header ──────────────────────────────────────────── */
+.teams-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.teams-title { font-size: 1.75rem; font-weight: 800; color: #f0f6ff; letter-spacing: -0.01em; }
+.teams-sub   { font-size: 0.82rem; color: #6b7a99; margin-top: 3px; }
+.header-actions { display: flex; gap: 10px; align-items: center; }
+
+.action-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: #3b82f6; color: #fff;
+  border: none; border-radius: 8px;
+  font-family: inherit; font-size: 0.85rem; font-weight: 600;
+  padding: 9px 18px; cursor: pointer;
+  transition: background 0.2s;
+}
+.action-btn:hover { background: #2563eb; }
+
+/* ── Filtros ─────────────────────────────────────────── */
+.filters-bar {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 18px; flex-wrap: wrap;
+}
+
+.search-wrap {
+  display: flex; align-items: center; gap: 8px;
+  background: #161b2e; border: 1px solid #1e2640;
+  border-radius: 8px; padding: 8px 14px; flex: 1; min-width: 220px;
+}
+.search-input {
+  background: transparent; border: none; outline: none;
+  color: #c9d3e8; font-family: inherit; font-size: 0.875rem; width: 100%;
+}
+.search-input::placeholder { color: #3b4a6b; }
+
+.filter-select {
+  background: #161b2e; border: 1px solid #1e2640; border-radius: 8px;
+  color: #8a9bbf; font-family: inherit; font-size: 0.82rem;
+  padding: 8px 12px; cursor: pointer; outline: none;
+  color-scheme: dark;
+}
+.filter-select:focus { border-color: #3b82f6; }
+
+.clear-btn {
+  display: flex; align-items: center; gap: 4px;
+  background: transparent; border: 1px solid #2d3a58;
+  color: #6b7a99; border-radius: 8px; font-family: inherit;
+  font-size: 0.78rem; padding: 8px 12px; cursor: pointer;
+  transition: color 0.2s;
+}
+.clear-btn:hover { color: #ef4444; border-color: #ef4444; }
+
+/* ── Tabela ──────────────────────────────────────────── */
+.table-wrap {
+  background: #161b2e; border: 1px solid #1e2640;
+  border-radius: 14px; overflow: hidden;
+}
+
+.table-loading {
+  display: flex; justify-content: center; padding: 60px;
+}
+
+.teams-table {
+  width: 100%; border-collapse: collapse; font-size: 0.845rem;
+}
+
+.teams-table thead tr {
+  background: #111827; border-bottom: 1px solid #1e2640;
+}
+
+.teams-table th {
+  padding: 13px 16px; text-align: left;
+  font-size: 0.7rem; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #4b5680; font-weight: 700;
+  white-space: nowrap;
+}
+.teams-table th.sortable { cursor: pointer; user-select: none; }
+.teams-table th.sortable:hover { color: #7b91bf; }
+
+.team-row { border-bottom: 1px solid #1a2035; transition: background 0.15s; }
+.team-row:hover { background: #1a2238; }
+.team-row:last-child { border-bottom: none; }
+
+.teams-table td { padding: 12px 16px; color: #c9d3e8; vertical-align: middle; }
+
+.prefix-chip {
+  background: rgba(59,130,246,0.15); color: #93c5fd;
+  border: 1px solid rgba(59,130,246,0.25);
+  border-radius: 6px; padding: 3px 8px;
+  font-size: 0.78rem; font-weight: 700; white-space: nowrap;
+  font-family: monospace;
+}
+
+.cell-nome { font-weight: 600; color: #dde7f8; max-width: 200px; }
+.cell-resp { color: #8a9bbf; font-size: 0.82rem; max-width: 180px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.base-tag {
+  background: #1e2640; color: #7b91bf;
+  border-radius: 5px; padding: 2px 8px;
+  font-size: 0.75rem; font-weight: 600;
+}
+
+.proc-tag {
+  border-radius: 5px; padding: 2px 8px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+  background: rgba(245,158,11,0.12); color: #fcd34d;
+}
+.proc-gstc { background: rgba(59,130,246,0.13); color: #93c5fd; }
+.proc-gere { background: rgba(168,85,247,0.13); color: #d8b4fe; }
+.proc-spot { background: rgba(34,197,94,0.13); color: #86efac; }
+
+.status-dot {
+  display: inline-block; width: 7px; height: 7px;
+  border-radius: 50%; margin-right: 6px; vertical-align: middle;
+}
+.dot-on  { background: #22c55e; box-shadow: 0 0 6px #22c55e60; }
+.dot-off { background: #4b5680; }
+
+.cell-actions { text-align: right; white-space: nowrap; }
+.icon-btn {
+  background: transparent; border: none; cursor: pointer;
+  padding: 6px; border-radius: 6px; transition: background 0.15s;
+  display: inline-flex; align-items: center;
+}
+.edit-btn { color: #60a5fa; }
+.edit-btn:hover { background: rgba(59,130,246,0.15); }
+.del-btn  { color: #f87171; }
+.del-btn:hover  { background: rgba(239,68,68,0.15); }
+
+.empty-row { text-align: center; padding: 48px; color: #3b4a6b; }
+
+/* ── Paginação ───────────────────────────────────────── */
+.pagination {
+  display: flex; align-items: center; justify-content: center;
+  gap: 4px; padding: 14px;
+  border-top: 1px solid #1e2640;
+}
+.page-btn {
+  background: transparent; border: 1px solid #1e2640;
+  color: #6b7a99; border-radius: 6px; padding: 5px 11px;
+  font-size: 0.82rem; cursor: pointer; transition: all 0.15s;
+  font-family: inherit;
+}
+.page-btn:hover:not(:disabled) { border-color: #3b82f6; color: #93c5fd; }
+.page-btn.active { background: #3b82f6; border-color: #3b82f6; color: #fff; font-weight: 700; }
+.page-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* ── Edit dialog ─────────────────────────────────────── */
+.edit-dialog {
+  background: #161b2e; border: 1px solid #1e2640;
+  border-radius: 16px; width: 600px; max-width: 96vw;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+}
+
+.dialog-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px 16px; border-bottom: 1px solid #1e2640;
+}
+.dialog-title { font-size: 1rem; font-weight: 700; color: #f0f6ff; }
+.dialog-close {
+  background: transparent; border: none; color: #4b5680;
+  cursor: pointer; border-radius: 6px; padding: 4px;
+  display: flex; align-items: center; transition: color 0.15s;
+}
+.dialog-close:hover { color: #c9d3e8; }
+
+.dialog-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+
+.field-row { display: flex; gap: 14px; }
+.field-col { flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field-lbl { font-size: 0.7rem; color: #4b5680; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; }
+.field-inp {
+  background: #111827; border: 1px solid #1e2640; border-radius: 8px;
+  color: #c9d3e8; font-family: inherit; font-size: 0.88rem;
+  padding: 9px 12px; outline: none; width: 100%; color-scheme: dark;
+  transition: border-color 0.2s;
+}
+.field-inp:focus { border-color: #3b82f6; }
+.field-inp:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.dialog-footer {
+  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+  padding: 16px 24px; border-top: 1px solid #1e2640;
+}
+.btn-cancel {
+  background: transparent; border: 1px solid #1e2640; color: #6b7a99;
+  border-radius: 8px; font-family: inherit; font-size: 0.85rem;
+  padding: 9px 20px; cursor: pointer; transition: all 0.15s;
+}
+.btn-cancel:hover { border-color: #3b4a6b; color: #c9d3e8; }
+
+.btn-save {
+  display: flex; align-items: center; gap: 7px;
+  background: #3b82f6; color: #fff; border: none; border-radius: 8px;
+  font-family: inherit; font-size: 0.85rem; font-weight: 600;
+  padding: 9px 22px; cursor: pointer; transition: background 0.2s;
+  min-width: 160px; justify-content: center;
+}
+.btn-save:hover:not(:disabled) { background: #2563eb; }
+.btn-save:disabled { opacity: 0.5; cursor: default; }
+</style>

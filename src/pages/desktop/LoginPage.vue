@@ -355,11 +355,11 @@ async function login () {
 
 /* ── Card ──────────────────────────────────────────────── */
 .login-card {
-  background: transparent !important;
-  backdrop-filter: blur(22px) saturate(1.8);
-  -webkit-backdrop-filter: blur(22px) saturate(1.8);
-  border: 1px solid rgba(79, 195, 247, 0.25);
-  box-shadow: 0 8px 48px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.10);
+  background: rgba(6, 13, 31, 0.75) !important;
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  border: 1px solid rgba(79, 195, 247, 0.30);
+  box-shadow: 0 8px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 
 .letra-destaque { letter-spacing: 0.08em; font-size: 0.72rem; }
@@ -376,8 +376,8 @@ async function login () {
 .field-wrap {
   display: flex;
   align-items: center;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(79, 195, 247, 0.25);
+  background: rgba(255,255,255,0.11);
+  border: 1px solid rgba(79, 195, 247, 0.35);
   border-radius: 12px;
   padding: 10px 16px;
   gap: 12px;

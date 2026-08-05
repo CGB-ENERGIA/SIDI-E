@@ -9,7 +9,6 @@ export const useEvidenceStore = defineStore('evidence', () => {
   const photos = ref([])
   const syncing = ref(false)
 
-  // Start a new service record
   function startService (payload) {
     currentService.value = {
       ...payload,
@@ -17,35 +16,34 @@ export const useEvidenceStore = defineStore('evidence', () => {
       photos: [],
       status: 'em_andamento',
       syncStatus: 'pending',
+      attempts: 0,
       createdAt: new Date().toISOString()
     }
     photos.value = []
   }
 
-  // Add photo blob to current service (works offline)
   async function addPhoto (blob, tipo) {
     const photo = {
       serviceId: currentService.value?.id,
-      tipo, // 'epi' | 'atividade'
+      tipo,
       blob,
       syncStatus: 'pending',
+      attempts: 0,
       createdAt: new Date().toISOString()
     }
     const localId = await offlineDB.savePhoto(photo)
     const photoWithId = { ...photo, id: localId }
     photos.value.push(photoWithId)
-    if (currentService.value) {
-      currentService.value.photos = photos.value
-    }
+    if (currentService.value) currentService.value.photos = photos.value
     return photoWithId
   }
 
-  // Remove a photo
+  // Remove foto da memória E do IndexedDB
   async function removePhoto (photoId) {
     photos.value = photos.value.filter(p => p.id !== photoId)
+    await offlineDB.deletePhoto(photoId)
   }
 
-  // Save service record locally
   async function saveServiceLocally () {
     if (!currentService.value) return
     const id = await offlineDB.saveService(currentService.value)
@@ -53,7 +51,6 @@ export const useEvidenceStore = defineStore('evidence', () => {
     return id
   }
 
-  // Sync all pending items to Supabase
   async function syncPending () {
     const online = useOnlineStore()
     if (!online.isOnline || syncing.value) return
@@ -64,6 +61,9 @@ export const useEvidenceStore = defineStore('evidence', () => {
       await syncPendingPhotos()
     } finally {
       syncing.value = false
+      // Atualiza contagem após sync
+      const count = await offlineDB.getPendingCount()
+      online.setPendingCount(count)
     }
   }
 
@@ -72,14 +72,14 @@ export const useEvidenceStore = defineStore('evidence', () => {
     for (const svc of pendingServices) {
       try {
         const payload = {
-          team_id: svc.teamId,
-          activity_id: svc.activityId,
+          team_id:       svc.teamId,
+          activity_id:   svc.activityId,
           activity_name: svc.activityName,
-          descricao: svc.descricao || null,
+          descricao:     svc.descricao || null,
           colaboradores: svc.colaboradores || [],
-          data: svc.data,
-          status: 'concluido',
-          sync_status: 'synced'
+          data:          svc.data,
+          status:        'concluido',
+          sync_status:   'synced'
         }
         const { data, error } = await supabase
           .from('services')
@@ -89,7 +89,8 @@ export const useEvidenceStore = defineStore('evidence', () => {
         if (error) throw error
         await offlineDB.markServiceSynced(svc.id, data.id)
       } catch (e) {
-        console.error('Sync service failed:', e)
+        console.error('Sync service failed:', svc.id, e.message)
+        await offlineDB.markServiceError(svc.id) // incrementa tentativas, marca 'error' após 3
       }
     }
   }
@@ -98,13 +99,12 @@ export const useEvidenceStore = defineStore('evidence', () => {
     const pendingPhotos = await offlineDB.getPendingPhotos()
     for (const photo of pendingPhotos) {
       try {
-        // Resolve remote service id if local was already synced
         let serviceId = photo.serviceId
         if (typeof serviceId === 'string' && serviceId.startsWith('local_')) {
           const { db } = await import('src/services/localDB')
           const localSvc = await db.services.get(serviceId)
           if (localSvc?.remoteId) serviceId = localSvc.remoteId
-          else continue // wait until service syncs first
+          else continue // serviço ainda não sincronizou, tenta na próxima rodada
         }
 
         const filename = `${serviceId}/${photo.tipo}_${photo.id}_${Date.now()}.jpg`
@@ -113,42 +113,42 @@ export const useEvidenceStore = defineStore('evidence', () => {
 
         await supabase.from('evidence_photos').insert({
           service_id: serviceId,
-          tipo: photo.tipo,
-          file_path: filename,
+          tipo:       photo.tipo,
+          file_path:  filename,
           created_at: photo.createdAt
         })
 
         await offlineDB.markPhotoSynced(photo.id, filename)
       } catch (e) {
-        console.error('Sync photo failed:', e)
+        console.error('Sync photo failed:', photo.id, e.message)
+        await offlineDB.markPhotoError(photo.id) // marca 'error' após 3 tentativas
       }
     }
   }
 
-  // Fetch evidence from Supabase (desktop view)
+  // Desktop: busca evidências do Supabase com fallback local mínimo
   async function fetchEvidences (filters = {}) {
-    let query = supabase
-      .from('services')
-      .select('*, evidence_photos(*), teams(prefixo, nome)')
-      .order('created_at', { ascending: false })
+    try {
+      let query = supabase
+        .from('services')
+        .select('*, evidence_photos(*), teams(prefixo, nome)')
+        .order('created_at', { ascending: false })
 
-    if (filters.teamId) query = query.eq('team_id', filters.teamId)
-    if (filters.date) query = query.gte('created_at', filters.date)
+      if (filters.teamId) query = query.eq('team_id', filters.teamId)
+      if (filters.date)   query = query.gte('created_at', filters.date)
 
-    const { data, error } = await query
-    if (error) throw error
-    return data
+      const { data, error } = await query
+      if (error) throw error
+      return data
+    } catch (e) {
+      console.error('fetchEvidences offline fallback:', e.message)
+      return []
+    }
   }
 
   return {
-    currentService,
-    photos,
-    syncing,
-    startService,
-    addPhoto,
-    removePhoto,
-    saveServiceLocally,
-    syncPending,
-    fetchEvidences
+    currentService, photos, syncing,
+    startService, addPhoto, removePhoto,
+    saveServiceLocally, syncPending, fetchEvidences
   }
 })

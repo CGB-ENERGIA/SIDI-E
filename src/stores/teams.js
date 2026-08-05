@@ -21,8 +21,14 @@ export const useTeamsStore = defineStore('teams', () => {
           .order('prefixo')
         if (err) throw err
         teams.value = data
-        // Cache locally
-        for (const team of data) await offlineDB.saveTeam(team)
+        // Cache teams and their collaborators locally
+        for (const team of data) {
+          const { collaborators, ...teamData } = team
+          await offlineDB.saveTeam(teamData)
+          if (collaborators?.length) {
+            for (const c of collaborators) await offlineDB.saveCollaborator({ ...c, teamId: team.id })
+          }
+        }
       } else {
         teams.value = await offlineDB.getTeams()
       }
@@ -64,6 +70,7 @@ export const useTeamsStore = defineStore('teams', () => {
     const { error: err } = await supabase.from('teams').delete().eq('id', id)
     if (err) throw err
     teams.value = teams.value.filter(t => t.id !== id)
+    await offlineDB.deleteTeam(id)
   }
 
   async function addCollaborator (teamId, colaborador) {

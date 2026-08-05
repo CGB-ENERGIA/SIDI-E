@@ -39,21 +39,20 @@
       >
         <q-item-section avatar>
           <q-icon
-            :name="svc.syncStatus === 'synced' ? 'cloud_done' : 'pending'"
-            :color="svc.syncStatus === 'synced' ? 'positive' : 'orange'"
+            :name="svc.syncStatus === 'synced' ? 'cloud_done' : svc.syncStatus === 'error' ? 'error' : 'pending'"
+            :color="svc.syncStatus === 'synced' ? 'positive' : svc.syncStatus === 'error' ? 'negative' : 'orange'"
           />
         </q-item-section>
         <q-item-section>
           <q-item-label class="text-weight-medium">{{ svc.activityName }}</q-item-label>
           <q-item-label caption>
-            {{ svc.photos?.length || 0 }} foto(s) •
             {{ formatTime(svc.createdAt) }}
           </q-item-label>
         </q-item-section>
         <q-item-section side>
           <q-badge
-            :color="svc.syncStatus === 'synced' ? 'positive' : 'orange'"
-            :label="svc.syncStatus === 'synced' ? 'Sync' : 'Pend.'"
+            :color="svc.syncStatus === 'synced' ? 'positive' : svc.syncStatus === 'error' ? 'negative' : 'orange'"
+            :label="svc.syncStatus === 'synced' ? 'Sync' : svc.syncStatus === 'error' ? 'Erro' : 'Pend.'"
           />
         </q-item-section>
       </q-item>
@@ -88,7 +87,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from 'src/stores/auth'
 import { offlineDB } from 'src/services/localDB'
 
@@ -96,12 +95,22 @@ const authStore = useAuthStore()
 const session = authStore.mobileSession
 const services = ref([])
 
-onMounted(async () => {
-  const all = await offlineDB.getPendingServices()
+async function loadServices () {
+  const all = await offlineDB.getAllServices()
   services.value = all.filter(s =>
     s.teamId === session.equipeId &&
-    s.createdAt?.startsWith(session.data)
+    (s.data === session.data || s.createdAt?.startsWith(session.data))
   )
+}
+
+onMounted(() => {
+  loadServices()
+  // Recarrega ao reconectar para refletir status de sync atualizado
+  window.addEventListener('online', loadServices)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('online', loadServices)
 })
 
 function formatDate (dateStr) {
