@@ -118,7 +118,6 @@
             <q-select
               :model-value="col.nome"
               @update:model-value="v => col.nome = (v || '').toUpperCase()"
-              @input-value="v => col.nome = v.toUpperCase()"
               :options="filteredCollabs"
               :label="`Colaborador ${idx + 1}`"
               outlined
