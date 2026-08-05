@@ -171,15 +171,19 @@ async function save () {
   if (!form.value.nome) return
   saving.value = true
   try {
+    const nome = form.value.nome
     if (editing.value) {
-      await activitiesStore.updateActivity(editing.value.id, form.value)
+      await activitiesStore.updateActivity(editing.value.id, { ...form.value })
     } else {
-      await activitiesStore.createActivity(form.value)
+      await activitiesStore.createActivity({ ...form.value })
+      // Recarrega do Supabase (ordenação correta) e destaca o novo item
+      await activitiesStore.fetchActivities()
+      search.value = nome
     }
     showForm.value = false
     $q.notify({ type: 'positive', message: 'Atividade salva com sucesso!' })
   } catch (e) {
-    $q.notify({ type: 'negative', message: e.message })
+    $q.notify({ type: 'negative', message: 'Erro: ' + (e.message || JSON.stringify(e)) })
   } finally {
     saving.value = false
   }
