@@ -4,7 +4,7 @@
     <q-card flat bordered class="q-mb-md" style="border-radius: 12px; border-left: 4px solid var(--q-primary);">
       <q-card-section class="q-pa-md">
         <div class="text-caption text-grey-6">TURNO ATIVO</div>
-        <div class="text-h6 text-weight-bold">{{ session.prefixo }} — {{ session.equipeName }}</div>
+        <div class="text-h6 text-weight-bold">{{ session.prefixo }}</div>
         <div class="text-caption text-grey-6">
           <q-icon name="calendar_today" size="12px" class="q-mr-xs" />
           {{ formatDate(session.data) }}
