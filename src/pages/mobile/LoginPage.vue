@@ -202,7 +202,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
 import { offlineDB } from 'src/services/localDB'
@@ -228,6 +228,13 @@ const teamInput = ref('')
 
 const teamCollaborators = ref([])
 const filteredCollabs = ref([])
+const collabFilterInput = ref('')
+
+// Re-aplica o filtro atual quando os colaboradores carregam (resolve race condition)
+watch(teamCollaborators, (val) => {
+  const needle = collabFilterInput.value.toUpperCase()
+  filteredCollabs.value = needle ? val.filter(n => n.includes(needle)) : val
+})
 
 // ── Computed ──────────────────────────────────────────────────────────
 const filteredTeams = computed(() => {
@@ -354,8 +361,9 @@ async function loadTeamCollaborators (teamId) {
 }
 
 function filterCollab (val, update) {
+  collabFilterInput.value = val || ''
   update(() => {
-    const needle = (val || '').toUpperCase()
+    const needle = collabFilterInput.value.toUpperCase()
     filteredCollabs.value = needle
       ? teamCollaborators.value.filter(n => n.includes(needle))
       : teamCollaborators.value
