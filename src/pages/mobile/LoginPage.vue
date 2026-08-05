@@ -123,17 +123,21 @@
               outlined
               dense
               use-input
+              fill-input
+              hide-selected
               new-value-mode="add-unique"
-              input-debounce="150"
+              input-debounce="0"
               class="col input-upper"
               :rules="[v => !!v || 'Informe o nome']"
               @filter="filterCollab"
+              @blur="ev => { const v = ev?.target?.value; if (v && v.trim()) col.nome = v.trim().toUpperCase() }"
             >
               <template #prepend><q-icon name="person" /></template>
               <template #no-option="{ inputValue }">
-                <q-item>
-                  <q-item-section class="text-grey text-caption">
-                    {{ inputValue ? 'Novo colaborador: ' + inputValue.toUpperCase() : 'Nenhum colaborador salvo' }}
+                <q-item clickable @click="col.nome = inputValue.toUpperCase()">
+                  <q-item-section class="text-caption text-primary">
+                    <q-icon name="person_add" class="q-mr-xs" />
+                    Confirmar: {{ inputValue.toUpperCase() }}
                   </q-item-section>
                 </q-item>
               </template>
