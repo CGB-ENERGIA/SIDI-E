@@ -206,13 +206,19 @@
             color="primary" class="q-mt-xs" @click="addColaborador" />
         </div>
 
-        <!-- Date -->
+        <!-- Date (sempre hoje — não editável) -->
         <q-input
-          v-model="form.data"
+          :model-value="dataFormatada"
           label="Data *"
-          outlined dense type="date"
+          outlined
+          dense
+          readonly
           class="q-mb-lg"
-        />
+        >
+          <template #prepend>
+            <q-icon name="calendar_today" />
+          </template>
+        </q-input>
 
         <!-- Hint quando faltam colaboradores validados -->
         <div v-if="equipeEncontrada && colaboradoresPendentes > 0" class="text-caption text-orange q-mb-sm">
@@ -319,6 +325,15 @@ const form = ref({
   ],
   data: today
 })
+
+const dataFormatada = computed(() =>
+  new Date(form.value.data + 'T00:00:00').toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  })
+)
 
 const colaboradoresPendentes = computed(() =>
   form.value.colaboradores.filter(c => !c.validated && !c.validating).length
@@ -575,6 +590,10 @@ async function solicitarCadastro () {
 async function login () {
   loading.value = true
   try {
+    // Data sempre é o dia atual — não permite alteração
+    const dataHoje = new Date().toISOString().split('T')[0]
+    form.value.data = dataHoje
+
     const nomes = form.value.colaboradores
       .filter(c => c.validated && c.nome.trim())
       .map(c => c.nome.trim().toUpperCase())
@@ -586,7 +605,7 @@ async function login () {
           team_id: equipeEncontrada.value.id,
           prefixo: form.value.prefixo.toUpperCase(),
           colaborador: nome,
-          data: form.value.data
+          data: dataHoje
         }))
       )
     }
@@ -596,7 +615,7 @@ async function login () {
       equipeId: equipeEncontrada.value.id,
       equipeName: equipeEncontrada.value.nome,
       colaboradores: nomes,
-      data: form.value.data
+      data: dataHoje
     })
     router.replace('/m/home')
   } catch (e) {
