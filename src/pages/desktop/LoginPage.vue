@@ -369,28 +369,13 @@ async function login () {
   align-items: center;
 }
 
-/* ── Logo: light pass on the image itself ──────────────── */
+/* ── Logo ──────────────────────────────────────────────── */
 .company-logo-login {
   width: 80px;
   height: 80px;
   object-fit: contain;
   display: block;
   filter: drop-shadow(0 0 10px rgba(79, 195, 247, 0.28));
-  -webkit-mask-image: linear-gradient(
-    105deg,
-    #000 38%,
-    rgba(0, 0, 0, 0.72) 50%,
-    #000 62%
-  );
-  mask-image: linear-gradient(
-    105deg,
-    #000 38%,
-    rgba(0, 0, 0, 0.72) 50%,
-    #000 62%
-  );
-  -webkit-mask-size: 220% 100%;
-  mask-size: 220% 100%;
-  animation: element-shine 6.5s ease-in-out infinite;
 }
 
 /* ── SIDI-E: soft gradient on the text ─────────────────── */
@@ -443,9 +428,9 @@ async function login () {
 .hl:nth-of-type(4) { animation-delay: 1.65s; }
 
 @keyframes element-shine {
-  0%   { background-position: 140% center; -webkit-mask-position: 140% center; mask-position: 140% center; }
-  35%  { background-position: -40% center; -webkit-mask-position: -40% center; mask-position: -40% center; }
-  100% { background-position: -40% center; -webkit-mask-position: -40% center; mask-position: -40% center; }
+  0%   { background-position: 140% center; }
+  35%  { background-position: -40% center; }
+  100% { background-position: -40% center; }
 }
 
 /* ── Inputs ────────────────────────────────────────────── */
