@@ -16,8 +16,8 @@
       </div>
     </transition>
 
-    <!-- Header only shown when logged in -->
-    <q-header v-if="authStore.isMobileLoggedIn" elevated class="bg-primary">
+    <!-- Header: only on authenticated screens (never on login) -->
+    <q-header v-if="showHeader" elevated class="bg-primary">
       <q-toolbar>
         <q-btn flat dense round icon="arrow_back" v-if="canGoBack" @click="$router.back()" />
         <q-toolbar-title>
@@ -28,20 +28,45 @@
           </div>
         </q-toolbar-title>
 
-        <!-- Sync dot -->
-        <div class="flex items-center gap-1 q-mr-sm">
-          <div
-            class="sync-dot"
-            :class="{
-              synced: onlineStore.isOnline && onlineStore.pendingCount === 0,
-              pending: onlineStore.pendingCount > 0,
-              error: !onlineStore.isOnline
-            }"
-          />
-          <span class="text-caption text-white">
-            {{ onlineStore.isOnline ? (onlineStore.pendingCount > 0 ? `${onlineStore.pendingCount} pend.` : 'Sync') : 'Offline' }}
-          </span>
-        </div>
+        <!-- Sync (tap to upload pending) -->
+        <q-btn
+          flat
+          dense
+          no-caps
+          class="q-mr-xs"
+          :loading="syncing"
+          :disable="!onlineStore.isOnline"
+          @click="triggerSync"
+        >
+          <div class="flex items-center gap-1">
+            <div
+              class="sync-dot"
+              :class="{
+                synced: onlineStore.isOnline && onlineStore.pendingCount === 0,
+                pending: onlineStore.pendingCount > 0,
+                error: !onlineStore.isOnline
+              }"
+            />
+            <span class="text-caption text-white">
+              {{
+                !onlineStore.isOnline
+                  ? 'Offline'
+                  : onlineStore.pendingCount > 0
+                    ? `${onlineStore.pendingCount} pend.`
+                    : 'Sync'
+              }}
+            </span>
+            <q-icon
+              v-if="onlineStore.pendingCount > 0"
+              name="cloud_upload"
+              size="16px"
+              class="q-ml-xs"
+            />
+          </div>
+          <q-tooltip>
+            {{ onlineStore.pendingCount > 0 ? 'Toque para sincronizar pendências' : 'Tudo sincronizado' }}
+          </q-tooltip>
+        </q-btn>
 
         <q-btn flat round icon="logout" size="sm" @click="logoutConfirm" />
       </q-toolbar>
@@ -58,6 +83,7 @@ import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
 import { useOnlineStore } from 'src/stores/online'
+import { useEvidenceStore } from 'src/stores/evidence'
 import { useQuasar } from 'quasar'
 import { supabase } from 'src/services/supabase'
 
@@ -65,7 +91,39 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const onlineStore = useOnlineStore()
+const evidenceStore = useEvidenceStore()
 const $q = useQuasar()
+
+const syncing = ref(false)
+
+const showHeader = computed(() =>
+  authStore.isMobileLoggedIn && route.name !== 'MobileLogin'
+)
+
+async function triggerSync () {
+  if (!onlineStore.isOnline) {
+    $q.notify({ type: 'warning', message: 'Sem conexão — não é possível sincronizar agora.' })
+    return
+  }
+  if (onlineStore.pendingCount === 0) {
+    $q.notify({ type: 'info', message: 'Nada pendente para sincronizar.' })
+    return
+  }
+  syncing.value = true
+  try {
+    await evidenceStore.syncPending()
+    $q.notify({
+      type: onlineStore.pendingCount === 0 ? 'positive' : 'warning',
+      message: onlineStore.pendingCount === 0
+        ? 'Sincronização concluída!'
+        : `Ainda restam ${onlineStore.pendingCount} pendência(s).`
+    })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro ao sincronizar: ' + e.message })
+  } finally {
+    syncing.value = false
+  }
+}
 
 // ── PWA install prompt ────────────────────────────────
 const showInstallBanner = ref(false)

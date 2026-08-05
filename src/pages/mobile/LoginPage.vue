@@ -1,5 +1,32 @@
 <template>
-  <q-page class="mobile-page flex column items-center justify-center q-pa-lg">
+  <q-page class="mobile-page flex column items-center justify-center q-pa-lg relative-position">
+    <!-- Sync pendências (disponível mesmo sem turno ativo) -->
+    <div class="login-sync-bar">
+      <q-btn
+        :outline="onlineStore.pendingCount === 0"
+        :unelevated="onlineStore.pendingCount > 0"
+        rounded
+        dense
+        no-caps
+        :color="onlineStore.pendingCount > 0 ? 'orange' : 'primary'"
+        class="full-width"
+        :loading="syncing"
+        :disable="!onlineStore.isOnline && onlineStore.pendingCount === 0"
+        @click="triggerSync"
+      >
+        <q-icon
+          :name="onlineStore.pendingCount > 0 ? 'cloud_upload' : (onlineStore.isOnline ? 'cloud_done' : 'cloud_off')"
+          size="18px"
+          class="q-mr-sm"
+        />
+        <span v-if="!onlineStore.isOnline && onlineStore.pendingCount === 0">Offline</span>
+        <span v-else-if="onlineStore.pendingCount > 0">
+          Sincronizar {{ onlineStore.pendingCount }} pendência{{ onlineStore.pendingCount > 1 ? 's' : '' }}
+        </span>
+        <span v-else>Tudo sincronizado</span>
+      </q-btn>
+    </div>
+
     <!-- Logo -->
     <div class="text-center q-mb-xl brand-header">
       <img src="/icons/icon-512x512.png" alt="CGB Energia" class="company-logo-mobile" />
@@ -213,6 +240,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
+import { useEvidenceStore } from 'src/stores/evidence'
 import { offlineDB } from 'src/services/localDB'
 import { supabase } from 'src/services/supabase'
 import { useQuasar } from 'quasar'
@@ -221,7 +249,35 @@ import { useOnlineStore } from 'src/stores/online'
 const router = useRouter()
 const authStore = useAuthStore()
 const onlineStore = useOnlineStore()
+const evidenceStore = useEvidenceStore()
 const $q = useQuasar()
+
+const syncing = ref(false)
+
+async function triggerSync () {
+  if (!onlineStore.isOnline) {
+    $q.notify({ type: 'warning', message: 'Sem conexão — não é possível sincronizar agora.' })
+    return
+  }
+  if (onlineStore.pendingCount === 0) {
+    $q.notify({ type: 'info', message: 'Nada pendente para sincronizar.' })
+    return
+  }
+  syncing.value = true
+  try {
+    await evidenceStore.syncPending()
+    $q.notify({
+      type: onlineStore.pendingCount === 0 ? 'positive' : 'warning',
+      message: onlineStore.pendingCount === 0
+        ? 'Sincronização concluída!'
+        : `Ainda restam ${onlineStore.pendingCount} pendência(s).`
+    })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro ao sincronizar: ' + e.message })
+  } finally {
+    syncing.value = false
+  }
+}
 
 const loading = ref(false)
 const buscandoEquipe = ref(false)
@@ -552,6 +608,15 @@ async function login () {
 </script>
 
 <style scoped>
+.login-sync-bar {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  z-index: 2;
+}
+
 .brand-header {
   display: flex;
   flex-direction: column;
