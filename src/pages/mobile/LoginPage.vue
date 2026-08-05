@@ -22,6 +22,7 @@
           dense
           use-input
           clearable
+          behavior="menu"
           class="q-mb-md"
           :rules="[v => !!v || 'Informe o prefixo']"
           input-debounce="200"
@@ -400,6 +401,15 @@ function onCollabBlur (col, ev) {
 async function validarColaborador (col) {
   const nome = col.nome.trim().toUpperCase()
   if (!nome || !equipeEncontrada.value?.id) return
+
+  // Bloqueia nome duplicado na mesma lista
+  const duplicado = form.value.colaboradores.some(c => c !== col && c.nome.trim().toUpperCase() === nome)
+  if (duplicado) {
+    col.nome = ''
+    col.validated = false
+    $q.notify({ type: 'warning', message: `"${nome}" já foi adicionado neste turno.` })
+    return
+  }
 
   col.nome = nome
   col.validating = true
