@@ -59,6 +59,27 @@ export const offlineDB = {
     return db.collaborators.where('teamId').equals(teamId).toArray()
   },
 
+  /** Substitui o cache local de colaboradores de uma equipe (evita nomes órfãos após troca). */
+  async replaceTeamCollaborators (teamId, list = []) {
+    await db.collaborators.where('teamId').equals(teamId).delete()
+    for (const c of list) {
+      await db.collaborators.put({
+        ...c,
+        teamId,
+        nome: (c.nome || '').trim().toUpperCase()
+      })
+    }
+  },
+
+  /** Remove todas as entradas locais com o mesmo nome (qualquer equipe). */
+  async deleteCollaboratorsByNome (nome) {
+    const needle = (nome || '').trim().toUpperCase()
+    if (!needle) return
+    const all = await db.collaborators.toArray()
+    const ids = all.filter(c => (c.nome || '').trim().toUpperCase() === needle).map(c => c.id)
+    if (ids.length) await db.collaborators.bulkDelete(ids)
+  },
+
   // ── Activities ────────────────────────────────────────────────
   async saveActivity (activity) {
     return db.activities.put(activity)

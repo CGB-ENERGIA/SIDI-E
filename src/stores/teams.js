@@ -21,13 +21,14 @@ export const useTeamsStore = defineStore('teams', () => {
           .order('prefixo')
         if (err) throw err
         teams.value = data
-        // Cache teams and their collaborators locally (spread = plain object, não Proxy Vue)
+        // Cache teams + colaboradores (substitui por equipe p/ refletir trocas do admin)
         for (const team of data) {
           const { collaborators, ...teamData } = team
           await offlineDB.saveTeam({ ...teamData })
-          if (collaborators?.length) {
-            for (const c of collaborators) await offlineDB.saveCollaborator({ ...c, teamId: team.id })
-          }
+          await offlineDB.replaceTeamCollaborators(
+            team.id,
+            (collaborators || []).map(c => ({ ...c, teamId: team.id }))
+          )
         }
       } else {
         teams.value = await offlineDB.getTeams()

@@ -251,12 +251,28 @@ async function saveEdit () {
     $q.notify({ type: 'negative', message: 'Sem permissão para editar.' })
     return
   }
-  const nome = editForm.value.nome?.trim()
+  const nome = editForm.value.nome?.trim().toUpperCase()
   const teamId = editForm.value.teamId
   if (!nome || !teamId) return
 
   saving.value = true
   try {
+    // 1 pessoa = 1 equipe: remove duplicatas do mesmo nome em outras equipes
+    const { data: sameName, error: findErr } = await supabase
+      .from('collaborators')
+      .select('id, team_id')
+      .ilike('nome', nome)
+    if (findErr) throw findErr
+
+    const duplicates = (sameName || []).filter(c => c.id !== editingId.value)
+    if (duplicates.length) {
+      const { error: delErr } = await supabase
+        .from('collaborators')
+        .delete()
+        .in('id', duplicates.map(c => c.id))
+      if (delErr) throw delErr
+    }
+
     const { data, error } = await supabase
       .from('collaborators')
       .update({ nome, team_id: teamId })
@@ -265,10 +281,26 @@ async function saveEdit () {
       .single()
     if (error) throw error
 
-    const idx = collaborators.value.findIndex(c => c.id === editingId.value)
-    if (idx !== -1) collaborators.value[idx] = data
+    // Atualiza sessão ativa (se houver) para a nova equipe
+    const team = teamsStore.teams.find(t => t.id === teamId)
+    if (team?.prefixo) {
+      await supabase
+        .from('active_sessions')
+        .update({ team_id: teamId, prefixo: team.prefixo })
+        .ilike('colaborador', nome)
+    }
+
+    // Recarrega lista (remove órfãos da UI) e refresh cache de equipes
+    await fetchAll()
+    await teamsStore.fetchTeams()
+
     showEdit.value = false
-    $q.notify({ type: 'positive', message: 'Colaborador atualizado.' })
+    $q.notify({
+      type: 'positive',
+      message: duplicates.length
+        ? `${nome} movido para ${data.teams?.prefixo || 'nova equipe'} (duplicatas removidas).`
+        : 'Colaborador atualizado.'
+    })
   } catch (e) {
     $q.notify({ type: 'negative', message: 'Erro ao salvar: ' + e.message })
   } finally {

@@ -1,31 +1,27 @@
 <template>
-  <q-page class="mobile-page flex column items-center justify-center q-pa-lg relative-position">
-    <!-- Sync pendências (disponível mesmo sem turno ativo) -->
-    <div class="login-sync-bar">
-      <q-btn
-        :outline="onlineStore.pendingCount === 0"
-        :unelevated="onlineStore.pendingCount > 0"
-        rounded
-        dense
-        no-caps
-        :color="onlineStore.pendingCount > 0 ? 'orange' : 'primary'"
-        class="full-width"
-        :loading="syncing"
-        :disable="!onlineStore.isOnline && onlineStore.pendingCount === 0"
-        @click="triggerSync"
-      >
-        <q-icon
-          :name="onlineStore.pendingCount > 0 ? 'cloud_upload' : (onlineStore.isOnline ? 'cloud_done' : 'cloud_off')"
-          size="18px"
-          class="q-mr-sm"
-        />
-        <span v-if="!onlineStore.isOnline && onlineStore.pendingCount === 0">Offline</span>
-        <span v-else-if="onlineStore.pendingCount > 0">
-          Sincronizar {{ onlineStore.pendingCount }} pendência{{ onlineStore.pendingCount > 1 ? 's' : '' }}
-        </span>
-        <span v-else>Tudo sincronizado</span>
-      </q-btn>
-    </div>
+  <q-page class="mobile-page flex column items-center justify-center q-pa-lg">
+
+    <!-- Sync FAB: canto inferior direito, não interfere no layout -->
+    <button
+      class="sync-fab"
+      :class="{
+        'sync-fab--pending': onlineStore.pendingCount > 0,
+        'sync-fab--offline': !onlineStore.isOnline,
+        'sync-fab--synced': onlineStore.isOnline && onlineStore.pendingCount === 0
+      }"
+      :disabled="syncing || (!onlineStore.isOnline && onlineStore.pendingCount === 0)"
+      @click="triggerSync"
+    >
+      <q-spinner-dots v-if="syncing" size="18px" color="white" />
+      <q-icon
+        v-else
+        :name="!onlineStore.isOnline ? 'cloud_off' : onlineStore.pendingCount > 0 ? 'cloud_upload' : 'cloud_done'"
+        size="20px"
+      />
+      <span v-if="onlineStore.pendingCount > 0" class="sync-fab__badge">
+        {{ onlineStore.pendingCount }}
+      </span>
+    </button>
 
     <!-- Logo -->
     <div class="text-center q-mb-xl brand-header">
@@ -447,10 +443,16 @@ async function loadTeamCollaborators (teamId) {
   try {
     if (onlineStore.isOnline) {
       const { data } = await supabase
-        .from('collaborators').select('nome').eq('team_id', teamId).order('nome')
-      const unique = [...new Set((data || []).map(c => c.nome.trim().toUpperCase()))]
+        .from('collaborators').select('id, nome').eq('team_id', teamId).order('nome')
+      const rows = data || []
+      const unique = [...new Set(rows.map(c => c.nome.trim().toUpperCase()))]
       teamCollaborators.value = unique
       filteredCollabs.value = unique
+      // Espelha no IndexedDB para o PWA offline refletir trocas do admin
+      await offlineDB.replaceTeamCollaborators(
+        teamId,
+        rows.map(c => ({ id: c.id, nome: c.nome, teamId }))
+      )
     } else {
       const local = await offlineDB.getCollaboratorsByTeam(teamId)
       const unique = [...new Set(local.map(c => c.nome.trim().toUpperCase()))]
@@ -524,29 +526,50 @@ async function validarColaborador (col) {
         return
       }
 
-      // Verifica se já existe no banco
-      const { data: existing } = await supabase
+      // 1 pessoa = 1 equipe: busca em qualquer equipe e transfere se necessário
+      const { data: existingList, error: findErr } = await supabase
         .from('collaborators')
-        .select('id')
-        .eq('team_id', equipeEncontrada.value.id)
+        .select('id, team_id')
         .ilike('nome', nome)
-        .maybeSingle()
+      if (findErr) throw findErr
 
-      if (existing) {
-        col.isNew = false
-      } else {
-        // Auto-cadastra
-        await supabase.from('collaborators').insert({
-          team_id: equipeEncontrada.value.id,
-          nome
-        })
-        col.isNew = true
-        // Adiciona às sugestões locais
-        if (!teamCollaborators.value.includes(nome)) {
-          teamCollaborators.value = [...teamCollaborators.value, nome].sort()
+      const currentTeamId = equipeEncontrada.value.id
+      const rows = existingList || []
+
+      if (rows.length) {
+        const keep = rows.find(r => r.team_id === currentTeamId) || rows[0]
+        const extras = rows.filter(r => r.id !== keep.id)
+        if (extras.length) {
+          await supabase.from('collaborators').delete().in('id', extras.map(r => r.id))
         }
-        // Salva no IndexedDB para uso offline
-        await offlineDB.saveCollaborator({ teamId: equipeEncontrada.value.id, nome })
+        if (keep.team_id !== currentTeamId) {
+          await supabase
+            .from('collaborators')
+            .update({ team_id: currentTeamId, nome })
+            .eq('id', keep.id)
+          col.isNew = false
+          $q.notify({
+            type: 'info',
+            message: `"${nome}" estava em outra equipe e foi transferido para ${equipeEncontrada.value.prefixo}.`
+          })
+        } else {
+          col.isNew = false
+        }
+        await offlineDB.deleteCollaboratorsByNome(nome)
+        await offlineDB.saveCollaborator({ id: keep.id, teamId: currentTeamId, nome })
+      } else {
+        const { data: inserted, error: insErr } = await supabase
+          .from('collaborators')
+          .insert({ team_id: currentTeamId, nome })
+          .select('id')
+          .single()
+        if (insErr) throw insErr
+        col.isNew = true
+        await offlineDB.saveCollaborator({ id: inserted?.id, teamId: currentTeamId, nome })
+      }
+
+      if (!teamCollaborators.value.includes(nome)) {
+        teamCollaborators.value = [...teamCollaborators.value, nome].sort()
       }
       col.validated = true
     } else {
@@ -639,13 +662,62 @@ async function login () {
 </script>
 
 <style scoped>
-.login-sync-bar {
+/* ── Sync FAB ───────────────────────────────────────────── */
+.sync-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 16px;
+  z-index: 100;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+.sync-fab:active { transform: scale(0.92); }
+.sync-fab:disabled { opacity: 0.5; cursor: default; }
+
+.sync-fab--synced {
+  background: rgba(15, 52, 96, 0.85);
+  color: #4fc3f7;
+}
+.sync-fab--pending {
+  background: #e65100;
+  color: #fff;
+  animation: fab-pulse 2s ease-in-out infinite;
+}
+.sync-fab--offline {
+  background: rgba(60, 60, 60, 0.85);
+  color: #9e9e9e;
+}
+
+@keyframes fab-pulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
+  50%       { box-shadow: 0 4px 24px rgba(230, 81, 0, 0.6); }
+}
+
+.sync-fab__badge {
   position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(100% - 32px);
-  z-index: 2;
+  top: -4px;
+  right: -4px;
+  background: #fff;
+  color: #e65100;
+  font-size: 0.6rem;
+  font-weight: 800;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  line-height: 1;
 }
 
 .brand-header {
@@ -654,13 +726,76 @@ async function login () {
   align-items: center;
 }
 
-/* ── Logo ──────────────────────────────────────────────── */
+/* ── Logo shine ────────────────────────────────────────── */
+.logo-shine-wrap {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  border-radius: 20px;
+}
+
+.logo-shine-wrap::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  left: -120%;
+  width: 55%;
+  height: 140%;
+  background: linear-gradient(
+    108deg,
+    transparent 25%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 75%
+  );
+  transform: skewX(-10deg);
+  animation: logo-shine 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes logo-shine {
+  0%   { left: -120%; }
+  40%  { left: 160%; }
+  100% { left: 160%; }
+}
+
 .company-logo-mobile {
   width: 80px;
   height: 80px;
   object-fit: contain;
   display: block;
   filter: drop-shadow(0 0 10px rgba(79, 195, 247, 0.28));
+}
+
+/* ── Subtitle sweep ─────────────────────────────────────── */
+.subtitle-shine-wrap {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+}
+
+.subtitle-shine-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 55%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.65),
+    transparent
+  );
+  transform: skewX(-12deg);
+  animation: subtitle-shine 4s ease-in-out infinite;
+  animation-delay: 0.5s;
+  pointer-events: none;
+}
+
+@keyframes subtitle-shine {
+  0%   { left: -120%; }
+  40%  { left: 160%; }
+  100% { left: 160%; }
 }
 
 /* ── SIDI-E: soft gradient on the text ─────────────────── */
