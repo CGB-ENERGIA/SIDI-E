@@ -7,7 +7,7 @@
     </div>
 
     <q-tabs v-model="tab" dense align="left" class="q-mb-lg act-tabs"
-      active-color="primary" indicator-color="primary">
+      active-color="white" indicator-color="primary" active-bg-color="primary">
       <q-tab name="atividades" icon="bar_chart" label="Atividades" />
       <q-tab name="servicos"   icon="build"     label="Serviços"   />
     </q-tabs>
@@ -19,12 +19,12 @@
 
         <!-- Filtro bar -->
         <div class="filter-bar q-mb-lg">
-          <q-input v-model="atividadesDate" type="date" label="Data"
-            outlined dense bg-color="surface" style="min-width:168px;"
+          <q-input v-model="atividadesDate" type="date" label="Todas as datas"
+            outlined dense clearable bg-color="surface" style="min-width:190px;"
             @update:model-value="loadAtividades" />
-          <q-select v-model="atividadesTeam" :options="teamOptions" label="Equipe"
+          <q-select v-model="atividadesTeam" :options="teamOptions" label="Todas as equipes"
             outlined dense clearable emit-value map-options bg-color="surface"
-            style="min-width:240px;" @update:model-value="loadAtividades" />
+            style="min-width:260px;" @update:model-value="loadAtividades" />
           <q-btn unelevated icon="refresh" label="Atualizar" color="primary"
             :loading="loadingAtividades" @click="loadAtividades"
             style="height:40px; border-radius:8px;" />
@@ -122,16 +122,23 @@
             <!-- Expanded: service rows -->
             <transition name="slide">
               <div v-if="expanded.includes(equipe.teamId)" class="team-card__detail">
-                <div class="detail-header">
-                  <span>Horário</span><span>Serviço</span><span>Colaboradores</span>
+                <div class="detail-header" :class="{ 'detail-header--admin': authStore.isAdmin }">
+                  <span>Horário</span><span>Serviço</span><span>Colaboradores</span><span v-if="authStore.isAdmin"></span>
                 </div>
                 <div
                   v-for="svc in equipe.servicos" :key="svc.id"
                   class="detail-row"
+                  :class="{ 'detail-row--admin': authStore.isAdmin }"
                 >
                   <span class="detail-time">{{ formatTime(svc.created_at) }}</span>
                   <span class="detail-act">{{ svc.activity_name || '—' }}</span>
                   <span class="detail-collabs">{{ (svc.colaboradores || []).join(', ') }}</span>
+                  <span v-if="authStore.isAdmin" class="detail-actions">
+                    <q-btn flat round dense icon="delete" color="negative" size="sm"
+                      @click.stop="confirmDeleteService(svc)">
+                      <q-tooltip>Excluir registro</q-tooltip>
+                    </q-btn>
+                  </span>
                 </div>
               </div>
             </transition>
@@ -146,8 +153,11 @@
             clearable style="max-width:360px;" bg-color="surface">
             <template #prepend><q-icon name="search" /></template>
           </q-input>
-          <q-btn unelevated rounded color="primary" icon="add" label="Novo Serviço"
-            @click="openForm()" />
+          <q-btn
+            v-if="authStore.isAdmin"
+            unelevated rounded color="primary" icon="add" label="Novo Serviço"
+            @click="openForm()"
+          />
         </div>
 
         <q-card flat bordered style="border-radius:14px;">
@@ -168,8 +178,11 @@
             </template>
             <template #body-cell-acoes="{ row }">
               <q-td class="text-right">
-                <q-btn flat round dense icon="edit" color="primary" @click="openForm(row)" />
-                <q-btn flat round dense icon="delete" color="negative" @click="confirmDelete(row)" />
+                <template v-if="authStore.isAdmin">
+                  <q-btn flat round dense icon="edit" color="primary" @click="openForm(row)" />
+                  <q-btn flat round dense icon="delete" color="negative" @click="confirmDelete(row)" />
+                </template>
+                <span v-else class="text-caption text-grey-6">—</span>
               </q-td>
             </template>
           </q-table>
@@ -210,18 +223,21 @@
 import { ref, computed, onMounted } from 'vue'
 import { useActivitiesStore } from 'src/stores/activities'
 import { useTeamsStore } from 'src/stores/teams'
+import { useEvidenceStore } from 'src/stores/evidence'
+import { useAuthStore } from 'src/stores/auth'
 import { supabase } from 'src/services/supabase'
 import { useQuasar } from 'quasar'
 
 const activitiesStore = useActivitiesStore()
 const teamsStore = useTeamsStore()
+const evidenceStore = useEvidenceStore()
+const authStore = useAuthStore()
 const $q = useQuasar()
 
 const tab = ref('atividades')
 
 // ── ATIVIDADES ──────────────────────────────────────────
-const today = new Date().toISOString().split('T')[0]
-const atividadesDate = ref(today)
+const atividadesDate = ref(null)
 const atividadesTeam = ref(null)
 const loadingAtividades = ref(false)
 const servicesData = ref([])
@@ -342,6 +358,10 @@ function tipoColor (t) {
 }
 
 function openForm (activity = null) {
+  if (!authStore.isAdmin) {
+    $q.notify({ type: 'negative', message: 'Sem permissão para editar.' })
+    return
+  }
   editing.value = activity
   form.value = activity
     ? { nome: activity.nome, descricao: activity.descricao || '', tipo: activity.tipo || 'servico', status: activity.status || 'ativo' }
@@ -350,6 +370,10 @@ function openForm (activity = null) {
 }
 
 async function save () {
+  if (!authStore.isAdmin) {
+    $q.notify({ type: 'negative', message: 'Sem permissão para editar.' })
+    return
+  }
   if (!form.value.nome) return
   saving.value = true
   try {
@@ -371,6 +395,10 @@ async function save () {
 }
 
 function confirmDelete (activity) {
+  if (!authStore.isAdmin) {
+    $q.notify({ type: 'negative', message: 'Sem permissão para excluir.' })
+    return
+  }
   $q.dialog({
     title: 'Excluir serviço',
     message: `Tem certeza que deseja excluir "${activity.nome}"?`,
@@ -385,6 +413,28 @@ function confirmDelete (activity) {
   })
 }
 
+function confirmDeleteService (svc) {
+  if (!authStore.isAdmin) {
+    $q.notify({ type: 'negative', message: 'Sem permissão para excluir.' })
+    return
+  }
+  $q.dialog({
+    title: 'Excluir registro',
+    message: `Excluir o serviço <strong>${svc.activity_name || '—'}</strong> e suas fotos?`,
+    html: true,
+    cancel: true,
+    ok: { label: 'Excluir', color: 'negative', unelevated: true }
+  }).onOk(async () => {
+    try {
+      await evidenceStore.deleteService(svc.id)
+      servicesData.value = servicesData.value.filter(s => s.id !== svc.id)
+      $q.notify({ type: 'positive', message: 'Registro excluído.' })
+    } catch (e) {
+      $q.notify({ type: 'negative', message: 'Erro ao excluir: ' + (e.message || e) })
+    }
+  })
+}
+
 onMounted(async () => {
   await Promise.all([activitiesStore.fetchActivities(), teamsStore.fetchTeams(), loadAtividades()])
 })
@@ -393,6 +443,34 @@ onMounted(async () => {
 <style scoped>
 /* ── Page ─────────────────────────────────────────────── */
 .act-page { min-height: 100vh; }
+
+/* ── Tab bar ─────────────────────────────────────────── */
+.act-tabs {
+  background: rgba(255,255,255,0.05);
+  border-radius: 10px;
+  padding: 4px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+:deep(.act-tabs .q-tab) {
+  border-radius: 7px;
+  min-height: 38px;
+  padding: 0 20px;
+  color: rgba(255,255,255,0.5);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  transition: color 0.2s, background 0.2s;
+}
+
+:deep(.act-tabs .q-tab--active) {
+  color: #fff !important;
+  background: var(--q-primary);
+  box-shadow: 0 2px 8px rgba(15,111,255,0.35);
+}
+
+:deep(.act-tabs .q-tab__indicator) {
+  display: none;
+}
 
 /* ── Filter bar ──────────────────────────────────────── */
 .filter-bar {
@@ -570,6 +648,9 @@ onMounted(async () => {
   border-bottom: 1px solid rgba(255,255,255,0.04);
   margin-bottom: 4px;
 }
+.detail-header--admin {
+  grid-template-columns: 72px 1fr 1fr 44px;
+}
 
 .detail-row {
   display: grid;
@@ -580,7 +661,11 @@ onMounted(async () => {
   border-bottom: 1px solid rgba(255,255,255,0.03);
   align-items: center;
 }
+.detail-row--admin {
+  grid-template-columns: 72px 1fr 1fr 44px;
+}
 .detail-row:last-child { border-bottom: none; }
+.detail-actions { text-align: right; }
 
 .detail-time {
   color: rgba(255,255,255,0.35);

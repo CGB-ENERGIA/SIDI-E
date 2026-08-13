@@ -201,13 +201,11 @@ import { useTeamsStore } from 'src/stores/teams'
 import { useAuthStore } from 'src/stores/auth'
 import { useQuasar } from 'quasar'
 
-const ADMIN_EMAIL = 'italo.fontes@cgbengenharia.com.br'
-
 const teamsStore = useTeamsStore()
 const authStore  = useAuthStore()
 const $q = useQuasar()
 
-const isAdmin = computed(() => authStore.desktopUser?.email === ADMIN_EMAIL)
+const isAdmin = computed(() => authStore.isAdmin)
 
 // ── Filtros ─────────────────────────────────────────────
 const search        = ref('')
@@ -279,6 +277,7 @@ const emptyForm = () => ({ prefixo: '', nome: '', responsavel: '', supervisor: '
 const form = ref(emptyForm())
 
 function openCreate () {
+  if (!isAdmin.value) return
   isEditing.value = false
   editingId.value = null
   form.value = emptyForm()
@@ -286,6 +285,7 @@ function openCreate () {
 }
 
 function openEdit (team) {
+  if (!isAdmin.value) return
   isEditing.value = true
   editingId.value = team.id
   form.value = {
@@ -302,6 +302,10 @@ function openEdit (team) {
 }
 
 async function saveTeam () {
+  if (!isAdmin.value) {
+    $q.notify({ type: 'negative', message: 'Sem permissão para editar.' })
+    return
+  }
   if (!form.value.prefixo || !form.value.nome) {
     $q.notify({ type: 'warning', message: 'Prefixo e nome são obrigatórios.' })
     return
@@ -324,6 +328,10 @@ async function saveTeam () {
 }
 
 function confirmDelete (team) {
+  if (!isAdmin.value) {
+    $q.notify({ type: 'negative', message: 'Sem permissão para excluir.' })
+    return
+  }
   $q.dialog({
     title: 'Excluir equipe',
     message: `Excluir <b>${team.prefixo}</b> — ${team.nome}?<br/>Esta ação não pode ser desfeita.`,

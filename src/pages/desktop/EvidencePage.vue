@@ -10,15 +10,15 @@
       <q-select
         v-model="filters.teamId"
         :options="teamOptions"
-        label="Equipe"
+        label="Todas as equipes"
         outlined dense clearable emit-value map-options
-        style="min-width: 200px;"
+        style="min-width: 220px;"
         @update:model-value="load"
       />
       <q-input
         v-model="filters.date"
-        type="date" label="Data" outlined dense clearable
-        style="min-width: 180px;"
+        type="date" label="Todas as datas" outlined dense clearable
+        style="min-width: 190px;"
         @update:model-value="load"
       />
       <q-select
@@ -69,9 +69,17 @@
         </template>
 
         <template #body-cell-acoes="{ row }">
-          <q-td class="text-right">
-            <q-btn flat round dense icon="visibility" color="primary" @click.stop="openDetail(row)">
+          <q-td class="text-right" @click.stop>
+            <q-btn flat round dense icon="visibility" color="primary" @click="openDetail(row)">
               <q-tooltip>Ver detalhes</q-tooltip>
+            </q-btn>
+            <q-btn
+              v-if="authStore.isAdmin"
+              flat round dense icon="delete"
+              color="negative"
+              @click="confirmDelete(row)"
+            >
+              <q-tooltip>Excluir registro</q-tooltip>
             </q-btn>
           </q-td>
         </template>
@@ -87,6 +95,14 @@
             {{ selected?.teams?.prefixo }} · {{ selected?.activity_name || '—' }} · {{ formatDate(selected?.created_at) }}
           </span>
           <q-space />
+          <q-btn
+            v-if="authStore.isAdmin && selected"
+            dense flat icon="delete" color="negative"
+            class="q-mr-sm"
+            @click="confirmDelete(selected)"
+          >
+            <q-tooltip>Excluir registro</q-tooltip>
+          </q-btn>
           <q-btn dense flat icon="close" v-close-popup />
         </q-bar>
 
@@ -246,12 +262,16 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useQuasar } from 'quasar'
 import { useEvidenceStore } from 'src/stores/evidence'
 import { useTeamsStore } from 'src/stores/teams'
+import { useAuthStore } from 'src/stores/auth'
 import { storage } from 'src/services/supabase'
 
 const evidenceStore = useEvidenceStore()
 const teamsStore = useTeamsStore()
+const authStore = useAuthStore()
+const $q = useQuasar()
 
 const loading = ref(false)
 const rows = ref([])
@@ -263,7 +283,7 @@ const lightboxUrl = ref('')
 
 const filters = ref({
   teamId: null,
-  date: new Date().toISOString().split('T')[0],
+  date: null,
   status: null
 })
 
@@ -328,6 +348,32 @@ function atividadePhotos (row) {
 function openDetail (row) {
   selected.value = row
   showDetail.value = true
+}
+
+function confirmDelete (row) {
+  if (!authStore.isAdmin) {
+    $q.notify({ type: 'negative', message: 'Sem permissão para excluir.' })
+    return
+  }
+  $q.dialog({
+    title: 'Excluir evidência',
+    message: `Excluir o registro de <strong>${row.teams?.prefixo || '—'}</strong> · ${row.activity_name || 'serviço'} e todas as fotos?`,
+    html: true,
+    cancel: true,
+    ok: { label: 'Excluir', color: 'negative', unelevated: true }
+  }).onOk(async () => {
+    try {
+      await evidenceStore.deleteService(row.id)
+      rows.value = rows.value.filter(r => r.id !== row.id)
+      if (selected.value?.id === row.id) {
+        showDetail.value = false
+        selected.value = null
+      }
+      $q.notify({ type: 'positive', message: 'Registro excluído.' })
+    } catch (e) {
+      $q.notify({ type: 'negative', message: 'Erro ao excluir: ' + (e.message || e) })
+    }
+  })
 }
 
 function openLightbox (photo) {

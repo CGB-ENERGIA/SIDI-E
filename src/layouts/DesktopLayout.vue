@@ -137,8 +137,7 @@ onMounted(async () => {
   } catch {}
 })
 
-const ADMIN_EMAIL = 'italo.fontes@cgbengenharia.com.br'
-const isAdmin = computed(() => authStore.desktopUser?.email === ADMIN_EMAIL)
+const isAdmin = computed(() => authStore.isAdmin)
 
 const allMenuItems = [
   { icon: 'dashboard',       label: 'Dashboard',    to: '/dashboard' },

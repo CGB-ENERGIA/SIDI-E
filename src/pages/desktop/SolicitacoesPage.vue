@@ -75,9 +75,14 @@
       <!-- Ações -->
       <template #body-cell-acoes="{ row }">
         <q-td class="text-center">
-          <q-btn flat round dense icon="delete" color="negative" size="sm" @click="excluirColaborador(row)">
+          <q-btn
+            v-if="authStore.isAdmin"
+            flat round dense icon="delete" color="negative" size="sm"
+            @click="excluirColaborador(row)"
+          >
             <q-tooltip>Remover colaborador</q-tooltip>
           </q-btn>
+          <span v-else class="text-caption text-grey-6">—</span>
         </q-td>
       </template>
     </q-table>
@@ -88,8 +93,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from 'src/services/supabase'
 import { useQuasar } from 'quasar'
+import { useAuthStore } from 'src/stores/auth'
 
 const $q = useQuasar()
+const authStore = useAuthStore()
 
 const loading = ref(false)
 const collaborators = ref([])
@@ -131,6 +138,10 @@ async function fetchAll () {
 }
 
 async function excluirColaborador (row) {
+  if (!authStore.isAdmin) {
+    $q.notify({ type: 'negative', message: 'Sem permissão para excluir.' })
+    return
+  }
   $q.dialog({
     title: 'Remover colaborador',
     message: `Remover <strong>${row.nome}</strong> da equipe <strong>${row.teams?.prefixo || ''}</strong>?`,

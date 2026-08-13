@@ -107,6 +107,12 @@ export default defineRouter(function () {
   router.beforeEach(async (to) => {
     const authStore = useAuthStore()
     const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+    const shotPreview = import.meta.env.DEV && to.query.shot === '1'
+
+    // Preview de captura (somente em DEV) — libera UI real para marketing
+    if (shotPreview && to.meta.requiresDesktopAuth && !authStore.isDesktopLoggedIn) {
+      authStore.desktopUser = { email: 'preview@sidi-e.app', id: 'shot-preview' }
+    }
 
     // Ensure desktop session is loaded once
     if (authStore.desktopUser === null && to.meta.requiresDesktopAuth) {
@@ -114,7 +120,7 @@ export default defineRouter(function () {
     }
 
     // Auto-redirect phones to mobile app
-    if (isMobile && !to.path.startsWith('/m') && to.name !== 'DesktopLogin') {
+    if (isMobile && !to.path.startsWith('/m') && to.name !== 'DesktopLogin' && !shotPreview) {
       return { path: '/m' }
     }
 
@@ -128,7 +134,7 @@ export default defineRouter(function () {
     }
 
     // Restrict admin-only pages
-    if (to.meta.adminOnly && authStore.desktopUser?.email !== 'italo.fontes@cgbengenharia.com.br') {
+    if (to.meta.adminOnly && !authStore.isAdmin && !shotPreview) {
       return { path: '/dashboard' }
     }
 

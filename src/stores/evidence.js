@@ -192,9 +192,42 @@ export const useEvidenceStore = defineStore('evidence', () => {
     }
   }
 
+  /** Remove serviço remoto + fotos (storage + tabela). Só chamar após checagem de admin na UI. */
+  async function deleteService (serviceId) {
+    if (!serviceId) throw new Error('Serviço inválido')
+
+    const { data: photosRows, error: photosErr } = await supabase
+      .from('evidence_photos')
+      .select('id, file_path')
+      .eq('service_id', serviceId)
+    if (photosErr) throw photosErr
+
+    for (const photo of photosRows || []) {
+      if (photo.file_path) {
+        try {
+          await storage.deletePhoto('evidencias', photo.file_path)
+        } catch (e) {
+          console.warn('Falha ao remover arquivo do storage:', photo.file_path, e)
+        }
+      }
+    }
+
+    const { error: delPhotosErr } = await supabase
+      .from('evidence_photos')
+      .delete()
+      .eq('service_id', serviceId)
+    if (delPhotosErr) throw delPhotosErr
+
+    const { error: delSvcErr } = await supabase
+      .from('services')
+      .delete()
+      .eq('id', serviceId)
+    if (delSvcErr) throw delSvcErr
+  }
+
   return {
     currentService, photos, syncing, lastSyncErrors,
     startService, addPhoto, removePhoto,
-    saveServiceLocally, syncPending, fetchEvidences
+    saveServiceLocally, syncPending, fetchEvidences, deleteService
   }
 })
