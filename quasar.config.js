@@ -34,7 +34,7 @@ export default defineConfig(function (/* ctx */) {
 
     framework: {
       config: {
-        dark: 'auto',
+        dark: true,
         notify: {
           position: 'top',
           timeout: 3000
@@ -71,7 +71,7 @@ export default defineConfig(function (/* ctx */) {
       manifest: {
         name: 'SIDI-E Inspeções',
         short_name: 'SIDI-E',
-        description: 'Sistema de Inspeção e Documentação de Instalações Elétricas',
+        description: 'Sistema de Inspeção de EPIs',
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#0f3460',

@@ -1,5 +1,5 @@
-import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching'
-import { registerRoute } from 'workbox-routing'
+import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching'
+import { registerRoute, NavigationRoute } from 'workbox-routing'
 import { NetworkFirst, CacheFirst, StaleWhileRevalidate } from 'workbox-strategies'
 import { BackgroundSyncPlugin } from 'workbox-background-sync'
 import { ExpirationPlugin } from 'workbox-expiration'
@@ -7,6 +7,17 @@ import { ExpirationPlugin } from 'workbox-expiration'
 // Injeta o precache gerado pelo Quasar
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
+
+// ── Fallback de navegação (SPA offline) ───────────────────────────────
+// Sem isso, ao reabrir o app offline em qualquer rota (ex: /m/home),
+// o navegador não encontra nada em cache e mostra a tela nativa
+// "Você está off-line" em vez do app. Toda navegação cai no shell
+// precacheado (index.html) e o Vue Router assume a rota certa no cliente.
+registerRoute(
+  new NavigationRoute(createHandlerBoundToURL('index.html'), {
+    denylist: [/^\/(supabase|storage)\//]
+  })
+)
 
 // ── Controle do ciclo de vida ─────────────────────────────────────────
 self.addEventListener('message', event => {
