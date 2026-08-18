@@ -104,11 +104,23 @@ export const useEvidenceStore = defineStore('evidence', () => {
           status:        'concluido',
           sync_status:   'synced'
         }
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from('services')
           .insert(payload)
           .select()
           .single()
+
+        // FK violation no activity_id (atividade removida do servidor) → retentar sem ela
+        if (error?.code === '23503' && error?.message?.includes('activity_id')) {
+          const res = await supabase
+            .from('services')
+            .insert({ ...payload, activity_id: null })
+            .select()
+            .single()
+          data = res.data
+          error = res.error
+        }
+
         if (error) throw error
         await offlineDB.markServiceSynced(svc.id, data.id)
       } catch (e) {
