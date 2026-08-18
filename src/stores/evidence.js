@@ -90,7 +90,14 @@ export const useEvidenceStore = defineStore('evidence', () => {
 
   async function syncPendingServices () {
     const pendingServices = await offlineDB.getPendingServices()
-    for (const svc of pendingServices) {
+    const errorServices  = await offlineDB.getErrorServices()
+    // Recoloca serviços em 'error' na fila — podem ter falhado por problema transitório
+    // (FK de activity_id, rede instável, etc.). Resetar attempts permite nova tentativa.
+    for (const svc of errorServices) {
+      await offlineDB.resetServiceForRetry(svc.id)
+    }
+    const allServices = [...pendingServices, ...errorServices]
+    for (const svc of allServices) {
       try {
         const activityId = resolveActivityId(svc.activityId)
 

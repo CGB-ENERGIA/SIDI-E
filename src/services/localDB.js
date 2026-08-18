@@ -120,6 +120,10 @@ export const offlineDB = {
     return db.services.where('syncStatus').equals('pending').toArray()
   },
 
+  async getErrorServices () {
+    return db.services.where('syncStatus').equals('error').toArray()
+  },
+
   async markServiceSynced (id, remoteId) {
     return db.services.update(id, { syncStatus: 'synced', remoteId })
   },
@@ -128,6 +132,10 @@ export const offlineDB = {
     const svc = await db.services.get(id)
     const attempts = (svc?.attempts || 0) + 1
     return db.services.update(id, { syncStatus: attempts >= 3 ? 'error' : 'pending', attempts })
+  },
+
+  async resetServiceForRetry (id) {
+    return db.services.update(id, { syncStatus: 'pending', attempts: 0 })
   },
 
   async deleteService (id) {
@@ -225,11 +233,13 @@ export const offlineDB = {
 
   // ── Contagem total de pendentes ───────────────────────────────
   async getPendingCount () {
-    const [services, photos] = await Promise.all([
+    const [svcPending, svcError, photoPending, photoError] = await Promise.all([
       db.services.where('syncStatus').equals('pending').count(),
-      db.evidencePhotos.where('syncStatus').equals('pending').count()
+      db.services.where('syncStatus').equals('error').count(),
+      db.evidencePhotos.where('syncStatus').equals('pending').count(),
+      db.evidencePhotos.where('syncStatus').equals('error').count()
     ])
-    return services + photos
+    return svcPending + svcError + photoPending + photoError
   },
 
   // ── Sync Queue ────────────────────────────────────────────────
