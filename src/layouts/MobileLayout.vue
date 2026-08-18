@@ -208,7 +208,7 @@ function logoutConfirm () {
   left: 12px;
   right: 12px;
   z-index: 9999;
-  background: linear-gradient(135deg, #0f3460, #1a1a2e);
+  background: linear-gradient(135deg, #1565C0, #1E2B3C);
   border-radius: 16px;
   padding: 12px 14px;
   display: flex;

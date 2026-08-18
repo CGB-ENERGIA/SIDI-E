@@ -1,13 +1,17 @@
-// GSTC Quasar variables
+// GSTC Quasar variables — tema escuro de alta visibilidade
 
-$primary   : #0f3460;
-$secondary : #16213e;
-$accent    : #e94560;
+// Azul vivo: visível e legível sobre qualquer superfície escura
+$primary   : #1E88E5;
+// Azul-cinza neutro: ícones/textos secundários legíveis
+$secondary : #78909C;
+// Laranja vivo: ações e destaques com máximo contraste
+$accent    : #FF6D00;
 
-$dark      : #1a1a2e;
-$dark-page : #12121f;
+// Superfícies com separação clara entre fundo e cards
+$dark      : #1E2B3C;
+$dark-page : #111827;
 
-$positive  : #21ba45;
-$negative  : #ff5252;
-$info      : #31ccec;
-$warning   : #f2c037;
+$positive  : #43A047;
+$negative  : #FF5252;
+$info      : #40C4FF;
+$warning   : #FFC107;
