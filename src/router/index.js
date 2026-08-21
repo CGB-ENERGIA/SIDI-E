@@ -53,7 +53,7 @@ const routes = [
         path: 'usuarios',
         name: 'Usuarios',
         component: () => import('src/pages/desktop/UsersPage.vue'),
-        meta: { adminOnly: true }
+        meta: { superAdminOnly: true }
       }
     ]
   },
@@ -141,6 +141,11 @@ export default defineRouter(function () {
 
     // Restrict admin-only pages
     if (to.meta.adminOnly && !authStore.isAdmin && !shotPreview) {
+      return { path: '/dashboard' }
+    }
+
+    // Restrict super-admin-only pages (somente matrícula 12690)
+    if (to.meta.superAdminOnly && !authStore.isSuperAdmin && !shotPreview) {
       return { path: '/dashboard' }
     }
 

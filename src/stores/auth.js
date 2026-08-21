@@ -25,6 +25,14 @@ export const useAuthStore = defineStore('auth', () => {
   /** Acesso total — Equipes, Usuários, configurações */
   const isAdmin = computed(() => portalRole.value === 'admin')
 
+  /** Único que pode gerenciar usuários e permissões em qualquer sistema */
+  const isSuperAdmin = computed(() => {
+    if (!desktopUser.value) return false
+    if (desktopUser.value.email === ADMIN_EMAIL) return true
+    if (String(desktopUser.value.user_metadata?.matricula || '') === '12690') return true
+    return false
+  })
+
   /** Pode adicionar/editar registros, não gerencia equipes/usuários */
   const isEditor = computed(() => portalRole.value === 'editor' || portalRole.value === 'admin')
 
@@ -68,6 +76,7 @@ export const useAuthStore = defineStore('auth', () => {
     isMobileLoggedIn,
     portalRole,
     isAdmin,
+    isSuperAdmin,
     isEditor,
     isViewer,
     desktopLogin,
