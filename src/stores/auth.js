@@ -11,8 +11,25 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isDesktopLoggedIn = computed(() => !!desktopUser.value)
   const isMobileLoggedIn = computed(() => !!mobileSession.value)
-  /** Único usuário autorizado a editar/apagar no desktop */
-  const isAdmin = computed(() => desktopUser.value?.email === ADMIN_EMAIL)
+
+  // Papel lido do app_metadata.portal_role (definido pelo portal corporativo).
+  // Fallback durante transição: admin_email hardcoded vira 'admin' enquanto
+  // o portal ainda não definiu o portal_role explicitamente.
+  const portalRole = computed(() => {
+    const role = desktopUser.value?.app_metadata?.portal_role
+    if (role) return role
+    if (desktopUser.value?.email === ADMIN_EMAIL) return 'admin'
+    return 'viewer'
+  })
+
+  /** Acesso total — Equipes, Usuários, configurações */
+  const isAdmin = computed(() => portalRole.value === 'admin')
+
+  /** Pode adicionar/editar registros, não gerencia equipes/usuários */
+  const isEditor = computed(() => portalRole.value === 'editor' || portalRole.value === 'admin')
+
+  /** Qualquer usuário autenticado no desktop */
+  const isViewer = computed(() => !!desktopUser.value)
 
   // ── Desktop auth (Supabase) ───────────────────────────────────
   async function desktopLogin (email, password) {
@@ -49,7 +66,10 @@ export const useAuthStore = defineStore('auth', () => {
     mobileSession,
     isDesktopLoggedIn,
     isMobileLoggedIn,
+    portalRole,
     isAdmin,
+    isEditor,
+    isViewer,
     desktopLogin,
     desktopLogout,
     loadDesktopSession,
