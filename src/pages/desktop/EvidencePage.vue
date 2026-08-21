@@ -43,20 +43,29 @@
 
     <q-card flat bordered style="border-radius: 16px;">
       <q-table
-        :rows="filteredRows"
+        :rows="groupedRows"
         :columns="columns"
-        row-key="id"
+        row-key="key"
         flat
         :loading="loading"
-        :pagination="{ rowsPerPage: 15 }"
+        :pagination="{ rowsPerPage: 20 }"
         class="clickable-rows"
         @row-click="(_, row) => openDetail(row)"
       >
         <template #body-cell-equipe="{ row }">
           <q-td>
             <q-chip dense color="primary" text-color="white">
-              {{ row.teams?.prefixo || '—' }}
+              {{ row.prefixo }}
             </q-chip>
+          </q-td>
+        </template>
+
+        <template #body-cell-atividades="{ row }">
+          <q-td>
+            <span v-if="row.atividadeNomes.length">
+              {{ row.atividadeNomes.join(' · ') }}
+            </span>
+            <span v-else class="text-grey-5">—</span>
           </q-td>
         </template>
 
@@ -64,18 +73,24 @@
           <q-td>
             <div class="flex items-center gap-xs">
               <q-icon name="photo_library" size="16px" color="grey-6" />
-              <span>{{ row.evidence_photos?.length || 0 }}</span>
-              <q-badge v-if="epiCount(row)" color="teal" :label="`${epiCount(row)} EPI`" class="q-ml-xs" />
-              <q-badge v-if="atividadeCount(row)" color="blue" :label="`${atividadeCount(row)} Ativ.`" class="q-ml-xs" />
+              <span>{{ row.totalFotos }}</span>
+              <q-badge v-if="row.epiTotal" color="teal" :label="`${row.epiTotal} EPI`" class="q-ml-xs" />
+              <q-badge v-if="row.atividadeTotal" color="blue" :label="`${row.atividadeTotal} Ativ.`" class="q-ml-xs" />
             </div>
+          </q-td>
+        </template>
+
+        <template #body-cell-servicos="{ row }">
+          <q-td>
+            <q-badge color="grey-7" :label="`${row.servicos.length} serviço${row.servicos.length !== 1 ? 's' : ''}`" />
           </q-td>
         </template>
 
         <template #body-cell-status="{ row }">
           <q-td>
             <q-badge
-              :color="row.sync_status === 'synced' ? 'positive' : 'orange'"
-              :label="row.sync_status === 'synced' ? 'Sincronizado' : 'Pendente'"
+              :color="row.allSynced ? 'positive' : 'orange'"
+              :label="row.allSynced ? 'Sincronizado' : 'Pendente'"
             />
           </q-td>
         </template>
@@ -89,90 +104,95 @@
               v-if="authStore.isAdmin"
               flat round dense icon="delete"
               color="negative"
-              @click="confirmDelete(row)"
+              @click="confirmDeleteGroup(row)"
             >
-              <q-tooltip>Excluir registro</q-tooltip>
+              <q-tooltip>Excluir todos os registros do dia</q-tooltip>
             </q-btn>
           </q-td>
         </template>
       </q-table>
     </q-card>
 
-    <!-- Dialog de detalhe -->
+    <!-- Dialog de detalhe do grupo -->
     <q-dialog v-model="showDetail" maximized transition-show="slide-up" transition-hide="slide-down">
-      <q-card class="detail-card">
+      <q-card class="detail-card" v-if="selected">
         <q-bar class="bg-primary text-white q-py-sm">
           <q-icon name="photo_library" class="q-mr-sm" />
           <span class="text-weight-bold">
-            {{ selected?.teams?.prefixo }} · {{ selected?.activity_name || '—' }} · {{ formatDate(selected?.created_at) }}
+            {{ selected.prefixo }} · {{ selected.nomeEquipe }} · {{ formatDateStr(selected.dateStr) }}
           </span>
           <q-space />
           <q-btn
-            v-if="authStore.isAdmin && selected"
+            v-if="authStore.isAdmin"
             dense flat icon="delete" color="negative"
             class="q-mr-sm"
-            @click="confirmDelete(selected)"
+            @click="confirmDeleteGroup(selected)"
           >
-            <q-tooltip>Excluir registro</q-tooltip>
+            <q-tooltip>Excluir todos os registros do dia</q-tooltip>
           </q-btn>
           <q-btn dense flat icon="close" v-close-popup />
         </q-bar>
 
-        <q-card-section v-if="selected" class="q-pa-lg">
+        <q-card-section class="q-pa-lg">
           <div class="row q-col-gutter-lg">
 
-            <!-- Info lateral -->
-            <div class="col-12 col-md-4">
+            <!-- Painel esquerdo: resumo -->
+            <div class="col-12 col-md-3">
               <q-list bordered separator style="border-radius: 12px;" class="q-mb-md">
                 <q-item>
                   <q-item-section avatar><q-icon name="groups" color="primary" /></q-item-section>
                   <q-item-section>
                     <q-item-label caption>Equipe</q-item-label>
-                    <q-item-label class="text-weight-bold">{{ selected.teams?.prefixo }}</q-item-label>
-                    <q-item-label caption>{{ selected.teams?.nome }}</q-item-label>
+                    <q-item-label class="text-weight-bold">{{ selected.prefixo }}</q-item-label>
+                    <q-item-label caption>{{ selected.nomeEquipe }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+
+                <q-item>
+                  <q-item-section avatar><q-icon name="today" color="primary" /></q-item-section>
+                  <q-item-section>
+                    <q-item-label caption>Data</q-item-label>
+                    <q-item-label>{{ formatDateStr(selected.dateStr) }}</q-item-label>
                   </q-item-section>
                 </q-item>
 
                 <q-item>
                   <q-item-section avatar><q-icon name="task" color="primary" /></q-item-section>
                   <q-item-section>
-                    <q-item-label caption>Atividade</q-item-label>
-                    <q-item-label>{{ selected.activity_name || selected.activity_id || '—' }}</q-item-label>
+                    <q-item-label caption>Atividades</q-item-label>
+                    <div class="q-mt-xs">
+                      <q-chip
+                        v-for="nome in selected.atividadeNomes" :key="nome"
+                        dense size="sm" color="blue-grey-8" text-color="white"
+                        class="q-mb-xs"
+                      >{{ nome }}</q-chip>
+                      <span v-if="!selected.atividadeNomes.length" class="text-grey-5">—</span>
+                    </div>
                   </q-item-section>
                 </q-item>
 
-                <q-item v-if="selected.colaboradores?.length">
+                <q-item v-if="selected.allColaboradores.length">
                   <q-item-section avatar><q-icon name="people" color="primary" /></q-item-section>
                   <q-item-section>
                     <q-item-label caption>Colaboradores</q-item-label>
                     <div class="q-mt-xs">
                       <q-chip
-                        v-for="nome in selected.colaboradores"
-                        :key="nome"
-                        dense
-                        color="primary"
-                        text-color="white"
-                        icon="person"
-                        size="sm"
+                        v-for="nome in selected.allColaboradores" :key="nome"
+                        dense size="sm" color="primary" text-color="white" icon="person"
                         class="q-mb-xs"
                       >{{ nome }}</q-chip>
                     </div>
                   </q-item-section>
                 </q-item>
 
-                <q-item v-if="selected.descricao">
-                  <q-item-section avatar><q-icon name="notes" color="primary" /></q-item-section>
-                  <q-item-section>
-                    <q-item-label caption>Observações</q-item-label>
-                    <q-item-label>{{ selected.descricao }}</q-item-label>
-                  </q-item-section>
-                </q-item>
-
                 <q-item>
-                  <q-item-section avatar><q-icon name="schedule" color="primary" /></q-item-section>
+                  <q-item-section avatar><q-icon name="photo_library" color="primary" /></q-item-section>
                   <q-item-section>
-                    <q-item-label caption>Registrado em</q-item-label>
-                    <q-item-label>{{ formatDateTime(selected.created_at) }}</q-item-label>
+                    <q-item-label caption>Total de fotos</q-item-label>
+                    <div class="flex items-center q-gutter-xs q-mt-xs">
+                      <q-badge color="teal" :label="`${selected.epiTotal} EPI`" />
+                      <q-badge color="blue" :label="`${selected.atividadeTotal} Ativ.`" />
+                    </div>
                   </q-item-section>
                 </q-item>
 
@@ -181,71 +201,80 @@
                   <q-item-section>
                     <q-item-label caption>Status</q-item-label>
                     <q-badge
-                      :color="selected.sync_status === 'synced' ? 'positive' : 'orange'"
-                      :label="selected.sync_status === 'synced' ? 'Sincronizado' : 'Pendente'"
+                      :color="selected.allSynced ? 'positive' : 'orange'"
+                      :label="selected.allSynced ? 'Sincronizado' : 'Pendente'"
                     />
                   </q-item-section>
                 </q-item>
               </q-list>
-
-              <div class="text-caption text-grey-5 q-px-xs">
-                {{ selected.evidence_photos?.length || 0 }} foto(s) —
-                {{ epiCount(selected) }} EPI · {{ atividadeCount(selected) }} atividade
-              </div>
             </div>
 
-            <!-- Fotos -->
-            <div class="col-12 col-md-8">
-              <div class="text-subtitle1 text-weight-bold q-mb-md flex items-center gap-sm">
-                <q-icon name="photo_library" color="primary" />
-                Fotos do registro
-              </div>
+            <!-- Painel direito: serviços com fotos -->
+            <div class="col-12 col-md-9">
+              <div
+                v-for="svc in selected.servicos"
+                :key="svc.id"
+                class="svc-block q-mb-xl"
+              >
+                <!-- Cabeçalho do serviço -->
+                <div class="svc-header q-mb-md">
+                  <div class="flex items-center q-gutter-sm">
+                    <q-chip dense color="blue-grey-8" text-color="white" icon="schedule" size="sm">
+                      {{ formatTime(svc.created_at) }}
+                    </q-chip>
+                    <span class="text-weight-bold">{{ svc.activity_name || '—' }}</span>
+                    <q-btn
+                      v-if="authStore.isAdmin"
+                      flat round dense icon="delete" color="negative" size="sm"
+                      @click="confirmDeleteSingle(svc)"
+                    >
+                      <q-tooltip>Excluir este serviço</q-tooltip>
+                    </q-btn>
+                  </div>
+                  <div v-if="svc.descricao" class="text-caption text-grey-5 q-mt-xs">{{ svc.descricao }}</div>
+                </div>
 
-              <div v-if="selected.evidence_photos?.length">
-                <!-- Fotos EPI -->
-                <div v-if="epiCount(selected)" class="q-mb-md">
+                <!-- Fotos EPI do serviço -->
+                <div v-if="epiPhotos(svc).length" class="q-mb-md">
                   <div class="text-caption text-teal text-weight-bold q-mb-sm">
-                    <q-icon name="safety_check" /> EPI ({{ epiCount(selected) }})
+                    <q-icon name="safety_check" /> EPI ({{ epiPhotos(svc).length }})
                   </div>
                   <div class="photo-grid">
                     <div
-                      v-for="photo in epiPhotos(selected)"
+                      v-for="photo in epiPhotos(svc)"
                       :key="photo.id"
                       class="photo-item cursor-pointer"
                       @click="openLightbox(photo)"
                     >
                       <img :src="getPhotoUrl(photo)" class="photo-thumb" />
-                      <div class="photo-overlay">
-                        <q-icon name="zoom_in" size="32px" color="white" />
-                      </div>
+                      <div class="photo-overlay"><q-icon name="zoom_in" size="32px" color="white" /></div>
                     </div>
                   </div>
                 </div>
 
-                <!-- Fotos Atividade -->
-                <div v-if="atividadeCount(selected)">
+                <!-- Fotos Atividade do serviço -->
+                <div v-if="atividadePhotos(svc).length">
                   <div class="text-caption text-blue text-weight-bold q-mb-sm">
-                    <q-icon name="task" /> Atividade ({{ atividadeCount(selected) }})
+                    <q-icon name="task" /> Atividade ({{ atividadePhotos(svc).length }})
                   </div>
                   <div class="photo-grid">
                     <div
-                      v-for="photo in atividadePhotos(selected)"
+                      v-for="photo in atividadePhotos(svc)"
                       :key="photo.id"
                       class="photo-item cursor-pointer"
                       @click="openLightbox(photo)"
                     >
                       <img :src="getPhotoUrl(photo)" class="photo-thumb" />
-                      <div class="photo-overlay">
-                        <q-icon name="zoom_in" size="32px" color="white" />
-                      </div>
+                      <div class="photo-overlay"><q-icon name="zoom_in" size="32px" color="white" /></div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div v-else class="text-grey text-center q-py-xl">
-                <q-icon name="no_photography" size="48px" />
-                <div class="q-mt-sm">Nenhuma foto registrada</div>
+                <div v-if="!epiPhotos(svc).length && !atividadePhotos(svc).length" class="text-grey-5 text-caption">
+                  Nenhuma foto neste serviço.
+                </div>
+
+                <q-separator class="q-mt-lg" v-if="selected.servicos.indexOf(svc) < selected.servicos.length - 1" />
               </div>
             </div>
           </div>
@@ -314,6 +343,7 @@ const teamOptions = computed(() =>
   teamsStore.teams.map(t => ({ label: `${t.prefixo} — ${t.nome}`, value: t.id }))
 )
 
+// Filtra linhas individualmente antes de agrupar
 const filteredRows = computed(() => {
   return rows.value.filter(r => {
     if (filters.value.status && r.sync_status !== filters.value.status) return false
@@ -324,13 +354,51 @@ const filteredRows = computed(() => {
   })
 })
 
+// Agrupa por equipe + dia
+const groupedRows = computed(() => {
+  const map = {}
+  for (const svc of filteredRows.value) {
+    const dateStr = (svc.created_at || '').split('T')[0]
+    const key = `${svc.team_id}_${dateStr}`
+    if (!map[key]) {
+      map[key] = {
+        key,
+        team_id: svc.team_id,
+        prefixo: svc.teams?.prefixo || '—',
+        nomeEquipe: svc.teams?.nome || '',
+        dateStr,
+        servicos: [],
+        atividadeNomes: [],
+        allColaboradores: [],
+        totalFotos: 0,
+        epiTotal: 0,
+        atividadeTotal: 0,
+        allSynced: true
+      }
+    }
+    const g = map[key]
+    g.servicos.push(svc)
+    if (svc.activity_name && !g.atividadeNomes.includes(svc.activity_name))
+      g.atividadeNomes.push(svc.activity_name)
+    for (const c of (svc.colaboradores || []))
+      if (!g.allColaboradores.includes(c)) g.allColaboradores.push(c)
+    const fotos = svc.evidence_photos || []
+    g.totalFotos += fotos.length
+    g.epiTotal += fotos.filter(p => p.tipo === 'epi').length
+    g.atividadeTotal += fotos.filter(p => p.tipo === 'atividade').length
+    if (svc.sync_status !== 'synced') g.allSynced = false
+  }
+  return Object.values(map).sort((a, b) => b.dateStr.localeCompare(a.dateStr) || a.prefixo.localeCompare(b.prefixo))
+})
+
 const columns = [
-  { name: 'equipe',    label: 'Equipe',    field: 'equipe',  align: 'left',   sortable: true },
-  { name: 'activity', label: 'Atividade', field: r => r.activity_name || '—', align: 'left' },
-  { name: 'fotos',    label: 'Fotos',     field: 'fotos',   align: 'left' },
-  { name: 'created',  label: 'Data',      field: r => formatDateTime(r.created_at), align: 'left', sortable: true },
-  { name: 'status',   label: 'Status',    field: 'status',  align: 'center' },
-  { name: 'acoes',    label: '',          field: 'acoes',   align: 'right' }
+  { name: 'equipe',     label: 'Equipe',     field: 'prefixo',   align: 'left',   sortable: true },
+  { name: 'atividades', label: 'Atividades', field: 'atividades', align: 'left' },
+  { name: 'servicos',   label: 'Serviços',   field: 'servicos',   align: 'left' },
+  { name: 'fotos',      label: 'Fotos',      field: 'totalFotos', align: 'left' },
+  { name: 'created',    label: 'Data',       field: r => formatDateStr(r.dateStr), align: 'left', sortable: true },
+  { name: 'status',     label: 'Status',     field: 'status',     align: 'center' },
+  { name: 'acoes',      label: '',           field: 'acoes',      align: 'right' }
 ]
 
 onMounted(async () => {
@@ -352,47 +420,66 @@ async function load () {
   }
 }
 
-function epiCount (row) {
-  return (row.evidence_photos || []).filter(p => p.tipo === 'epi').length
+function epiPhotos (svc) {
+  return (svc.evidence_photos || []).filter(p => p.tipo === 'epi')
 }
 
-function atividadeCount (row) {
-  return (row.evidence_photos || []).filter(p => p.tipo === 'atividade').length
+function atividadePhotos (svc) {
+  return (svc.evidence_photos || []).filter(p => p.tipo === 'atividade')
 }
 
-function epiPhotos (row) {
-  return (row.evidence_photos || []).filter(p => p.tipo === 'epi')
-}
-
-function atividadePhotos (row) {
-  return (row.evidence_photos || []).filter(p => p.tipo === 'atividade')
-}
-
-function openDetail (row) {
-  selected.value = row
+function openDetail (group) {
+  selected.value = group
   showDetail.value = true
 }
 
-function confirmDelete (row) {
+function confirmDeleteGroup (group) {
   if (!authStore.isAdmin) {
     $q.notify({ type: 'negative', message: 'Sem permissão para excluir.' })
     return
   }
   $q.dialog({
-    title: 'Excluir evidência',
-    message: `Excluir o registro de <strong>${row.teams?.prefixo || '—'}</strong> · ${row.activity_name || 'serviço'} e todas as fotos?`,
+    title: 'Excluir registros do dia',
+    message: `Excluir <strong>${group.servicos.length} serviço(s)</strong> de <strong>${group.prefixo}</strong> em ${formatDateStr(group.dateStr)} e todas as fotos?`,
+    html: true,
+    cancel: true,
+    ok: { label: 'Excluir tudo', color: 'negative', unelevated: true }
+  }).onOk(async () => {
+    try {
+      for (const svc of group.servicos) {
+        await evidenceStore.deleteService(svc.id)
+        rows.value = rows.value.filter(r => r.id !== svc.id)
+      }
+      showDetail.value = false
+      selected.value = null
+      $q.notify({ type: 'positive', message: 'Registros excluídos.' })
+    } catch (e) {
+      $q.notify({ type: 'negative', message: 'Erro ao excluir: ' + (e.message || e) })
+    }
+  })
+}
+
+function confirmDeleteSingle (svc) {
+  if (!authStore.isAdmin) return
+  $q.dialog({
+    title: 'Excluir serviço',
+    message: `Excluir o serviço de <strong>${svc.activity_name || 'sem atividade'}</strong> registrado às ${formatTime(svc.created_at)}?`,
     html: true,
     cancel: true,
     ok: { label: 'Excluir', color: 'negative', unelevated: true }
   }).onOk(async () => {
     try {
-      await evidenceStore.deleteService(row.id)
-      rows.value = rows.value.filter(r => r.id !== row.id)
-      if (selected.value?.id === row.id) {
-        showDetail.value = false
-        selected.value = null
+      await evidenceStore.deleteService(svc.id)
+      rows.value = rows.value.filter(r => r.id !== svc.id)
+      // Atualiza o grupo selecionado removendo o serviço
+      if (selected.value) {
+        selected.value = { ...selected.value, servicos: selected.value.servicos.filter(s => s.id !== svc.id) }
+        if (selected.value.servicos.length === 0) {
+          showDetail.value = false
+          selected.value = null
+        }
       }
-      $q.notify({ type: 'positive', message: 'Registro excluído.' })
+      $q.notify({ type: 'positive', message: 'Serviço excluído.' })
     } catch (e) {
       $q.notify({ type: 'negative', message: 'Erro ao excluir: ' + (e.message || e) })
     }
@@ -411,17 +498,15 @@ function getPhotoUrl (photo) {
   return ''
 }
 
-function formatDate (iso) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('pt-BR')
+function formatDateStr (dateStr) {
+  if (!dateStr) return '—'
+  const [y, m, d] = dateStr.split('-')
+  return `${d}/${m}/${y}`
 }
 
-function formatDateTime (iso) {
+function formatTime (iso) {
   if (!iso) return '—'
-  return new Date(iso).toLocaleString('pt-BR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
-  })
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
 </script>
 
@@ -434,9 +519,18 @@ function formatDateTime (iso) {
   background: rgba(var(--q-primary-rgb, 25, 118, 210), 0.08) !important;
 }
 
+.svc-block {
+  padding: 0;
+}
+
+.svc-header {
+  border-left: 3px solid var(--q-primary, #1E88E5);
+  padding-left: 12px;
+}
+
 .photo-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   gap: 10px;
 }
 
@@ -470,7 +564,6 @@ function formatDateTime (iso) {
 .photo-item:hover .photo-thumb  { transform: scale(1.04); }
 .photo-item:hover .photo-overlay { opacity: 1; }
 
-/* Lightbox */
 .lightbox-wrap {
   display: flex;
   align-items: center;
