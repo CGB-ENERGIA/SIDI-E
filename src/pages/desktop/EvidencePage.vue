@@ -27,6 +27,18 @@
         label="Status sync" outlined dense clearable emit-value map-options
         style="min-width: 160px;"
       />
+      <q-select
+        v-model="filters.supervisor"
+        :options="supervisoresList"
+        label="Supervisor" outlined dense clearable
+        style="min-width: 180px;"
+      />
+      <q-select
+        v-model="filters.coordenador"
+        :options="coordenadoresList"
+        label="Coordenador" outlined dense clearable
+        style="min-width: 160px;"
+      />
     </div>
 
     <q-card flat bordered style="border-radius: 16px;">
@@ -267,6 +279,7 @@ import { useEvidenceStore } from 'src/stores/evidence'
 import { useTeamsStore } from 'src/stores/teams'
 import { useAuthStore } from 'src/stores/auth'
 import { storage } from 'src/services/supabase'
+import { EQUIPES_FILTRO, SUPERVISORES, COORDENADORES } from 'src/data/equipes-filtro'
 
 const evidenceStore = useEvidenceStore()
 const teamsStore = useTeamsStore()
@@ -284,8 +297,13 @@ const lightboxUrl = ref('')
 const filters = ref({
   teamId: null,
   date: null,
-  status: null
+  status: null,
+  supervisor: null,
+  coordenador: null
 })
+
+const supervisoresList = SUPERVISORES
+const coordenadoresList = COORDENADORES
 
 const statusOptions = [
   { label: 'Sincronizado', value: 'synced' },
@@ -297,13 +315,18 @@ const teamOptions = computed(() =>
 )
 
 const filteredRows = computed(() => {
-  if (!filters.value.status) return rows.value
-  return rows.value.filter(r => r.sync_status === filters.value.status)
+  return rows.value.filter(r => {
+    if (filters.value.status && r.sync_status !== filters.value.status) return false
+    const prefixo = r.teams?.prefixo
+    if (filters.value.supervisor && EQUIPES_FILTRO[prefixo]?.supervisor !== filters.value.supervisor) return false
+    if (filters.value.coordenador && EQUIPES_FILTRO[prefixo]?.coordenador !== filters.value.coordenador) return false
+    return true
+  })
 })
 
 const columns = [
   { name: 'equipe',    label: 'Equipe',    field: 'equipe',  align: 'left',   sortable: true },
-  { name: 'activity', label: 'Atividade', field: r => r.activity_name || r.activity_id, align: 'left' },
+  { name: 'activity', label: 'Atividade', field: r => r.activity_name || '—', align: 'left' },
   { name: 'fotos',    label: 'Fotos',     field: 'fotos',   align: 'left' },
   { name: 'created',  label: 'Data',      field: r => formatDateTime(r.created_at), align: 'left', sortable: true },
   { name: 'status',   label: 'Status',    field: 'status',  align: 'center' },

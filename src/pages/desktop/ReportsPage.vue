@@ -18,7 +18,11 @@
           <span class="date-label">Até</span>
           <input type="date" class="date-input" v-model="dateTo" @change="load" />
         </div>
-        <button class="export-btn" :disabled="!services.length" @click="exportCsv">
+        <q-select v-model="filterSupervisor" :options="supervisoresList" label="Supervisor"
+          outlined dense clearable style="min-width:170px; background: transparent;" />
+        <q-select v-model="filterCoordenador" :options="coordenadoresList" label="Coordenador"
+          outlined dense clearable style="min-width:155px; background: transparent;" />
+        <button class="export-btn" :disabled="!filteredServices.length" @click="exportCsv">
           <q-icon name="download" size="16px" />
           Exportar CSV
         </button>
@@ -111,16 +115,30 @@
 import { ref, computed, onMounted } from 'vue'
 import { useEvidenceStore } from 'src/stores/evidence'
 import { useQuasar } from 'quasar'
+import { EQUIPES_FILTRO, SUPERVISORES, COORDENADORES } from 'src/data/equipes-filtro'
 
 const evidenceStore = useEvidenceStore()
 const $q = useQuasar()
 
 const services = ref([])
+const filterSupervisor = ref(null)
+const filterCoordenador = ref(null)
+const supervisoresList = SUPERVISORES
+const coordenadoresList = COORDENADORES
 
 const today = new Date()
 const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
 const dateFrom = ref(monthStart)
 const dateTo = ref(today.toISOString().split('T')[0])
+
+const filteredServices = computed(() => {
+  return services.value.filter(s => {
+    const prefixo = s.teams?.prefixo
+    if (filterSupervisor.value && EQUIPES_FILTRO[prefixo]?.supervisor !== filterSupervisor.value) return false
+    if (filterCoordenador.value && EQUIPES_FILTRO[prefixo]?.coordenador !== filterCoordenador.value) return false
+    return true
+  })
+})
 
 onMounted(() => load())
 
@@ -138,20 +156,20 @@ async function load () {
 }
 
 const kpis = computed(() => {
-  const photos = services.value.reduce((s, r) => s + (r.evidence_photos?.length || 0), 0)
-  const epi = services.value.reduce((s, r) => s + (r.evidence_photos || []).filter(p => p.tipo === 'epi').length, 0)
-  const teams = new Set(services.value.map(s => s.team_id || s.teams?.prefixo)).size
+  const photos = filteredServices.value.reduce((s, r) => s + (r.evidence_photos?.length || 0), 0)
+  const epi = filteredServices.value.reduce((s, r) => s + (r.evidence_photos || []).filter(p => p.tipo === 'epi').length, 0)
+  const teams = new Set(filteredServices.value.map(s => s.team_id || s.teams?.prefixo)).size
   return [
-    { label: 'Serviços',   value: services.value.length, icon: 'task',          accent: '#3b82f6' },
-    { label: 'Fotos',      value: photos,                 icon: 'photo_library', accent: '#06b6d4' },
-    { label: 'Fotos EPI',  value: epi,                   icon: 'safety_check',  accent: '#14b8a6' },
-    { label: 'Equipes',    value: teams,                  icon: 'groups',        accent: '#22c55e' }
+    { label: 'Serviços',   value: filteredServices.value.length, icon: 'task',          accent: '#3b82f6' },
+    { label: 'Fotos',      value: photos,                        icon: 'photo_library', accent: '#06b6d4' },
+    { label: 'Fotos EPI',  value: epi,                          icon: 'safety_check',  accent: '#14b8a6' },
+    { label: 'Equipes',    value: teams,                         icon: 'groups',        accent: '#22c55e' }
   ]
 })
 
 const byTeam = computed(() => {
   const map = {}
-  for (const s of services.value) {
+  for (const s of filteredServices.value) {
     const key = s.teams?.prefixo || s.team_id || 'N/A'
     if (!map[key]) map[key] = { prefixo: s.teams?.prefixo || key, nome: s.teams?.nome || '', count: 0, photos: 0 }
     map[key].count++
@@ -162,8 +180,8 @@ const byTeam = computed(() => {
 
 const byActivity = computed(() => {
   const map = {}
-  for (const s of services.value) {
-    const name = s.activity_name || s.activity_id || 'Sem atividade'
+  for (const s of filteredServices.value) {
+    const name = s.activity_name || 'Sem atividade'
     map[name] = (map[name] || 0) + 1
   }
   return Object.entries(map).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count)
@@ -181,7 +199,7 @@ function strColor (str = '') {
 
 function exportCsv () {
   const header = ['Data', 'Equipe', 'Atividade', 'Fotos EPI', 'Fotos Atividade', 'Total Fotos', 'Status']
-  const lines = services.value.map(s => {
+  const lines = filteredServices.value.map(s => {
     const epi  = (s.evidence_photos || []).filter(p => p.tipo === 'epi').length
     const ativ = (s.evidence_photos || []).filter(p => p.tipo === 'atividade').length
     return [

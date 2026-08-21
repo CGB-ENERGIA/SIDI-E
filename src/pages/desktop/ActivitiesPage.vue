@@ -25,6 +25,10 @@
           <q-select v-model="atividadesTeam" :options="teamOptions" label="Todas as equipes"
             outlined dense clearable emit-value map-options bg-color="surface"
             style="min-width:260px;" @update:model-value="loadAtividades" />
+          <q-select v-model="filterSupervisor" :options="supervisoresList" label="Supervisor"
+            outlined dense clearable bg-color="surface" style="min-width:180px;" />
+          <q-select v-model="filterCoordenador" :options="coordenadoresList" label="Coordenador"
+            outlined dense clearable bg-color="surface" style="min-width:160px;" />
           <q-btn unelevated icon="refresh" label="Atualizar" color="primary"
             :loading="loadingAtividades" @click="loadAtividades"
             style="height:40px; border-radius:8px;" />
@@ -227,6 +231,7 @@ import { useEvidenceStore } from 'src/stores/evidence'
 import { useAuthStore } from 'src/stores/auth'
 import { supabase } from 'src/services/supabase'
 import { useQuasar } from 'quasar'
+import { EQUIPES_FILTRO, SUPERVISORES, COORDENADORES } from 'src/data/equipes-filtro'
 
 const activitiesStore = useActivitiesStore()
 const teamsStore = useTeamsStore()
@@ -239,9 +244,14 @@ const tab = ref('atividades')
 // ── ATIVIDADES ──────────────────────────────────────────
 const atividadesDate = ref(null)
 const atividadesTeam = ref(null)
+const filterSupervisor = ref(null)
+const filterCoordenador = ref(null)
 const loadingAtividades = ref(false)
 const servicesData = ref([])
 const expanded = ref([])
+
+const supervisoresList = SUPERVISORES
+const coordenadoresList = COORDENADORES
 
 const teamOptions = computed(() =>
   teamsStore.teams.map(t => ({ label: `${t.prefixo} — ${t.nome}`, value: t.id }))
@@ -271,7 +281,12 @@ const resumoEquipes = computed(() => {
     for (const c of (svc.colaboradores || []))
       if (!map[tid].colaboradores.includes(c)) map[tid].colaboradores.push(c)
   }
-  return Object.values(map).sort((a, b) => a.prefixo.localeCompare(b.prefixo))
+  let result = Object.values(map).sort((a, b) => a.prefixo.localeCompare(b.prefixo))
+  if (filterSupervisor.value)
+    result = result.filter(e => EQUIPES_FILTRO[e.prefixo]?.supervisor === filterSupervisor.value)
+  if (filterCoordenador.value)
+    result = result.filter(e => EQUIPES_FILTRO[e.prefixo]?.coordenador === filterCoordenador.value)
+  return result
 })
 
 const totalColaboradores = computed(() => {
