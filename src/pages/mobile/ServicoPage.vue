@@ -12,18 +12,13 @@
       alternative-labels
       class="q-mb-md shadow-0"
     >
-      <q-step :name="1" title="EPI" icon="safety_check" :done="step > 1">
-        Verificação de EPIs
-      </q-step>
-      <q-step :name="2" title="Atividade" icon="task" :done="step > 2">
-        Registro da atividade
-      </q-step>
-      <q-step :name="3" title="Concluir" icon="check_circle">
-        Finalizar
-      </q-step>
+      <q-step :name="1" title="EPI"       icon="safety_check"   :done="step > 1" />
+      <q-step :name="2" title="Atividade" icon="task"           :done="step > 2" />
+      <q-step :name="3" title="Fotos"     icon="photo_camera"   :done="step > 3" />
+      <q-step :name="4" title="Concluir"  icon="check_circle" />
     </q-stepper>
 
-    <!-- Step 1: EPI photos (2 required) -->
+    <!-- ── Step 1: EPI photos (2 obrigatórias) ─────────────── -->
     <div v-if="step === 1">
       <q-card flat bordered class="q-mb-md" style="border-radius: 12px;">
         <q-card-section>
@@ -35,7 +30,6 @@
             Tire <strong>2 fotos</strong> do eletricista com todos os equipamentos de proteção.
           </div>
 
-          <!-- EPI photo count requirement -->
           <div class="flex justify-between items-center q-mb-sm">
             <span class="text-caption">Fotos tiradas:</span>
             <q-badge
@@ -45,21 +39,15 @@
             />
           </div>
 
-          <!-- EPI photos grid -->
           <div class="photo-grid q-mb-md" v-if="epiPhotos.length">
             <div v-for="(photo, idx) in epiPhotos" :key="idx" class="relative-position">
               <img :src="photo.previewUrl" class="photo-thumb" />
               <q-btn
-                round
-                dense
-                icon="close"
-                color="negative"
-                size="xs"
+                round dense icon="close" color="negative" size="xs"
                 class="absolute-top-right q-ma-xs"
-                @click="removeEpiPhoto(idx)"
+                @click="removePhoto(epiPhotos, idx)"
               />
             </div>
-            <!-- Empty slot -->
             <div
               v-if="epiPhotos.length < 2"
               class="flex items-center justify-center bg-grey-2 rounded-borders cursor-pointer"
@@ -70,57 +58,40 @@
             </div>
           </div>
 
-          <!-- Add EPI photo button -->
           <q-btn
             v-if="epiPhotos.length === 0"
-            unelevated
-            rounded
-            color="primary"
-            icon="camera_alt"
-            label="Tirar foto do EPI"
-            class="full-width"
+            unelevated rounded color="primary" icon="camera_alt"
+            label="Tirar foto do EPI" class="full-width"
             @click="openCamera('epi')"
           />
           <q-btn
             v-else-if="epiPhotos.length < 2"
-            outline
-            rounded
-            color="primary"
-            icon="add_a_photo"
-            label="Segunda foto do EPI"
-            class="full-width"
+            outline rounded color="primary" icon="add_a_photo"
+            label="Segunda foto do EPI" class="full-width"
             @click="openCamera('epi')"
           />
         </q-card-section>
       </q-card>
 
       <q-btn
-        unelevated
-        rounded
-        color="primary"
-        label="Próximo"
-        icon-right="arrow_forward"
-        class="full-width"
-        size="lg"
+        unelevated rounded color="primary"
+        label="Próximo" icon-right="arrow_forward"
+        class="full-width" size="lg"
         :disable="epiPhotos.length < 2"
         @click="step = 2"
       />
     </div>
 
-    <!-- Step 2: Activity -->
+    <!-- ── Step 2: Activity ──────────────────────────────────── -->
     <div v-if="step === 2">
-      <!-- Select or type activity -->
       <q-select
         v-model="form.activity"
         :options="filteredActivities"
         option-label="nome"
         label="Atividade / Serviço *"
-        outlined
-        class="q-mb-md"
+        outlined class="q-mb-md"
         :rules="[v => !!v || 'Informe a atividade']"
-        use-input
-        input-debounce="0"
-        new-value-mode="add-unique"
+        use-input input-debounce="0" new-value-mode="add-unique"
         @filter="filterActivities"
         @new-value="createActivity"
         hint="Selecione da lista ou digite um serviço personalizado"
@@ -137,33 +108,79 @@
         </template>
       </q-select>
 
-      <!-- Description -->
       <q-input
         v-model="form.descricao"
         label="Observações (opcional)"
-        outlined
-        type="textarea"
-        rows="2"
-        class="q-mb-md"
+        outlined type="textarea" rows="2" class="q-mb-md"
       />
 
       <div class="flex gap-sm">
         <q-btn outline rounded color="grey" label="Voltar" class="col" @click="step = 1" />
         <q-btn
-          unelevated
-          rounded
-          color="primary"
-          label="Próximo"
-          icon-right="arrow_forward"
-          class="col"
+          unelevated rounded color="primary"
+          label="Próximo" icon-right="arrow_forward" class="col"
           :disable="!form.activity"
           @click="step = 3"
         />
       </div>
     </div>
 
-    <!-- Step 3: Confirm -->
+    <!-- ── Step 3: Fotos da atividade (≥ 1 obrigatória) ─────── -->
     <div v-if="step === 3">
+      <q-card flat bordered class="q-mb-md" style="border-radius: 12px;">
+        <q-card-section>
+          <div class="text-subtitle1 text-weight-bold q-mb-xs">
+            <q-icon name="photo_camera" color="primary" class="q-mr-xs" />
+            Fotos da atividade
+          </div>
+          <div class="text-caption text-grey-6 q-mb-md">
+            Registre ao menos <strong>1 foto</strong> da atividade realizada em campo.
+          </div>
+
+          <div class="flex justify-between items-center q-mb-sm">
+            <span class="text-caption">Fotos tiradas:</span>
+            <q-badge
+              :color="atividadePhotos.length >= 1 ? 'positive' : 'orange'"
+              :label="`${atividadePhotos.length} foto${atividadePhotos.length !== 1 ? 's' : ''}`"
+              text-color="white"
+            />
+          </div>
+
+          <div class="photo-grid q-mb-md" v-if="atividadePhotos.length">
+            <div v-for="(photo, idx) in atividadePhotos" :key="idx" class="relative-position">
+              <img :src="photo.previewUrl" class="photo-thumb" />
+              <q-btn
+                round dense icon="close" color="negative" size="xs"
+                class="absolute-top-right q-ma-xs"
+                @click="removePhoto(atividadePhotos, idx)"
+              />
+            </div>
+          </div>
+
+          <q-btn
+            unelevated rounded
+            :color="atividadePhotos.length === 0 ? 'primary' : 'secondary'"
+            :icon="atividadePhotos.length === 0 ? 'camera_alt' : 'add_a_photo'"
+            :label="atividadePhotos.length === 0 ? 'Tirar foto da atividade' : 'Adicionar mais fotos'"
+            class="full-width"
+            @click="openCamera('atividade')"
+          />
+        </q-card-section>
+      </q-card>
+
+      <div class="flex gap-sm">
+        <q-btn outline rounded color="grey" label="Voltar" class="col" @click="step = 2" />
+        <q-btn
+          unelevated rounded color="primary"
+          label="Próximo" icon-right="arrow_forward" class="col"
+          :disable="atividadePhotos.length < 1"
+          @click="step = 4"
+        />
+      </div>
+    </div>
+
+    <!-- ── Step 4: Confirm ───────────────────────────────────── -->
+    <div v-if="step === 4">
       <q-card flat bordered class="q-mb-md" style="border-radius: 12px;">
         <q-card-section>
           <div class="text-subtitle1 text-weight-bold q-mb-md">Resumo do registro</div>
@@ -190,6 +207,13 @@
                 <q-item-label>{{ epiPhotos.length }} foto(s) ✓</q-item-label>
               </q-item-section>
             </q-item>
+            <q-item>
+              <q-item-section avatar><q-icon name="photo_camera" color="blue" /></q-item-section>
+              <q-item-section>
+                <q-item-label caption>Fotos da atividade</q-item-label>
+                <q-item-label>{{ atividadePhotos.length }} foto(s) ✓</q-item-label>
+              </q-item-section>
+            </q-item>
           </q-list>
         </q-card-section>
       </q-card>
@@ -202,14 +226,10 @@
       </q-card>
 
       <div class="flex gap-sm">
-        <q-btn outline rounded color="grey" label="Voltar" class="col" @click="step = 2" />
+        <q-btn outline rounded color="grey" label="Voltar" class="col" @click="step = 3" />
         <q-btn
-          unelevated
-          rounded
-          color="positive"
-          label="Salvar"
-          icon="save"
-          class="col"
+          unelevated rounded color="positive"
+          label="Salvar" icon="save" class="col"
           :loading="saving"
           @click="saveService"
         />
@@ -264,6 +284,7 @@ function releaseWakeLock () {
 }
 
 const epiPhotos = ref([])
+const atividadePhotos = ref([])
 const filteredActivities = ref([])
 
 const form = ref({
@@ -297,7 +318,6 @@ function createActivity (val, done) {
 
 onMounted(async () => {
   acquireWakeLock()
-  // Re-adquire Wake Lock quando a página volta ao foco (ex.: após tirar foto)
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') acquireWakeLock()
   })
@@ -307,7 +327,6 @@ onMounted(async () => {
       const { data, error } = await supabase.from('activities').select('*').order('nome')
       if (error) throw error
       activities.value = data || []
-      // Cacheia para uso offline (spread = plain object, não Proxy Vue)
       for (const a of activities.value) await offlineDB.saveActivity({ ...a })
     } else {
       activities.value = await offlineDB.getActivities()
@@ -327,19 +346,19 @@ function openCamera (tipo) {
 
 function onPhotoCaptured (blob) {
   const previewUrl = URL.createObjectURL(blob)
-  epiPhotos.value.push({ blob, previewUrl })
+  const target = cameraTipo.value === 'epi' ? epiPhotos : atividadePhotos
+  target.value.push({ blob, previewUrl })
   showCamera.value = false
 }
 
-function removeEpiPhoto (idx) {
-  URL.revokeObjectURL(epiPhotos.value[idx].previewUrl)
-  epiPhotos.value.splice(idx, 1)
+function removePhoto (list, idx) {
+  URL.revokeObjectURL(list.value[idx].previewUrl)
+  list.value.splice(idx, 1)
 }
 
 async function saveService () {
   saving.value = true
   try {
-    // Save service record (spread reactive arrays/objects to plain values for IndexedDB)
     const activityId = typeof form.value.activity === 'object'
       ? (form.value.activity?.id || null)
       : null
@@ -353,16 +372,16 @@ async function saveService () {
       data: session.data
     })
 
-    // Save EPI photos locally (serviceId = local_* estável)
+    // Salva fotos EPI
     for (const photo of epiPhotos.value) {
-      await offlineDB.savePhoto({
-        serviceId,
-        tipo: 'epi',
-        blob: photo.blob
-      })
+      await offlineDB.savePhoto({ serviceId, tipo: 'epi', blob: photo.blob })
     }
 
-    // Try immediate sync
+    // Salva fotos da atividade
+    for (const photo of atividadePhotos.value) {
+      await offlineDB.savePhoto({ serviceId, tipo: 'atividade', blob: photo.blob })
+    }
+
     if (onlineStore.isOnline) {
       await evidenceStore.syncPending()
     }
