@@ -48,6 +48,12 @@ const routes = [
         path: 'solicitacoes',
         name: 'Solicitacoes',
         component: () => import('src/pages/desktop/SolicitacoesPage.vue')
+      },
+      {
+        path: 'usuarios',
+        name: 'Usuarios',
+        component: () => import('src/pages/desktop/UsersPage.vue'),
+        meta: { adminOnly: true }
       }
     ]
   },
