@@ -157,6 +157,11 @@ export const useEvidenceStore = defineStore('evidence', () => {
           throw new Error('Foto sem dados locais (blob ausente)')
         }
 
+        // Safari armazena ArrayBuffer em vez de Blob — reconverte se necessário
+        const blobData = photo.blob instanceof ArrayBuffer
+          ? new Blob([photo.blob], { type: 'image/jpeg' })
+          : photo.blob
+
         let serviceId = photo.serviceId
         if (
           typeof serviceId === 'string' &&
@@ -171,7 +176,7 @@ export const useEvidenceStore = defineStore('evidence', () => {
         }
 
         const filename = `${serviceId}/${photo.tipo}_${photo.id}_${Date.now()}.jpg`
-        const file = new File([photo.blob], filename, { type: 'image/jpeg' })
+        const file = new File([blobData], filename, { type: 'image/jpeg' })
         await storage.uploadPhoto('evidencias', filename, file)
 
         const { error } = await supabase.from('evidence_photos').insert({

@@ -201,8 +201,14 @@ export const offlineDB = {
 
   // ── Photos ────────────────────────────────────────────────────
   async savePhoto (photo) {
+    // Safari/WebKit não suporta Blob no IndexedDB — converte para ArrayBuffer
+    let blobData = photo.blob
+    if (blobData instanceof Blob) {
+      blobData = await blobData.arrayBuffer()
+    }
     return db.evidencePhotos.put({
       ...photo,
+      blob: blobData,
       syncStatus: 'pending',
       attempts: 0,
       createdAt: photo.createdAt || new Date().toISOString()
