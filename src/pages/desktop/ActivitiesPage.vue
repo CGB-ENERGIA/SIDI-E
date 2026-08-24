@@ -257,7 +257,9 @@ const teamOptions = computed(() =>
   teamsStore.teams.map(t => ({ label: `${t.prefixo} — ${t.nome}`, value: t.id }))
 )
 
-const totalServicos = computed(() => servicesData.value.length)
+const totalServicos = computed(() =>
+  resumoEquipes.value.reduce((sum, e) => sum + e.total, 0)
+)
 
 const resumoEquipes = computed(() => {
   const map = {}
