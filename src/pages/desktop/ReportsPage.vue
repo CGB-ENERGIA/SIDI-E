@@ -87,7 +87,12 @@
         </div>
 
         <div class="chart-body" v-if="byActivity.length">
-          <div class="act-row" v-for="(item, i) in byActivity" :key="item.name">
+          <div
+            class="act-row act-row--clickable"
+            v-for="(item, i) in byActivity"
+            :key="item.name"
+            @click="openActivityDetail(item)"
+          >
             <div class="act-rank">{{ i + 1 }}</div>
             <div class="act-info">
               <div class="act-name">{{ item.name }}</div>
@@ -98,7 +103,10 @@
                 />
               </div>
             </div>
-            <div class="act-count">{{ item.count }}</div>
+            <div class="act-count">
+              {{ item.count }}
+              <q-icon name="chevron_right" size="14px" color="grey-7" class="q-ml-xs" />
+            </div>
           </div>
         </div>
         <div class="chart-empty" v-else>
@@ -108,6 +116,109 @@
       </div>
 
     </div>
+
+    <!-- ── Dialog: detalhe da atividade ─────────────────── -->
+    <q-dialog v-model="showActivityDetail" maximized transition-show="slide-up" transition-hide="slide-down">
+      <q-card style="background:#0d1117; color:#e6edf3; display:flex; flex-direction:column;">
+        <q-bar style="background:#161b2e; border-bottom:1px solid #1e2640; padding:12px 24px;">
+          <q-icon name="task" color="primary" class="q-mr-sm" />
+          <span class="text-weight-bold" style="font-size:1rem;">
+            {{ selectedActivity?.name }}
+          </span>
+          <q-chip dense color="primary" text-color="white" class="q-ml-md">
+            {{ selectedActivity?.count }} serviço{{ selectedActivity?.count !== 1 ? 's' : '' }}
+          </q-chip>
+          <q-chip dense color="teal" text-color="white" class="q-ml-xs">
+            {{ activityTeams.length }} equipe{{ activityTeams.length !== 1 ? 's' : '' }}
+          </q-chip>
+          <q-space />
+          <q-btn dense flat icon="close" color="grey-4" v-close-popup />
+        </q-bar>
+
+        <q-card-section class="q-pa-lg" style="overflow:auto; flex:1;">
+          <div class="act-detail-grid">
+
+            <!-- Tabela por equipe -->
+            <q-card flat style="background:#161b2e; border:1px solid #1e2640; border-radius:14px;">
+              <q-card-section>
+                <div style="font-size:0.85rem; font-weight:700; color:#c9d3e8; margin-bottom:16px;">
+                  Equipes que realizaram esta atividade
+                </div>
+                <q-table
+                  :rows="activityTeams"
+                  :columns="activityTeamCols"
+                  row-key="prefixo"
+                  flat dark
+                  dense
+                  :pagination="{ rowsPerPage: 20 }"
+                  style="background:transparent;"
+                >
+                  <template #body-cell-prefixo="{ row }">
+                    <q-td>
+                      <q-chip dense :style="`background:${strColor(row.prefixo)}22; color:${strColor(row.prefixo)};`">
+                        {{ row.prefixo }}
+                      </q-chip>
+                    </q-td>
+                  </template>
+                  <template #body-cell-datas="{ row }">
+                    <q-td>
+                      <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                        <q-badge
+                          v-for="d in row.datas.slice(0,5)" :key="d"
+                          color="blue-grey-9" text-color="blue-grey-3"
+                          :label="d"
+                          style="font-size:0.7rem;"
+                        />
+                        <q-badge v-if="row.datas.length > 5" color="blue-grey-10"
+                          :label="`+${row.datas.length - 5}`" />
+                      </div>
+                    </q-td>
+                  </template>
+                </q-table>
+              </q-card-section>
+            </q-card>
+
+            <!-- Linha do tempo -->
+            <q-card flat style="background:#161b2e; border:1px solid #1e2640; border-radius:14px;">
+              <q-card-section>
+                <div style="font-size:0.85rem; font-weight:700; color:#c9d3e8; margin-bottom:16px;">
+                  Registros individuais
+                </div>
+                <q-list dense separator style="max-height:60vh; overflow:auto;">
+                  <q-item
+                    v-for="svc in selectedActivity?.services || []"
+                    :key="svc.id"
+                    style="padding:10px 4px;"
+                  >
+                    <q-item-section avatar>
+                      <q-chip dense :style="`background:${strColor(svc.teams?.prefixo || '')}22; color:${strColor(svc.teams?.prefixo || '')};`" style="font-size:0.7rem;">
+                        {{ svc.teams?.prefixo || '—' }}
+                      </q-chip>
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label style="font-size:0.82rem; color:#a0aec0;">
+                        {{ svc.teams?.nome || '' }}
+                      </q-item-label>
+                      <q-item-label caption style="color:#5a6a8c;">
+                        {{ formatDateTime(svc.created_at) }}
+                      </q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <div style="display:flex; gap:6px; align-items:center;">
+                        <q-badge color="teal" :label="`${epiCount(svc)} EPI`" />
+                        <q-badge color="blue" :label="`${atividadeCount(svc)} Ativ.`" />
+                      </div>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </q-card-section>
+            </q-card>
+
+          </div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
   </q-page>
 </template>
 
@@ -182,10 +293,58 @@ const byActivity = computed(() => {
   const map = {}
   for (const s of filteredServices.value) {
     const name = s.activity_name || 'Sem atividade'
-    map[name] = (map[name] || 0) + 1
+    if (!map[name]) map[name] = { name, count: 0, services: [] }
+    map[name].count++
+    map[name].services.push(s)
   }
-  return Object.entries(map).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count)
+  return Object.values(map).sort((a, b) => b.count - a.count)
 })
+
+// ── Drill-down de atividade ──────────────────────────────
+const showActivityDetail = ref(false)
+const selectedActivity = ref(null)
+
+const activityTeams = computed(() => {
+  if (!selectedActivity.value) return []
+  const map = {}
+  for (const s of selectedActivity.value.services) {
+    const key = s.teams?.prefixo || s.team_id || 'N/A'
+    if (!map[key]) map[key] = { prefixo: key, nome: s.teams?.nome || '', count: 0, datas: [], fotos: 0 }
+    map[key].count++
+    map[key].fotos += s.evidence_photos?.length || 0
+    const d = formatDate(s.created_at)
+    if (!map[key].datas.includes(d)) map[key].datas.push(d)
+  }
+  return Object.values(map).sort((a, b) => b.count - a.count)
+})
+
+const activityTeamCols = [
+  { name: 'prefixo', label: 'Equipe',    field: 'prefixo', align: 'left',  sortable: true },
+  { name: 'nome',    label: 'Nome',      field: 'nome',    align: 'left' },
+  { name: 'count',   label: 'Serviços',  field: 'count',   align: 'center', sortable: true },
+  { name: 'fotos',   label: 'Fotos',     field: 'fotos',   align: 'center', sortable: true },
+  { name: 'datas',   label: 'Datas',     field: 'datas',   align: 'left' }
+]
+
+function openActivityDetail (item) {
+  selectedActivity.value = item
+  showActivityDetail.value = true
+}
+
+function epiCount (svc) {
+  return (svc.evidence_photos || []).filter(p => p.tipo === 'epi').length
+}
+function atividadeCount (svc) {
+  return (svc.evidence_photos || []).filter(p => p.tipo === 'atividade').length
+}
+function formatDate (iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('pt-BR')
+}
+function formatDateTime (iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
 
 const maxTeam     = computed(() => Math.max(1, ...byTeam.value.map(t => t.count)))
 const maxActivity = computed(() => Math.max(1, ...byActivity.value.map(a => a.count)))
@@ -519,6 +678,25 @@ function exportCsv () {
 }
 
 .act-fill { background: #f59e0b; opacity: 0.75; }
+
+.act-row--clickable {
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 4px 6px;
+  margin: 0 -6px;
+  transition: background 0.15s;
+}
+.act-row--clickable:hover { background: rgba(245, 158, 11, 0.08); }
+.act-row--clickable:hover .act-name { color: #f59e0b; }
+
+.act-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+@media (max-width: 900px) {
+  .act-detail-grid { grid-template-columns: 1fr; }
+}
 
 .act-count {
   font-size: 0.95rem;
