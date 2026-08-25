@@ -16,9 +16,19 @@
           <div class="teams-sub">{{ filtered.length }} de {{ teamsStore.teams.length }} equipes</div>
         </div>
         <div class="header-actions">
+          <button class="action-btn action-btn--ghost" @click="triggerImport" :disabled="importing">
+            <q-spinner-dots v-if="importing" size="14px" />
+            <q-icon v-else name="upload_file" size="16px" />
+            Importar Excel
+          </button>
+          <button class="action-btn action-btn--ghost" @click="exportExcel">
+            <q-icon name="download" size="16px" /> Exportar Excel
+          </button>
           <button class="action-btn" @click="openCreate">
             <q-icon name="add" size="16px" /> Nova equipe
           </button>
+          <!-- input oculto para importação -->
+          <input ref="fileInput" type="file" accept=".xlsx,.xls" style="display:none" @change="handleImport" />
         </div>
       </div>
 
@@ -119,6 +129,73 @@
       </div>
     </template>
 
+    <!-- ── Dialog importação ─────────────────────────────── -->
+    <q-dialog v-model="showImport" persistent style="z-index:9999">
+      <div class="import-dialog">
+        <div class="dialog-header">
+          <div class="dialog-title">
+            <q-icon name="upload_file" size="18px" class="q-mr-xs" color="primary" />
+            Importar equipes — {{ importRows.length }} linha(s)
+          </div>
+          <button class="dialog-close" @click="showImport = false"><q-icon name="close" size="20px" /></button>
+        </div>
+
+        <div class="import-legend">
+          <q-badge color="positive" label="Novo" class="q-mr-sm" />registro não existe ainda
+          <q-badge color="warning" label="Atualizar" class="q-mx-sm" />prefixo já existe
+          <q-badge color="negative" label="Erro" class="q-mx-sm" />linha inválida (sem prefixo)
+        </div>
+
+        <div class="import-table-wrap">
+          <table class="teams-table">
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>Prefixo</th>
+                <th>Nome</th>
+                <th>Responsável</th>
+                <th>Base</th>
+                <th>Processo</th>
+                <th>Status equipe</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, i) in importRows" :key="i" :class="rowClass(row)">
+                <td>
+                  <q-badge
+                    :color="row._status === 'novo' ? 'positive' : row._status === 'atualizar' ? 'warning' : 'negative'"
+                    :label="row._status === 'novo' ? 'Novo' : row._status === 'atualizar' ? 'Atualizar' : 'Erro'"
+                  />
+                </td>
+                <td><span class="prefix-chip">{{ row.prefixo || '—' }}</span></td>
+                <td>{{ row.nome }}</td>
+                <td>{{ row.responsavel }}</td>
+                <td>{{ row.base }}</td>
+                <td>{{ row.processo }}</td>
+                <td>{{ row.status }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="dialog-footer">
+          <div class="import-summary">
+            <span class="import-stat import-stat--new">{{ importStats.novo }} novos</span>
+            <span class="import-stat import-stat--upd">{{ importStats.atualizar }} atualizações</span>
+            <span v-if="importStats.erro" class="import-stat import-stat--err">{{ importStats.erro }} erros (ignorados)</span>
+          </div>
+          <button class="btn-cancel" @click="showImport = false">Cancelar</button>
+          <button class="btn-save" :class="{ loading: saving }" @click="applyImport" :disabled="saving || !importStats.valid">
+            <q-spinner-dots v-if="saving" size="16px" />
+            <template v-else>
+              <q-icon name="save" size="16px" />
+              Aplicar importação
+            </template>
+          </button>
+        </div>
+      </div>
+    </q-dialog>
+
     <!-- ── Dialog editar/criar ────────────────────────────── -->
     <q-dialog v-model="showDialog" persistent>
       <div class="edit-dialog">
@@ -200,6 +277,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useTeamsStore } from 'src/stores/teams'
 import { useAuthStore } from 'src/stores/auth'
 import { useQuasar } from 'quasar'
+import * as XLSX from 'xlsx'
 
 const teamsStore = useTeamsStore()
 const authStore  = useAuthStore()
@@ -349,6 +427,123 @@ function confirmDelete (team) {
 }
 
 onMounted(() => { if (isAdmin.value) teamsStore.fetchTeams() })
+
+// ── Export Excel ─────────────────────────────────────────
+function exportExcel () {
+  const cols = ['prefixo', 'nome', 'responsavel', 'supervisor', 'gerencia', 'base', 'processo', 'status']
+  const header = ['Prefixo', 'Nome', 'Responsável', 'Supervisor', 'Gerência', 'Base', 'Processo', 'Status']
+  const data = [header, ...filtered.value.map(t => cols.map(c => t[c] || ''))]
+  const ws = XLSX.utils.aoa_to_sheet(data)
+  // Larguras de coluna
+  ws['!cols'] = [14, 28, 28, 20, 18, 14, 10, 10].map(w => ({ wch: w }))
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Equipes')
+  XLSX.writeFile(wb, `equipes-${new Date().toISOString().split('T')[0]}.xlsx`)
+  $q.notify({ type: 'positive', message: `${filtered.value.length} equipes exportadas!` })
+}
+
+// ── Import Excel ─────────────────────────────────────────
+const fileInput  = ref(null)
+const importing  = ref(false)
+const showImport = ref(false)
+const importRows = ref([])
+
+const importStats = computed(() => {
+  const novo      = importRows.value.filter(r => r._status === 'novo').length
+  const atualizar = importRows.value.filter(r => r._status === 'atualizar').length
+  const erro      = importRows.value.filter(r => r._status === 'erro').length
+  return { novo, atualizar, erro, valid: novo + atualizar > 0 }
+})
+
+function triggerImport () {
+  if (!isAdmin.value) return
+  fileInput.value.value = ''
+  fileInput.value.click()
+}
+
+function rowClass (row) {
+  if (row._status === 'novo')      return 'import-row--new'
+  if (row._status === 'atualizar') return 'import-row--upd'
+  return 'import-row--err'
+}
+
+async function handleImport (evt) {
+  const file = evt.target.files[0]
+  if (!file) return
+  importing.value = true
+  try {
+    const buf = await file.arrayBuffer()
+    const wb  = XLSX.read(buf, { type: 'array' })
+    const ws  = wb.Sheets[wb.SheetNames[0]]
+    const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+    if (raw.length < 2) throw new Error('Planilha vazia ou sem dados.')
+
+    // Detecta colunas pelo cabeçalho (row 0)
+    const hdr = raw[0].map(h => String(h).trim().toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, ''))
+    const col = k => hdr.findIndex(h => h.includes(k))
+    const iP = col('prefixo'), iN = col('nome'), iR = col('respons')
+    const iS = col('superv'), iG = col('gerenc'), iB = col('base')
+    const iO = col('process'), iT = col('status')
+
+    const existingPrefixos = new Set(teamsStore.teams.map(t => t.prefixo))
+
+    importRows.value = raw.slice(1)
+      .filter(r => r.some(c => c !== ''))
+      .map(r => {
+        const prefixo = String(r[iP] ?? '').trim().toUpperCase()
+        return {
+          prefixo,
+          nome:        String(r[iN] ?? '').trim(),
+          responsavel: String(r[iR] ?? '').trim(),
+          supervisor:  iS >= 0 ? String(r[iS] ?? '').trim() : '',
+          gerencia:    iG >= 0 ? String(r[iG] ?? '').trim() : '',
+          base:        iB >= 0 ? String(r[iB] ?? '').trim() : '',
+          processo:    iO >= 0 ? String(r[iO] ?? '').trim() : '',
+          status:      iT >= 0 ? String(r[iT] ?? '').trim().toLowerCase() || 'ativo' : 'ativo',
+          _status: !prefixo ? 'erro' : existingPrefixos.has(prefixo) ? 'atualizar' : 'novo'
+        }
+      })
+
+    showImport.value = true
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro ao ler arquivo: ' + e.message })
+  } finally {
+    importing.value = false
+  }
+}
+
+async function applyImport () {
+  if (!isAdmin.value) return
+  saving.value = true
+  try {
+    const valid = importRows.value.filter(r => r._status !== 'erro')
+    let created = 0, updated = 0, errors = 0
+    for (const row of valid) {
+      const { _status, ...payload } = row
+      try {
+        if (_status === 'novo') {
+          await teamsStore.createTeam(payload)
+          created++
+        } else {
+          const team = teamsStore.teams.find(t => t.prefixo === payload.prefixo)
+          if (team) { await teamsStore.updateTeam(team.id, payload); updated++ }
+        }
+      } catch { errors++ }
+    }
+    showImport.value = false
+    await teamsStore.fetchTeams()
+    $q.notify({
+      type: 'positive',
+      message: `Importação concluída: ${created} criados, ${updated} atualizados${errors ? `, ${errors} erros` : ''}.`,
+      timeout: 5000
+    })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro na importação: ' + e.message })
+  } finally {
+    saving.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -394,6 +589,13 @@ onMounted(() => { if (isAdmin.value) teamsStore.fetchTeams() })
   transition: background 0.2s;
 }
 .action-btn:hover { background: #2563eb; }
+.action-btn--ghost {
+  background: transparent;
+  border: 1.5px solid #1e2640;
+  color: #7b91bf;
+}
+.action-btn--ghost:hover { border-color: #3b82f6; color: #93c5fd; background: rgba(59,130,246,0.08); }
+.action-btn:disabled { opacity: 0.5; cursor: default; }
 
 /* ── Filtros ─────────────────────────────────────────── */
 .filters-bar {
@@ -578,4 +780,36 @@ onMounted(() => { if (isAdmin.value) teamsStore.fetchTeams() })
 }
 .btn-save:hover:not(:disabled) { background: #2563eb; }
 .btn-save:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Import dialog ───────────────────────────────────── */
+.import-dialog {
+  background: #161b2e; border: 1px solid #1e2640;
+  border-radius: 16px; width: 900px; max-width: 96vw;
+  max-height: 90vh; display: flex; flex-direction: column;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+}
+
+.import-legend {
+  padding: 10px 24px;
+  font-size: 0.78rem; color: #6b7a99;
+  border-bottom: 1px solid #1e2640;
+}
+
+.import-table-wrap {
+  overflow: auto; flex: 1;
+  max-height: 55vh;
+}
+
+.import-summary {
+  display: flex; gap: 12px; align-items: center; flex: 1;
+  font-size: 0.82rem;
+}
+.import-stat        { font-weight: 700; }
+.import-stat--new   { color: #22c55e; }
+.import-stat--upd   { color: #f59e0b; }
+.import-stat--err   { color: #ef4444; }
+
+.import-row--new td  { background: rgba(34,197,94,0.05); }
+.import-row--upd td  { background: rgba(245,158,11,0.05); }
+.import-row--err td  { background: rgba(239,68,68,0.05); opacity: 0.5; }
 </style>
