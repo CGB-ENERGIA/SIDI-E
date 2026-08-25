@@ -314,10 +314,7 @@ const bases = computed(() => {
   const s = new Set(teamsStore.teams.map(t => t.base).filter(Boolean))
   return [...s].sort()
 })
-const processos = computed(() => {
-  const s = new Set(teamsStore.teams.map(t => t.processo).filter(Boolean))
-  return [...s].sort()
-})
+const processos = ['GERE', 'GOMAN', 'GSTC']
 
 // ── Dados filtrados ──────────────────────────────────────
 const filtered = computed(() => {
