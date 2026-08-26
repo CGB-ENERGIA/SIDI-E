@@ -225,8 +225,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useEvidenceStore } from 'src/stores/evidence'
+import { useTeamsStore } from 'src/stores/teams'
 import { useQuasar } from 'quasar'
-import { EQUIPES_FILTRO, SUPERVISORES, COORDENADORES } from 'src/data/equipes-filtro'
+import { EQUIPES_FILTRO, COORDENADORES } from 'src/data/equipes-filtro'
 
 const evidenceStore = useEvidenceStore()
 const $q = useQuasar()
@@ -234,7 +235,11 @@ const $q = useQuasar()
 const services = ref([])
 const filterSupervisor = ref(null)
 const filterCoordenador = ref(null)
-const supervisoresList = SUPERVISORES
+const teamsStore = useTeamsStore()
+const supervisoresList = computed(() => {
+  const s = new Set(teamsStore.teams.map(t => t.supervisor).filter(Boolean))
+  return [...s].sort()
+})
 const coordenadoresList = COORDENADORES
 
 const today = new Date()
@@ -245,13 +250,16 @@ const dateTo = ref(today.toISOString().split('T')[0])
 const filteredServices = computed(() => {
   return services.value.filter(s => {
     const prefixo = s.teams?.prefixo
-    if (filterSupervisor.value && EQUIPES_FILTRO[prefixo]?.supervisor !== filterSupervisor.value) return false
+    if (filterSupervisor.value && s.teams?.supervisor !== filterSupervisor.value) return false
     if (filterCoordenador.value && EQUIPES_FILTRO[prefixo]?.coordenador !== filterCoordenador.value) return false
     return true
   })
 })
 
-onMounted(() => load())
+onMounted(() => {
+  teamsStore.fetchTeams()
+  load()
+})
 
 async function load () {
   try {

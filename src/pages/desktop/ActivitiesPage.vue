@@ -250,7 +250,10 @@ const loadingAtividades = ref(false)
 const servicesData = ref([])
 const expanded = ref([])
 
-const supervisoresList = SUPERVISORES
+const supervisoresList = computed(() => {
+  const s = new Set(teamsStore.teams.map(t => t.supervisor).filter(Boolean))
+  return [...s].sort()
+})
 const coordenadoresList = COORDENADORES
 
 const teamOptions = computed(() =>
@@ -285,7 +288,7 @@ const resumoEquipes = computed(() => {
   }
   let result = Object.values(map).sort((a, b) => a.prefixo.localeCompare(b.prefixo))
   if (filterSupervisor.value)
-    result = result.filter(e => EQUIPES_FILTRO[e.prefixo]?.supervisor === filterSupervisor.value)
+    result = result.filter(e => e.servicos.some(s => s.teams?.supervisor === filterSupervisor.value))
   if (filterCoordenador.value)
     result = result.filter(e => EQUIPES_FILTRO[e.prefixo]?.coordenador === filterCoordenador.value)
   return result
@@ -308,7 +311,7 @@ async function loadAtividades () {
   try {
     let query = supabase
       .from('services')
-      .select('id, team_id, activity_name, colaboradores, created_at, teams(prefixo, nome)')
+      .select('id, team_id, activity_name, colaboradores, created_at, teams(prefixo, nome, supervisor)')
       .order('created_at', { ascending: false })
     if (atividadesDate.value) {
       query = query

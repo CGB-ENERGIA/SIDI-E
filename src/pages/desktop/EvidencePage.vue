@@ -331,7 +331,10 @@ const filters = ref({
   coordenador: null
 })
 
-const supervisoresList = SUPERVISORES
+const supervisoresList = computed(() => {
+  const s = new Set(teamsStore.teams.map(t => t.supervisor).filter(Boolean))
+  return [...s].sort()
+})
 const coordenadoresList = COORDENADORES
 
 const statusOptions = [
@@ -348,7 +351,7 @@ const filteredRows = computed(() => {
   return rows.value.filter(r => {
     if (filters.value.status && r.sync_status !== filters.value.status) return false
     const prefixo = r.teams?.prefixo
-    if (filters.value.supervisor && EQUIPES_FILTRO[prefixo]?.supervisor !== filters.value.supervisor) return false
+    if (filters.value.supervisor && r.teams?.supervisor !== filters.value.supervisor) return false
     if (filters.value.coordenador && EQUIPES_FILTRO[prefixo]?.coordenador !== filters.value.coordenador) return false
     return true
   })
