@@ -197,17 +197,20 @@ const currentPhotoUrl = ref('')
 
 // ── KPIs ────────────────────────────────────────────────
 const kpis = computed(() => [
-  { label: 'ANALISADAS',  value: null,         icon: 'analytics',     color: '#60a5fa', count: services.value.length },
+  { label: 'ANALISADAS',  value: 'analisadas', icon: 'analytics',     color: '#60a5fa', count: services.value.filter(s => s.validation_status === 'aprovada' || s.validation_status === 'reprovada').length },
   { label: 'PENDENTES',   value: 'pendente',   icon: 'hourglass_top', color: '#f59e0b', count: services.value.filter(s => !s.validation_status || s.validation_status === 'pendente').length },
   { label: 'APROVADAS',   value: 'aprovada',   icon: 'check_circle',  color: '#4ade80', count: services.value.filter(s => s.validation_status === 'aprovada').length },
   { label: 'REPROVADAS',  value: 'reprovada',  icon: 'cancel',        color: '#f87171', count: services.value.filter(s => s.validation_status === 'reprovada').length }
 ])
 
 const filteredServices = computed(() => {
-  if (!filterStatus.value) return services.value
-  if (filterStatus.value === 'pendente')
+  const v = filterStatus.value
+  if (!v) return services.value
+  if (v === 'pendente')
     return services.value.filter(s => !s.validation_status || s.validation_status === 'pendente')
-  return services.value.filter(s => s.validation_status === filterStatus.value)
+  if (v === 'analisadas')
+    return services.value.filter(s => s.validation_status === 'aprovada' || s.validation_status === 'reprovada')
+  return services.value.filter(s => s.validation_status === v)
 })
 
 // ── Selecionar grupo ─────────────────────────────────────
