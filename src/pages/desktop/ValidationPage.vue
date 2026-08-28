@@ -3,38 +3,51 @@
 
     <!-- ══ TELA 1: Seleção de grupo ══ -->
     <template v-if="!selectedGroup">
-      <div class="val-header q-mb-xl">
-        <div class="val-eyebrow">Inspeções · SIDI-E</div>
-        <div class="val-title">Validação</div>
-        <div class="val-sub">Selecione o grupo para revisar e validar os serviços registrados</div>
-      </div>
+      <div class="screen1-wrap">
+        <div class="val-header q-mb-xl">
+          <div class="val-eyebrow">Inspeções · SIDI-E</div>
+          <div class="val-title">Validação</div>
+          <div class="val-sub">Selecione o grupo para revisar e validar os serviços</div>
+        </div>
 
-      <div class="group-grid">
-        <div
-          v-for="(g, i) in grupos"
-          :key="g.key"
-          class="group-card"
-          :class="`group-card--${g.key.toLowerCase()}`"
-          :style="{ '--i': i }"
-          @click="selectGroup(g.key)"
-        >
-          <div class="card-top-bar" />
-          <div class="group-icon-wrap">
-            <q-icon :name="g.icon" size="36px" class="group-icon-el" />
-          </div>
-          <div class="group-name">{{ g.key }}</div>
-          <div class="group-desc">{{ g.desc }}</div>
-          <div class="group-badges">
-            <span class="gbadge gbadge--pending">
-              <q-spinner-dots v-if="loadingCounts" size="10px" />
-              <template v-else>
-                <span class="badge-count">{{ counts[g.key]?.pendente ?? 0 }}</span>
-                <span class="badge-label">pendentes</span>
-              </template>
-            </span>
-          </div>
-          <div class="card-arrow">
-            <q-icon name="arrow_forward" size="18px" />
+        <div class="group-grid">
+          <div
+            v-for="(g, i) in grupos"
+            :key="g.key"
+            class="group-card"
+            :class="`group-card--${g.key.toLowerCase()}`"
+            :style="{ '--i': i }"
+            @click="selectGroup(g.key)"
+          >
+            <!-- Reflexo superior (efeito carta) -->
+            <div class="card-shine" />
+            <div class="card-top-bar" />
+
+            <!-- Monograma de fundo -->
+            <div class="card-monogram">{{ g.key }}</div>
+
+            <div class="group-icon-wrap">
+              <q-icon :name="g.icon" size="32px" class="group-icon-el" />
+            </div>
+            <div class="group-name">{{ g.key }}</div>
+            <div class="group-desc">{{ g.desc }}</div>
+
+            <div class="card-divider" />
+
+            <div class="group-badges">
+              <span class="gbadge gbadge--pending">
+                <q-spinner-dots v-if="loadingCounts" size="10px" />
+                <template v-else>
+                  <span class="badge-count">{{ counts[g.key]?.pendente ?? 0 }}</span>
+                  <span class="badge-label">pendentes</span>
+                </template>
+              </span>
+            </div>
+
+            <div class="card-footer">
+              <span class="card-cta">Validar agora</span>
+              <q-icon name="arrow_forward" size="16px" class="card-arrow-icon" />
+            </div>
           </div>
         </div>
       </div>
@@ -625,41 +638,85 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
   animation: headerIn 0.55s cubic-bezier(0.16,1,0.3,1) 0.1s both;
 }
 
+/* ─── Screen 1 centering ────────────────────────────────────── */
+.screen1-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 80vh;
+  justify-content: center;
+  text-align: center;
+}
+.val-header { text-align: center; }
+
 /* ─── Group cards ───────────────────────────────────────────── */
 .group-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
-  max-width: 960px;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 22px;
 }
 
 .group-card {
   position: relative;
-  background: #0d1829;
-  border: 1px solid #1a2d4a;
-  border-radius: 24px;
-  padding: 36px 28px 28px;
+  width: 240px;
+  background: linear-gradient(160deg, #111e35 0%, #0a1220 100%);
+  border: 1px solid #1e304f;
+  border-radius: 22px;
+  padding: 32px 26px 24px;
   cursor: pointer;
   overflow: hidden;
+  text-align: center;
+  box-shadow:
+    0 2px 0 #ffffff08 inset,
+    0 -1px 0 #00000060 inset,
+    0 8px 32px #00000050;
   transition:
-    transform 0.28s cubic-bezier(0.16,1,0.3,1),
+    transform 0.32s cubic-bezier(0.16,1,0.3,1),
     border-color 0.25s ease,
-    box-shadow 0.28s ease;
+    box-shadow 0.32s ease;
   animation: fadeUp 0.55s cubic-bezier(0.16,1,0.3,1) both;
   animation-delay: calc(var(--i, 0) * 110ms + 150ms);
 }
 
-/* Top accent bar — slides down on hover */
-.card-top-bar {
+/* Reflexo tipo vidro no topo */
+.card-shine {
   position: absolute;
   top: 0; left: 0; right: 0;
-  height: 3px;
-  border-radius: 24px 24px 0 0;
-  background: var(--g-accent, #3b82f6);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
+  height: 50%;
+  border-radius: 22px 22px 60% 60% / 22px 22px 40px 40px;
+  background: linear-gradient(180deg, #ffffff07 0%, transparent 100%);
+  pointer-events: none;
 }
+
+/* Top accent bar */
+.card-top-bar {
+  position: absolute;
+  top: 0; left: 10%; right: 10%;
+  height: 2px;
+  border-radius: 0 0 4px 4px;
+  background: var(--g-accent, #3b82f6);
+  box-shadow: 0 0 12px var(--g-accent, #3b82f6);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.38s cubic-bezier(0.16,1,0.3,1);
+}
+
+/* Monograma decorativo de fundo */
+.card-monogram {
+  position: absolute;
+  bottom: -10px; right: -8px;
+  font-size: 5rem; font-weight: 900;
+  color: var(--g-accent, #3b82f6);
+  opacity: 0.04;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 0.3s;
+}
+.group-card:hover .card-monogram { opacity: 0.07; }
+
 .group-card--gstc  { --g-accent: #3b82f6; }
 .group-card--goman { --g-accent: #f59e0b; }
 .group-card--gere  { --g-accent: #10b981; }
@@ -668,50 +725,69 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 .group-card--gstc:hover  {
   border-color: #3b82f650;
-  box-shadow: 0 0 0 1px #3b82f620, 0 24px 64px #3b82f612, 0 8px 24px #00000040;
-  transform: translateY(-6px);
+  box-shadow:
+    0 2px 0 #ffffff08 inset, 0 -1px 0 #00000060 inset,
+    0 0 0 1px #3b82f615,
+    0 20px 60px #3b82f618,
+    0 8px 32px #00000060;
+  transform: translateY(-8px) rotate(-0.5deg);
 }
 .group-card--goman:hover {
   border-color: #f59e0b50;
-  box-shadow: 0 0 0 1px #f59e0b20, 0 24px 64px #f59e0b10, 0 8px 24px #00000040;
-  transform: translateY(-6px);
+  box-shadow:
+    0 2px 0 #ffffff08 inset, 0 -1px 0 #00000060 inset,
+    0 0 0 1px #f59e0b15,
+    0 20px 60px #f59e0b15,
+    0 8px 32px #00000060;
+  transform: translateY(-8px) rotate(-0.5deg);
 }
 .group-card--gere:hover  {
   border-color: #10b98150;
-  box-shadow: 0 0 0 1px #10b98120, 0 24px 64px #10b98110, 0 8px 24px #00000040;
-  transform: translateY(-6px);
+  box-shadow:
+    0 2px 0 #ffffff08 inset, 0 -1px 0 #00000060 inset,
+    0 0 0 1px #10b98115,
+    0 20px 60px #10b98115,
+    0 8px 32px #00000060;
+  transform: translateY(-8px) rotate(-0.5deg);
 }
 
 /* Icon container */
 .group-icon-wrap {
-  width: 72px; height: 72px;
-  border-radius: 20px;
+  width: 66px; height: 66px;
+  border-radius: 18px;
   display: flex; align-items: center; justify-content: center;
-  margin-bottom: 22px;
-  background: color-mix(in srgb, var(--g-accent) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--g-accent) 25%, transparent);
-  transition: background 0.3s, box-shadow 0.3s, transform 0.3s;
+  margin: 0 auto 20px;
+  background: color-mix(in srgb, var(--g-accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--g-accent) 22%, transparent);
+  transition: background 0.3s, box-shadow 0.3s, transform 0.32s cubic-bezier(0.16,1,0.3,1);
 }
 .group-icon-el { color: var(--g-accent); }
 
 .group-card:hover .group-icon-wrap {
-  background: color-mix(in srgb, var(--g-accent) 18%, transparent);
-  box-shadow: 0 0 28px color-mix(in srgb, var(--g-accent) 30%, transparent);
-  transform: scale(1.08);
+  background: color-mix(in srgb, var(--g-accent) 20%, transparent);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--g-accent) 35%, transparent);
+  transform: scale(1.1) translateY(-2px);
 }
 
 .group-name {
-  font-size: 1.75rem;
+  font-size: 1.6rem;
   font-weight: 800;
   color: #f1f5f9;
   letter-spacing: -0.02em;
   margin-bottom: 6px;
 }
 .group-desc {
-  font-size: 0.78rem;
-  color: #475569;
+  font-size: 0.74rem;
+  color: #3d5270;
   line-height: 1.5;
-  margin-bottom: 22px;
+  margin-bottom: 0;
+}
+
+/* Divisor */
+.card-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #1e304f, transparent);
+  margin: 18px 0;
 }
 
 /* Badge */
@@ -722,24 +798,26 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
   font-size: 0.78rem; font-weight: 600;
 }
 .gbadge--pending {
-  background: #f59e0b10;
-  border: 1px solid #f59e0b30;
+  background: #f59e0b0e;
+  border: 1px solid #f59e0b28;
   color: #f59e0b;
-  animation: badgePulse 3s ease-in-out infinite;
+  animation: badgePulse 3.5s ease-in-out infinite;
 }
-.badge-count { font-size: 0.92rem; font-weight: 800; }
-.badge-label { font-size: 0.74rem; opacity: 0.8; }
+.badge-count { font-size: 0.92rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.badge-label { font-size: 0.74rem; opacity: 0.75; }
 
-/* Arrow indicator */
-.card-arrow {
-  position: absolute; bottom: 22px; right: 22px;
-  color: #1d2e4a;
-  transition: color 0.25s, transform 0.25s;
+/* Footer do card */
+.card-footer {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  margin-top: 16px;
+  color: #2a4166;
+  font-size: 0.78rem; font-weight: 600;
+  transition: color 0.25s, gap 0.25s;
 }
-.group-card:hover .card-arrow {
-  color: var(--g-accent);
-  transform: translateX(3px);
-}
+.card-cta { letter-spacing: .02em; }
+.card-arrow-icon { transition: transform 0.25s; }
+.group-card:hover .card-footer { color: var(--g-accent); gap: 10px; }
+.group-card:hover .card-arrow-icon { transform: translateX(3px); }
 
 /* ─── Screen 2 Header ───────────────────────────────────────── */
 .screen2-header {
