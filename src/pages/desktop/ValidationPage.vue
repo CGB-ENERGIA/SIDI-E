@@ -32,143 +32,271 @@
     <!-- ══ TELA 2: Validação do grupo ══ -->
     <template v-else>
       <!-- Header -->
-      <div class="flex items-center q-mb-lg gap-3">
+      <div class="flex items-center q-mb-md gap-3">
         <q-btn flat round icon="arrow_back" @click="selectedGroup = null" />
         <div>
-          <div class="val-title">Validação — {{ selectedGroup }}</div>
-          <div class="val-sub">Revise e valide os serviços registrados</div>
+          <div class="val-title">{{ selectedGroup }}</div>
+          <div class="val-sub">{{ activeTab === 'historico' ? 'Histórico de validações' : 'Revise e valide os serviços registrados' }}</div>
         </div>
         <q-space />
-        <q-input v-model="filterDate" type="date" outlined dense label="Data"
-          bg-color="surface" style="min-width:170px;" clearable
-          @update:model-value="loadServices" />
-        <q-btn unelevated icon="refresh" label="Atualizar" color="primary"
-          :loading="loading" @click="loadServices" style="height:40px;border-radius:8px;" />
+
+        <!-- Controles da aba Validação -->
+        <template v-if="activeTab === 'validacao'">
+          <q-input v-model="filterDate" type="date" outlined dense label="Data"
+            bg-color="surface" style="min-width:170px;" clearable
+            @update:model-value="loadServices" />
+          <q-btn unelevated icon="refresh" label="Atualizar" color="primary"
+            :loading="loading" @click="loadServices" style="height:40px;border-radius:8px;" />
+        </template>
+
+        <!-- Controles da aba Histórico -->
+        <template v-else>
+          <q-input v-model="histFilterStart" type="date" outlined dense label="De"
+            bg-color="surface" style="min-width:150px;" clearable />
+          <q-input v-model="histFilterEnd" type="date" outlined dense label="Até"
+            bg-color="surface" style="min-width:150px;" clearable />
+          <q-btn unelevated icon="refresh" label="Atualizar" color="primary"
+            :loading="loadingHistory" @click="loadHistory" style="height:40px;border-radius:8px;" />
+        </template>
       </div>
 
-      <!-- Barra de filtros -->
-      <div class="filter-bar q-mb-lg">
-        <div class="search-wrap">
-          <q-icon name="search" size="18px" style="color:#4b5680" />
-          <input v-model="search" class="search-input" placeholder="Buscar equipe, atividade, colaborador…" />
-        </div>
-        <q-select v-model="filterSupervisor" :options="supervisoresList" label="Supervisor"
-          outlined dense clearable bg-color="surface" style="min-width:180px;" />
-        <q-select v-model="filterResponsavel" :options="responsaveisList" label="Responsável"
-          outlined dense clearable bg-color="surface" style="min-width:180px;" />
-        <q-btn v-if="search || filterSupervisor || filterResponsavel"
-          flat icon="close" label="Limpar" size="sm" no-caps color="grey"
-          @click="search = ''; filterSupervisor = null; filterResponsavel = null" />
+      <!-- Abas -->
+      <div class="tab-bar q-mb-lg">
+        <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'validacao' }"
+          @click="switchTab('validacao')">
+          <q-icon name="verified" size="18px" class="q-mr-xs" />Validação
+        </button>
+        <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'historico' }"
+          @click="switchTab('historico')">
+          <q-icon name="history" size="18px" class="q-mr-xs" />Histórico
+        </button>
       </div>
 
-      <!-- KPIs -->
-      <div class="kpi-row q-mb-xl">
-        <div class="kpi-tile" v-for="k in kpis" :key="k.label"
-          :class="{ 'kpi-active': filterStatus === k.value }"
-          @click="filterStatus = filterStatus === k.value ? null : k.value"
-          style="cursor:pointer;">
-          <div class="kpi-icon" :style="`background:${k.color}22;color:${k.color}`">
-            <q-icon :name="k.icon" size="22px" />
+      <!-- ══ ABA: VALIDAÇÃO ══ -->
+      <template v-if="activeTab === 'validacao'">
+        <!-- Barra de filtros -->
+        <div class="filter-bar q-mb-lg">
+          <div class="search-wrap">
+            <q-icon name="search" size="18px" style="color:#4b5680" />
+            <input v-model="search" class="search-input" placeholder="Buscar equipe, atividade, colaborador…" />
           </div>
-          <div class="kpi-body">
-            <div class="kpi-value">{{ k.count }}</div>
-            <div class="kpi-label">{{ k.label }}</div>
-          </div>
+          <q-select v-model="filterSupervisor" :options="supervisoresList" label="Supervisor"
+            outlined dense clearable bg-color="surface" style="min-width:180px;" />
+          <q-select v-model="filterResponsavel" :options="responsaveisList" label="Responsável"
+            outlined dense clearable bg-color="surface" style="min-width:180px;" />
+          <q-btn v-if="search || filterSupervisor || filterResponsavel"
+            flat icon="close" label="Limpar" size="sm" no-caps color="grey"
+            @click="search = ''; filterSupervisor = null; filterResponsavel = null" />
         </div>
-      </div>
 
-      <!-- Lista de serviços -->
-      <div v-if="loading" class="flex justify-center q-pa-xl">
-        <q-spinner-dots size="48px" color="primary" />
-      </div>
-
-      <div v-else-if="filteredServices.length === 0" class="empty-state">
-        <q-icon name="verified" size="64px" style="color:#4ade80;opacity:.5" />
-        <div class="q-mt-md text-grey-6">Nenhum serviço {{ filterStatus ? 'neste status' : 'encontrado' }}</div>
-      </div>
-
-      <div v-else class="svc-list">
-        <div
-          v-for="svc in filteredServices"
-          :key="svc.id"
-          class="svc-card"
-          :class="`svc-card--${svc.validation_status || 'pendente'}`"
-        >
-          <!-- Card header -->
-          <div class="svc-head">
-            <div class="svc-team">
-              <span class="svc-prefix">{{ svc.teams?.prefixo || '—' }}</span>
-              <span class="svc-nome">{{ svc.teams?.nome || '' }}</span>
+        <!-- KPIs -->
+        <div class="kpi-row q-mb-xl">
+          <div class="kpi-tile" v-for="k in kpis" :key="k.label"
+            :class="{ 'kpi-active': filterStatus === k.value }"
+            @click="filterStatus = filterStatus === k.value ? null : k.value"
+            style="cursor:pointer;">
+            <div class="kpi-icon" :style="`background:${k.color}22;color:${k.color}`">
+              <q-icon :name="k.icon" size="22px" />
             </div>
-            <div class="flex items-center gap-2">
-              <q-chip dense :color="statusColor(svc.validation_status)" text-color="white" size="sm">
-                {{ statusLabel(svc.validation_status) }}
+            <div class="kpi-body">
+              <div class="kpi-value">{{ k.count }}</div>
+              <div class="kpi-label">{{ k.label }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lista de serviços -->
+        <div v-if="loading" class="flex justify-center q-pa-xl">
+          <q-spinner-dots size="48px" color="primary" />
+        </div>
+
+        <div v-else-if="filteredServices.length === 0" class="empty-state">
+          <q-icon name="verified" size="64px" style="color:#4ade80;opacity:.5" />
+          <div class="q-mt-md text-grey-6">Nenhum serviço {{ filterStatus ? 'neste status' : 'encontrado' }}</div>
+        </div>
+
+        <div v-else class="svc-list">
+          <div
+            v-for="svc in filteredServices"
+            :key="svc.id"
+            class="svc-card"
+            :class="`svc-card--${svc.validation_status || 'pendente'}`"
+          >
+            <!-- Card header -->
+            <div class="svc-head">
+              <div class="svc-team">
+                <span class="svc-prefix">{{ svc.teams?.prefixo || '—' }}</span>
+                <span class="svc-nome">{{ svc.teams?.nome || '' }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <q-chip dense :color="statusColor(svc.validation_status)" text-color="white" size="sm">
+                  {{ statusLabel(svc.validation_status) }}
+                </q-chip>
+                <span class="svc-date">{{ formatDate(svc.created_at) }}</span>
+              </div>
+            </div>
+
+            <!-- Atividade + colaboradores -->
+            <div class="svc-info">
+              <q-chip dense color="blue-grey-8" text-color="white" size="sm" icon="build">
+                {{ svc.activity_name || 'Sem atividade' }}
               </q-chip>
-              <span class="svc-date">{{ formatDate(svc.created_at) }}</span>
+              <span v-if="svc.colaboradores?.length" class="svc-colab">
+                <q-icon name="people" size="14px" /> {{ svc.colaboradores.join(', ') }}
+              </span>
             </div>
-          </div>
 
-          <!-- Atividade + colaboradores -->
-          <div class="svc-info">
-            <q-chip dense color="blue-grey-8" text-color="white" size="sm" icon="build">
-              {{ svc.activity_name || 'Sem atividade' }}
-            </q-chip>
-            <span v-if="svc.colaboradores?.length" class="svc-colab">
-              <q-icon name="people" size="14px" /> {{ svc.colaboradores.join(', ') }}
-            </span>
-          </div>
-
-          <!-- Fotos -->
-          <div v-if="svc.evidence_photos?.length" class="fotos-row">
-            <div
-              v-for="foto in svc.evidence_photos"
-              :key="foto.id"
-              class="foto-thumb"
-              @click="openPhoto(foto, svc.evidence_photos)"
-            >
-              <img :src="photoUrl(foto.file_path)" :alt="foto.tipo" />
-              <span class="foto-tipo">{{ foto.tipo }}</span>
+            <!-- Fotos -->
+            <div v-if="svc.evidence_photos?.length" class="fotos-row">
+              <div
+                v-for="foto in svc.evidence_photos"
+                :key="foto.id"
+                class="foto-thumb"
+                @click="openPhoto(foto, svc.evidence_photos)"
+              >
+                <img :src="photoUrl(foto.file_path)" :alt="foto.tipo" />
+                <span class="foto-tipo">{{ foto.tipo }}</span>
+              </div>
             </div>
-          </div>
-          <div v-else class="no-fotos">
-            <q-icon name="no_photography" size="20px" class="q-mr-xs" /> Sem fotos registradas
-          </div>
+            <div v-else class="no-fotos">
+              <q-icon name="no_photography" size="20px" class="q-mr-xs" /> Sem fotos registradas
+            </div>
 
-          <!-- Observação (reprovar) -->
-          <div v-if="editingObs === svc.id" class="obs-area">
-            <q-input
-              v-model="obsText"
-              outlined dense
-              label="Motivo da reprovação"
-              autogrow
-              bg-color="surface"
-            />
-          </div>
+            <!-- Observação (reprovar) -->
+            <div v-if="editingObs === svc.id" class="obs-area">
+              <q-input
+                v-model="obsText"
+                outlined dense
+                label="Motivo da reprovação"
+                autogrow
+                bg-color="surface"
+              />
+            </div>
 
-          <div v-if="svc.validation_obs" class="val-obs">
-            <q-icon name="info" size="14px" class="q-mr-xs" />{{ svc.validation_obs }}
-          </div>
+            <div v-if="svc.validation_obs" class="val-obs">
+              <q-icon name="info" size="14px" class="q-mr-xs" />{{ svc.validation_obs }}
+            </div>
 
-          <!-- Ações -->
-          <div class="svc-actions">
-            <template v-if="svc.validation_status === 'pendente' || !svc.validation_status">
-              <q-btn unelevated color="positive" icon="check_circle" label="Aprovar"
-                size="sm" no-caps @click="aprovar(svc)" :loading="savingId === svc.id" />
-              <q-btn v-if="editingObs !== svc.id"
-                unelevated color="negative" icon="cancel" label="Reprovar"
-                size="sm" no-caps @click="iniciarReprovar(svc)" />
-              <template v-else>
-                <q-btn unelevated color="negative" icon="send" label="Confirmar reprovação"
-                  size="sm" no-caps @click="reprovar(svc)" :loading="savingId === svc.id" />
-                <q-btn flat label="Cancelar" size="sm" no-caps @click="editingObs = null; obsText = ''" />
+            <!-- Ações -->
+            <div class="svc-actions">
+              <template v-if="svc.validation_status === 'pendente' || !svc.validation_status">
+                <q-btn unelevated color="positive" icon="check_circle" label="Aprovar"
+                  size="sm" no-caps @click="aprovar(svc)" :loading="savingId === svc.id" />
+                <q-btn v-if="editingObs !== svc.id"
+                  unelevated color="negative" icon="cancel" label="Reprovar"
+                  size="sm" no-caps @click="iniciarReprovar(svc)" />
+                <template v-else>
+                  <q-btn unelevated color="negative" icon="send" label="Confirmar reprovação"
+                    size="sm" no-caps @click="reprovar(svc)" :loading="savingId === svc.id" />
+                  <q-btn flat label="Cancelar" size="sm" no-caps @click="editingObs = null; obsText = ''" />
+                </template>
               </template>
-            </template>
-            <template v-else>
-              <q-btn flat color="grey" icon="undo" label="Reabrir" size="sm" no-caps @click="reabrir(svc)" />
-            </template>
+              <template v-else>
+                <q-btn flat color="grey" icon="undo" label="Reabrir" size="sm" no-caps @click="reabrir(svc)" />
+              </template>
+            </div>
           </div>
         </div>
-      </div>
+      </template>
+
+      <!-- ══ ABA: HISTÓRICO ══ -->
+      <template v-else>
+        <!-- Filtro de status no histórico -->
+        <div class="filter-bar q-mb-lg">
+          <div class="search-wrap">
+            <q-icon name="search" size="18px" style="color:#4b5680" />
+            <input v-model="histSearch" class="search-input" placeholder="Buscar equipe, atividade, validador…" />
+          </div>
+          <q-select v-model="histFilterStatus" label="Status"
+            :options="[{label:'Aprovadas', value:'aprovada'},{label:'Reprovadas', value:'reprovada'}]"
+            option-value="value" option-label="label" emit-value map-options
+            outlined dense clearable bg-color="surface" style="min-width:160px;" />
+          <q-btn v-if="histSearch || histFilterStatus"
+            flat icon="close" label="Limpar" size="sm" no-caps color="grey"
+            @click="histSearch = ''; histFilterStatus = null" />
+          <div class="q-ml-auto text-caption" style="color:#64748b">
+            {{ filteredHistory.length }} registro{{ filteredHistory.length !== 1 ? 's' : '' }}
+          </div>
+        </div>
+
+        <!-- Loading histórico -->
+        <div v-if="loadingHistory" class="flex justify-center q-pa-xl">
+          <q-spinner-dots size="48px" color="primary" />
+        </div>
+
+        <div v-else-if="filteredHistory.length === 0" class="empty-state">
+          <q-icon name="history" size="64px" style="color:#60a5fa;opacity:.4" />
+          <div class="q-mt-md text-grey-6">Nenhum registro de validação encontrado</div>
+          <div class="q-mt-xs text-caption text-grey-7">Ajuste o filtro de datas ou valide alguns serviços primeiro</div>
+        </div>
+
+        <div v-else class="svc-list">
+          <div
+            v-for="item in filteredHistory"
+            :key="item.id"
+            class="svc-card hist-card"
+            :class="`svc-card--${item.validation_status}`"
+          >
+            <!-- Linha de validação (quem + quando) -->
+            <div class="hist-validator-row">
+              <div class="hist-status-badge" :class="`hist-status-badge--${item.validation_status}`">
+                <q-icon :name="item.validation_status === 'aprovada' ? 'check_circle' : 'cancel'" size="16px" />
+                {{ item.validation_status === 'aprovada' ? 'Aprovado' : 'Reprovado' }}
+              </div>
+              <div class="hist-meta">
+                <q-icon name="person" size="14px" class="q-mr-xs" style="color:#60a5fa" />
+                <span class="hist-validator">{{ item.validated_by || 'Desconhecido' }}</span>
+                <span class="hist-sep">·</span>
+                <q-icon name="schedule" size="14px" class="q-mr-xs" style="color:#64748b" />
+                <span class="hist-datetime">{{ formatDatetime(item.validated_at) }}</span>
+              </div>
+            </div>
+
+            <!-- Separador -->
+            <div class="hist-divider" />
+
+            <!-- Card header (serviço) -->
+            <div class="svc-head">
+              <div class="svc-team">
+                <span class="svc-prefix">{{ item.teams?.prefixo || '—' }}</span>
+                <span class="svc-nome">{{ item.teams?.nome || '' }}</span>
+              </div>
+              <span class="svc-date">Criado em {{ formatDate(item.created_at) }}</span>
+            </div>
+
+            <!-- Atividade + colaboradores -->
+            <div class="svc-info">
+              <q-chip dense color="blue-grey-8" text-color="white" size="sm" icon="build">
+                {{ item.activity_name || 'Sem atividade' }}
+              </q-chip>
+              <span v-if="item.colaboradores?.length" class="svc-colab">
+                <q-icon name="people" size="14px" /> {{ item.colaboradores.join(', ') }}
+              </span>
+            </div>
+
+            <!-- Fotos -->
+            <div v-if="item.evidence_photos?.length" class="fotos-row">
+              <div
+                v-for="foto in item.evidence_photos"
+                :key="foto.id"
+                class="foto-thumb"
+                @click="openPhoto(foto, item.evidence_photos)"
+              >
+                <img :src="photoUrl(foto.file_path)" :alt="foto.tipo" />
+                <span class="foto-tipo">{{ foto.tipo }}</span>
+              </div>
+            </div>
+            <div v-else class="no-fotos">
+              <q-icon name="no_photography" size="20px" class="q-mr-xs" /> Sem fotos
+            </div>
+
+            <!-- Observação (se reprovado) -->
+            <div v-if="item.validation_obs" class="val-obs">
+              <q-icon name="info" size="14px" class="q-mr-xs" />{{ item.validation_obs }}
+            </div>
+          </div>
+        </div>
+      </template>
     </template>
 
     <!-- Lightbox de foto -->
@@ -214,18 +342,33 @@ const grupos = [
 ]
 
 const selectedGroup    = ref(null)
+const activeTab        = ref('validacao')
+
+// ── Aba Validação ──────────────────────────────────────────
 const filterDate       = ref(new Date().toISOString().split('T')[0])
 const filterStatus     = ref(null)
 const filterSupervisor = ref(null)
 const filterResponsavel = ref(null)
 const search           = ref('')
 const loading          = ref(false)
+const savingId         = ref(null)
+const editingObs       = ref(null)
+const obsText          = ref('')
+const services         = ref([])
+
+// ── Aba Histórico ──────────────────────────────────────────
+const histFilterStart  = ref('')
+const histFilterEnd    = ref(new Date().toISOString().split('T')[0])
+const histFilterStatus = ref(null)
+const histSearch       = ref('')
+const loadingHistory   = ref(false)
+const historyServices  = ref([])
+
+// ── Grupos (contagens) ─────────────────────────────────────
 const loadingCounts = ref(false)
-const savingId      = ref(null)
-const editingObs    = ref(null)
-const obsText       = ref('')
-const services      = ref([])
 const counts        = ref({})
+
+// ── Lightbox ───────────────────────────────────────────────
 const showPhoto        = ref(false)
 const currentPhotoUrl  = ref('')
 const currentPhotoList = ref([])
@@ -252,7 +395,6 @@ const responsaveisList = computed(() => {
 const filteredServices = computed(() => {
   let list = services.value
 
-  // Status KPI
   const v = filterStatus.value
   if (v === 'pendente')
     list = list.filter(s => !s.validation_status || s.validation_status === 'pendente')
@@ -261,15 +403,12 @@ const filteredServices = computed(() => {
   else if (v)
     list = list.filter(s => s.validation_status === v)
 
-  // Supervisor
   if (filterSupervisor.value)
     list = list.filter(s => s.teams?.supervisor === filterSupervisor.value)
 
-  // Responsável
   if (filterResponsavel.value)
     list = list.filter(s => s.teams?.responsavel === filterResponsavel.value)
 
-  // Busca
   const q = search.value.trim().toLowerCase()
   if (q) {
     list = list.filter(s =>
@@ -283,11 +422,39 @@ const filteredServices = computed(() => {
   return list
 })
 
+const filteredHistory = computed(() => {
+  let list = historyServices.value
+
+  if (histFilterStatus.value)
+    list = list.filter(s => s.validation_status === histFilterStatus.value)
+
+  const q = histSearch.value.trim().toLowerCase()
+  if (q) {
+    list = list.filter(s =>
+      (s.teams?.prefixo || '').toLowerCase().includes(q) ||
+      (s.teams?.nome || '').toLowerCase().includes(q) ||
+      (s.activity_name || '').toLowerCase().includes(q) ||
+      (s.validated_by || '').toLowerCase().includes(q) ||
+      (s.colaboradores || []).some(c => c.toLowerCase().includes(q))
+    )
+  }
+
+  return list
+})
+
 // ── Selecionar grupo ─────────────────────────────────────
 async function selectGroup (g) {
   selectedGroup.value = g
+  activeTab.value = 'validacao'
   filterStatus.value = null
   await loadServices()
+}
+
+function switchTab (tab) {
+  activeTab.value = tab
+  if (tab === 'historico' && historyServices.value.length === 0) {
+    loadHistory()
+  }
 }
 
 // ── Carregar contagens para os cards de grupo ─────────────
@@ -332,6 +499,34 @@ async function loadServices () {
     $q.notify({ type: 'negative', message: 'Erro ao carregar: ' + e.message })
   } finally {
     loading.value = false
+  }
+}
+
+// ── Carregar histórico de validações ─────────────────────
+async function loadHistory () {
+  loadingHistory.value = true
+  try {
+    let query = supabase
+      .from('services')
+      .select('id, team_id, activity_name, colaboradores, created_at, validation_status, validation_obs, validated_at, validated_by, evidence_photos(*), teams!inner(prefixo, nome, supervisor, responsavel, processo)')
+      .eq('teams.processo', selectedGroup.value)
+      .in('validation_status', ['aprovada', 'reprovada'])
+      .order('validated_at', { ascending: false })
+
+    if (histFilterStart.value) {
+      query = query.gte('validated_at', histFilterStart.value + 'T00:00:00')
+    }
+    if (histFilterEnd.value) {
+      query = query.lte('validated_at', histFilterEnd.value + 'T23:59:59')
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+    historyServices.value = data || []
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro ao carregar histórico: ' + e.message })
+  } finally {
+    loadingHistory.value = false
   }
 }
 
@@ -444,6 +639,14 @@ function formatDate (iso) {
   return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
+function formatDatetime (iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  })
+}
+
 function statusLabel (s) {
   const map = { aprovada: 'Aprovada', reprovada: 'Reprovada', pendente: 'Pendente' }
   return map[s] || 'Pendente'
@@ -465,6 +668,25 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 .val-page { background: var(--bg-page, #0f1729); min-height: 100vh; }
 .val-title { font-size: 1.6rem; font-weight: 700; color: #e2e8f0; }
 .val-sub   { font-size: 0.9rem; color: #64748b; margin-top: 2px; }
+
+/* ── Tabs ── */
+.tab-bar {
+  display: flex; gap: 4px;
+  background: #1e2a45;
+  border: 1.5px solid #2d3e5e;
+  border-radius: 12px;
+  padding: 4px;
+  width: fit-content;
+}
+.tab-btn {
+  display: flex; align-items: center;
+  background: transparent; border: none; outline: none;
+  color: #64748b; font-size: 0.88rem; font-weight: 600;
+  padding: 8px 20px; border-radius: 8px; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.tab-btn:hover { color: #94a3b8; background: #ffffff08; }
+.tab-btn--active { background: #2563eb; color: #fff; }
 
 /* ── Filter bar ── */
 .filter-bar {
@@ -593,6 +815,33 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 }
 
 .svc-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ── Histórico ── */
+.hist-card { padding-top: 16px; }
+.hist-validator-row {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 14px; flex-wrap: wrap;
+}
+.hist-status-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 14px; border-radius: 999px;
+  font-size: 0.82rem; font-weight: 700; flex-shrink: 0;
+}
+.hist-status-badge--aprovada  { background: #4ade8022; color: #4ade80; }
+.hist-status-badge--reprovada { background: #f8717122; color: #f87171; }
+
+.hist-meta {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.84rem; flex-wrap: wrap;
+}
+.hist-validator { color: #93c5fd; font-weight: 600; }
+.hist-sep { color: #334155; }
+.hist-datetime { color: #64748b; }
+
+.hist-divider {
+  height: 1px; background: #2d3e5e;
+  margin-bottom: 14px;
+}
 
 /* Empty */
 .empty-state { text-align: center; padding: 60px 0; color: #64748b; }
