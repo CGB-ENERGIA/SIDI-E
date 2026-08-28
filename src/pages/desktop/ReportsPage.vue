@@ -227,7 +227,6 @@ import { ref, computed, onMounted } from 'vue'
 import { useEvidenceStore } from 'src/stores/evidence'
 import { useTeamsStore } from 'src/stores/teams'
 import { useQuasar } from 'quasar'
-import { EQUIPES_FILTRO, COORDENADORES } from 'src/data/equipes-filtro'
 
 const evidenceStore = useEvidenceStore()
 const $q = useQuasar()
@@ -240,7 +239,10 @@ const supervisoresList = computed(() => {
   const s = new Set(teamsStore.teams.map(t => t.supervisor).filter(Boolean))
   return [...s].sort()
 })
-const coordenadoresList = COORDENADORES
+const coordenadoresList = computed(() => {
+  const s = new Set(teamsStore.teams.map(t => t.coordenador).filter(Boolean))
+  return [...s].sort()
+})
 
 const today = new Date()
 const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
@@ -251,7 +253,7 @@ const filteredServices = computed(() => {
   return services.value.filter(s => {
     const prefixo = s.teams?.prefixo
     if (filterSupervisor.value && s.teams?.supervisor !== filterSupervisor.value) return false
-    if (filterCoordenador.value && EQUIPES_FILTRO[prefixo]?.coordenador !== filterCoordenador.value) return false
+    if (filterCoordenador.value && s.teams?.coordenador !== filterCoordenador.value) return false
     return true
   })
 })

@@ -201,7 +201,7 @@ export const useEvidenceStore = defineStore('evidence', () => {
     try {
       let query = supabase
         .from('services')
-        .select('*, evidence_photos(*), teams(prefixo, nome, supervisor)')
+        .select('*, evidence_photos(*), teams(prefixo, nome, supervisor, coordenador)')
         .order('created_at', { ascending: false })
 
       if (filters.teamId) query = query.eq('team_id', filters.teamId)

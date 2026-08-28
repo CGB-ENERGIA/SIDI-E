@@ -231,7 +231,6 @@ import { useEvidenceStore } from 'src/stores/evidence'
 import { useAuthStore } from 'src/stores/auth'
 import { supabase } from 'src/services/supabase'
 import { useQuasar } from 'quasar'
-import { EQUIPES_FILTRO, SUPERVISORES, COORDENADORES } from 'src/data/equipes-filtro'
 
 const activitiesStore = useActivitiesStore()
 const teamsStore = useTeamsStore()
@@ -254,7 +253,10 @@ const supervisoresList = computed(() => {
   const s = new Set(teamsStore.teams.map(t => t.supervisor).filter(Boolean))
   return [...s].sort()
 })
-const coordenadoresList = COORDENADORES
+const coordenadoresList = computed(() => {
+  const s = new Set(teamsStore.teams.map(t => t.coordenador).filter(Boolean))
+  return [...s].sort()
+})
 
 const teamOptions = computed(() =>
   teamsStore.teams.map(t => ({ label: `${t.prefixo} — ${t.nome}`, value: t.id }))
@@ -290,7 +292,7 @@ const resumoEquipes = computed(() => {
   if (filterSupervisor.value)
     result = result.filter(e => e.servicos.some(s => s.teams?.supervisor === filterSupervisor.value))
   if (filterCoordenador.value)
-    result = result.filter(e => EQUIPES_FILTRO[e.prefixo]?.coordenador === filterCoordenador.value)
+    result = result.filter(e => e.servicos.some(s => s.teams?.coordenador === filterCoordenador.value))
   return result
 })
 
@@ -311,7 +313,7 @@ async function loadAtividades () {
   try {
     let query = supabase
       .from('services')
-      .select('id, team_id, activity_name, colaboradores, created_at, teams(prefixo, nome, supervisor)')
+      .select('id, team_id, activity_name, colaboradores, created_at, teams(prefixo, nome, supervisor, coordenador)')
       .order('created_at', { ascending: false })
     if (atividadesDate.value) {
       query = query

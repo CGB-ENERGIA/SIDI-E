@@ -308,7 +308,6 @@ import { useEvidenceStore } from 'src/stores/evidence'
 import { useTeamsStore } from 'src/stores/teams'
 import { useAuthStore } from 'src/stores/auth'
 import { storage } from 'src/services/supabase'
-import { EQUIPES_FILTRO, SUPERVISORES, COORDENADORES } from 'src/data/equipes-filtro'
 
 const evidenceStore = useEvidenceStore()
 const teamsStore = useTeamsStore()
@@ -335,7 +334,10 @@ const supervisoresList = computed(() => {
   const s = new Set(teamsStore.teams.map(t => t.supervisor).filter(Boolean))
   return [...s].sort()
 })
-const coordenadoresList = COORDENADORES
+const coordenadoresList = computed(() => {
+  const s = new Set(teamsStore.teams.map(t => t.coordenador).filter(Boolean))
+  return [...s].sort()
+})
 
 const statusOptions = [
   { label: 'Sincronizado', value: 'synced' },
@@ -352,7 +354,7 @@ const filteredRows = computed(() => {
     if (filters.value.status && r.sync_status !== filters.value.status) return false
     const prefixo = r.teams?.prefixo
     if (filters.value.supervisor && r.teams?.supervisor !== filters.value.supervisor) return false
-    if (filters.value.coordenador && EQUIPES_FILTRO[prefixo]?.coordenador !== filters.value.coordenador) return false
+    if (filters.value.coordenador && r.teams?.coordenador !== filters.value.coordenador) return false
     return true
   })
 })
