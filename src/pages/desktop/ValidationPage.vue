@@ -46,6 +46,21 @@
           :loading="loading" @click="loadServices" style="height:40px;border-radius:8px;" />
       </div>
 
+      <!-- Barra de filtros -->
+      <div class="filter-bar q-mb-lg">
+        <div class="search-wrap">
+          <q-icon name="search" size="18px" style="color:#4b5680" />
+          <input v-model="search" class="search-input" placeholder="Buscar equipe, atividade, colaborador…" />
+        </div>
+        <q-select v-model="filterSupervisor" :options="supervisoresList" label="Supervisor"
+          outlined dense clearable bg-color="surface" style="min-width:180px;" />
+        <q-select v-model="filterResponsavel" :options="responsaveisList" label="Responsável"
+          outlined dense clearable bg-color="surface" style="min-width:180px;" />
+        <q-btn v-if="search || filterSupervisor || filterResponsavel"
+          flat icon="close" label="Limpar" size="sm" no-caps color="grey"
+          @click="search = ''; filterSupervisor = null; filterResponsavel = null" />
+      </div>
+
       <!-- KPIs -->
       <div class="kpi-row q-mb-xl">
         <div class="kpi-tile" v-for="k in kpis" :key="k.label"
@@ -198,10 +213,13 @@ const grupos = [
   { key: 'GERE', icon: 'bolt', desc: 'Gestão de Emergências e Redes' }
 ]
 
-const selectedGroup = ref(null)
-const filterDate    = ref(new Date().toISOString().split('T')[0])
-const filterStatus  = ref(null)
-const loading       = ref(false)
+const selectedGroup    = ref(null)
+const filterDate       = ref(new Date().toISOString().split('T')[0])
+const filterStatus     = ref(null)
+const filterSupervisor = ref(null)
+const filterResponsavel = ref(null)
+const search           = ref('')
+const loading          = ref(false)
 const loadingCounts = ref(false)
 const savingId      = ref(null)
 const editingObs    = ref(null)
@@ -221,14 +239,48 @@ const kpis = computed(() => [
   { label: 'REPROVADAS',  value: 'reprovada',  icon: 'cancel',        color: '#f87171', count: services.value.filter(s => s.validation_status === 'reprovada').length }
 ])
 
+const supervisoresList = computed(() => {
+  const s = new Set(services.value.map(s => s.teams?.supervisor).filter(Boolean))
+  return [...s].sort()
+})
+
+const responsaveisList = computed(() => {
+  const s = new Set(services.value.map(s => s.teams?.responsavel).filter(Boolean))
+  return [...s].sort()
+})
+
 const filteredServices = computed(() => {
+  let list = services.value
+
+  // Status KPI
   const v = filterStatus.value
-  if (!v) return services.value
   if (v === 'pendente')
-    return services.value.filter(s => !s.validation_status || s.validation_status === 'pendente')
-  if (v === 'analisadas')
-    return services.value.filter(s => s.validation_status === 'aprovada' || s.validation_status === 'reprovada')
-  return services.value.filter(s => s.validation_status === v)
+    list = list.filter(s => !s.validation_status || s.validation_status === 'pendente')
+  else if (v === 'analisadas')
+    list = list.filter(s => s.validation_status === 'aprovada' || s.validation_status === 'reprovada')
+  else if (v)
+    list = list.filter(s => s.validation_status === v)
+
+  // Supervisor
+  if (filterSupervisor.value)
+    list = list.filter(s => s.teams?.supervisor === filterSupervisor.value)
+
+  // Responsável
+  if (filterResponsavel.value)
+    list = list.filter(s => s.teams?.responsavel === filterResponsavel.value)
+
+  // Busca
+  const q = search.value.trim().toLowerCase()
+  if (q) {
+    list = list.filter(s =>
+      (s.teams?.prefixo || '').toLowerCase().includes(q) ||
+      (s.teams?.nome || '').toLowerCase().includes(q) ||
+      (s.activity_name || '').toLowerCase().includes(q) ||
+      (s.colaboradores || []).some(c => c.toLowerCase().includes(q))
+    )
+  }
+
+  return list
 })
 
 // ── Selecionar grupo ─────────────────────────────────────
@@ -263,7 +315,7 @@ async function loadServices () {
   try {
     let query = supabase
       .from('services')
-      .select('id, team_id, activity_name, colaboradores, created_at, validation_status, validation_obs, validated_at, validated_by, evidence_photos(*), teams!inner(prefixo, nome, supervisor, processo)')
+      .select('id, team_id, activity_name, colaboradores, created_at, validation_status, validation_obs, validated_at, validated_by, evidence_photos(*), teams!inner(prefixo, nome, supervisor, responsavel, processo)')
       .eq('teams.processo', selectedGroup.value)
       .order('created_at', { ascending: false })
 
@@ -413,6 +465,21 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 .val-page { background: var(--bg-page, #0f1729); min-height: 100vh; }
 .val-title { font-size: 1.6rem; font-weight: 700; color: #e2e8f0; }
 .val-sub   { font-size: 0.9rem; color: #64748b; margin-top: 2px; }
+
+/* ── Filter bar ── */
+.filter-bar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.search-wrap {
+  display: flex; align-items: center; gap: 8px;
+  background: #1e2a45; border: 1.5px solid #2d3e5e;
+  border-radius: 10px; padding: 0 14px; flex: 1; min-width: 220px; height: 40px;
+}
+.search-input {
+  background: transparent; border: none; outline: none;
+  color: #e2e8f0; font-size: 0.9rem; width: 100%;
+}
+.search-input::placeholder { color: #4b5680; }
 
 /* ── Group cards ── */
 .group-grid {
