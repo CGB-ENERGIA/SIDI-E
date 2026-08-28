@@ -45,6 +45,11 @@ const routes = [
         component: () => import('src/pages/desktop/ReportsPage.vue')
       },
       {
+        path: 'validacao',
+        name: 'Validacao',
+        component: () => import('src/pages/desktop/ValidationPage.vue')
+      },
+      {
         path: 'solicitacoes',
         name: 'Solicitacoes',
         component: () => import('src/pages/desktop/SolicitacoesPage.vue')

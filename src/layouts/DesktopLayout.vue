@@ -145,6 +145,7 @@ const allMenuItems = [
   { icon: 'task',            label: 'Atividades',    to: '/atividades' },
   { icon: 'photo_library',   label: 'Evidências',    to: '/evidencias' },
   { icon: 'assessment',      label: 'Relatórios',    to: '/relatorios' },
+  { icon: 'verified',        label: 'Validação',     to: '/validacao' },
   { icon: 'pending_actions', label: 'Solicitações',  to: '/solicitacoes', badgeDynamic: true },
   { icon: 'manage_accounts', label: 'Usuários',      to: '/usuarios', adminOnly: true }
 ]
