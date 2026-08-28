@@ -4,26 +4,37 @@
     <!-- ══ TELA 1: Seleção de grupo ══ -->
     <template v-if="!selectedGroup">
       <div class="val-header q-mb-xl">
+        <div class="val-eyebrow">Inspeções · SIDI-E</div>
         <div class="val-title">Validação</div>
-        <div class="val-sub">Selecione o grupo para validar os serviços</div>
+        <div class="val-sub">Selecione o grupo para revisar e validar os serviços registrados</div>
       </div>
 
       <div class="group-grid">
         <div
-          v-for="g in grupos"
+          v-for="(g, i) in grupos"
           :key="g.key"
           class="group-card"
           :class="`group-card--${g.key.toLowerCase()}`"
+          :style="{ '--i': i }"
           @click="selectGroup(g.key)"
         >
-          <div class="group-icon"><q-icon :name="g.icon" size="48px" /></div>
+          <div class="card-top-bar" />
+          <div class="group-icon-wrap">
+            <q-icon :name="g.icon" size="36px" class="group-icon-el" />
+          </div>
           <div class="group-name">{{ g.key }}</div>
           <div class="group-desc">{{ g.desc }}</div>
           <div class="group-badges">
             <span class="gbadge gbadge--pending">
-              <q-spinner-dots v-if="loadingCounts" size="12px" />
-              <template v-else>{{ counts[g.key]?.pendente ?? 0 }} pendentes</template>
+              <q-spinner-dots v-if="loadingCounts" size="10px" />
+              <template v-else>
+                <span class="badge-count">{{ counts[g.key]?.pendente ?? 0 }}</span>
+                <span class="badge-label">pendentes</span>
+              </template>
             </span>
+          </div>
+          <div class="card-arrow">
+            <q-icon name="arrow_forward" size="18px" />
           </div>
         </div>
       </div>
@@ -32,43 +43,42 @@
     <!-- ══ TELA 2: Validação do grupo ══ -->
     <template v-else>
       <!-- Header -->
-      <div class="flex items-center q-mb-md gap-3">
-        <q-btn flat round icon="arrow_back" @click="selectedGroup = null" />
-        <div>
-          <div class="val-title">{{ selectedGroup }}</div>
-          <div class="val-sub">{{ activeTab === 'historico' ? 'Histórico de validações' : 'Revise e valide os serviços registrados' }}</div>
+      <div class="screen2-header q-mb-md">
+        <div class="flex items-center gap-3">
+          <q-btn flat round icon="arrow_back" @click="selectedGroup = null" class="back-btn" />
+          <div>
+            <div class="val-title screen2-title">{{ selectedGroup }}</div>
+            <div class="val-sub">{{ activeTab === 'historico' ? 'Histórico de validações' : 'Revise e valide os serviços registrados' }}</div>
+          </div>
         </div>
-        <q-space />
-
-        <!-- Controles da aba Validação -->
-        <template v-if="activeTab === 'validacao'">
-          <q-input v-model="filterDate" type="date" outlined dense label="Data"
-            bg-color="surface" style="min-width:170px;" clearable
-            @update:model-value="loadServices" />
-          <q-btn unelevated icon="refresh" label="Atualizar" color="primary"
-            :loading="loading" @click="loadServices" style="height:40px;border-radius:8px;" />
-        </template>
-
-        <!-- Controles da aba Histórico -->
-        <template v-else>
-          <q-input v-model="histFilterStart" type="date" outlined dense label="De"
-            bg-color="surface" style="min-width:150px;" clearable />
-          <q-input v-model="histFilterEnd" type="date" outlined dense label="Até"
-            bg-color="surface" style="min-width:150px;" clearable />
-          <q-btn unelevated icon="refresh" label="Atualizar" color="primary"
-            :loading="loadingHistory" @click="loadHistory" style="height:40px;border-radius:8px;" />
-        </template>
+        <div class="header-controls">
+          <template v-if="activeTab === 'validacao'">
+            <q-input v-model="filterDate" type="date" outlined dense label="Data"
+              bg-color="surface" style="min-width:170px;" clearable
+              @update:model-value="loadServices" class="ctrl-input" />
+            <q-btn unelevated icon="refresh" label="Atualizar" color="primary"
+              :loading="loading" @click="loadServices" class="refresh-btn" />
+          </template>
+          <template v-else>
+            <q-input v-model="histFilterStart" type="date" outlined dense label="De"
+              bg-color="surface" style="min-width:150px;" clearable class="ctrl-input" />
+            <q-input v-model="histFilterEnd" type="date" outlined dense label="Até"
+              bg-color="surface" style="min-width:150px;" clearable class="ctrl-input" />
+            <q-btn unelevated icon="refresh" label="Atualizar" color="primary"
+              :loading="loadingHistory" @click="loadHistory" class="refresh-btn" />
+          </template>
+        </div>
       </div>
 
       <!-- Abas -->
       <div class="tab-bar q-mb-lg">
         <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'validacao' }"
           @click="switchTab('validacao')">
-          <q-icon name="verified" size="18px" class="q-mr-xs" />Validação
+          <q-icon name="verified" size="17px" />Validação
         </button>
         <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'historico' }"
           @click="switchTab('historico')">
-          <q-icon name="history" size="18px" class="q-mr-xs" />Histórico
+          <q-icon name="history" size="17px" />Histórico
         </button>
       </div>
 
@@ -77,13 +87,13 @@
         <!-- Barra de filtros -->
         <div class="filter-bar q-mb-lg">
           <div class="search-wrap">
-            <q-icon name="search" size="18px" style="color:#4b5680" />
+            <q-icon name="search" size="18px" class="search-icon" />
             <input v-model="search" class="search-input" placeholder="Buscar equipe, atividade, colaborador…" />
           </div>
           <q-select v-model="filterSupervisor" :options="supervisoresList" label="Supervisor"
-            outlined dense clearable bg-color="surface" style="min-width:180px;" />
+            outlined dense clearable bg-color="surface" style="min-width:180px;" class="filter-select" />
           <q-select v-model="filterResponsavel" :options="responsaveisList" label="Responsável"
-            outlined dense clearable bg-color="surface" style="min-width:180px;" />
+            outlined dense clearable bg-color="surface" style="min-width:180px;" class="filter-select" />
           <q-btn v-if="search || filterSupervisor || filterResponsavel"
             flat icon="close" label="Limpar" size="sm" no-caps color="grey"
             @click="search = ''; filterSupervisor = null; filterResponsavel = null" />
@@ -91,15 +101,15 @@
 
         <!-- KPIs -->
         <div class="kpi-row q-mb-xl">
-          <div class="kpi-tile" v-for="k in kpis" :key="k.label"
+          <div class="kpi-tile" v-for="(k, ki) in kpis" :key="k.label"
             :class="{ 'kpi-active': filterStatus === k.value }"
-            @click="filterStatus = filterStatus === k.value ? null : k.value"
-            style="cursor:pointer;">
-            <div class="kpi-icon" :style="`background:${k.color}22;color:${k.color}`">
-              <q-icon :name="k.icon" size="22px" />
+            :style="{ '--ki': ki }"
+            @click="filterStatus = filterStatus === k.value ? null : k.value">
+            <div class="kpi-icon-wrap" :style="`--kc:${k.color}`">
+              <q-icon :name="k.icon" size="20px" />
             </div>
             <div class="kpi-body">
-              <div class="kpi-value">{{ k.count }}</div>
+              <div class="kpi-value" :style="`color:${k.color}`">{{ k.count }}</div>
               <div class="kpi-label">{{ k.label }}</div>
             </div>
           </div>
@@ -111,18 +121,18 @@
         </div>
 
         <div v-else-if="filteredServices.length === 0" class="empty-state">
-          <q-icon name="verified" size="64px" style="color:#4ade80;opacity:.5" />
-          <div class="q-mt-md text-grey-6">Nenhum serviço {{ filterStatus ? 'neste status' : 'encontrado' }}</div>
+          <q-icon name="verified" size="56px" class="empty-icon" />
+          <div class="empty-text">Nenhum serviço {{ filterStatus ? 'neste status' : 'encontrado' }}</div>
         </div>
 
         <div v-else class="svc-list">
           <div
-            v-for="svc in filteredServices"
+            v-for="(svc, si) in filteredServices"
             :key="svc.id"
             class="svc-card"
             :class="`svc-card--${svc.validation_status || 'pendente'}`"
+            :style="{ '--si': si }"
           >
-            <!-- Card header -->
             <div class="svc-head">
               <div class="svc-team">
                 <span class="svc-prefix">{{ svc.teams?.prefixo || '—' }}</span>
@@ -136,7 +146,6 @@
               </div>
             </div>
 
-            <!-- Atividade + colaboradores -->
             <div class="svc-info">
               <q-chip dense color="blue-grey-8" text-color="white" size="sm" icon="build">
                 {{ svc.activity_name || 'Sem atividade' }}
@@ -146,7 +155,6 @@
               </span>
             </div>
 
-            <!-- Fotos -->
             <div v-if="svc.evidence_photos?.length" class="fotos-row">
               <div
                 v-for="foto in svc.evidence_photos"
@@ -159,35 +167,27 @@
               </div>
             </div>
             <div v-else class="no-fotos">
-              <q-icon name="no_photography" size="20px" class="q-mr-xs" /> Sem fotos registradas
+              <q-icon name="no_photography" size="18px" class="q-mr-xs" /> Sem fotos registradas
             </div>
 
-            <!-- Observação (reprovar) -->
             <div v-if="editingObs === svc.id" class="obs-area">
-              <q-input
-                v-model="obsText"
-                outlined dense
-                label="Motivo da reprovação"
-                autogrow
-                bg-color="surface"
-              />
+              <q-input v-model="obsText" outlined dense label="Motivo da reprovação" autogrow bg-color="surface" />
             </div>
 
             <div v-if="svc.validation_obs" class="val-obs">
               <q-icon name="info" size="14px" class="q-mr-xs" />{{ svc.validation_obs }}
             </div>
 
-            <!-- Ações -->
             <div class="svc-actions">
               <template v-if="svc.validation_status === 'pendente' || !svc.validation_status">
                 <q-btn unelevated color="positive" icon="check_circle" label="Aprovar"
-                  size="sm" no-caps @click="aprovar(svc)" :loading="savingId === svc.id" />
+                  size="sm" no-caps @click="aprovar(svc)" :loading="savingId === svc.id" class="action-btn" />
                 <q-btn v-if="editingObs !== svc.id"
                   unelevated color="negative" icon="cancel" label="Reprovar"
-                  size="sm" no-caps @click="iniciarReprovar(svc)" />
+                  size="sm" no-caps @click="iniciarReprovar(svc)" class="action-btn" />
                 <template v-else>
                   <q-btn unelevated color="negative" icon="send" label="Confirmar reprovação"
-                    size="sm" no-caps @click="reprovar(svc)" :loading="savingId === svc.id" />
+                    size="sm" no-caps @click="reprovar(svc)" :loading="savingId === svc.id" class="action-btn" />
                   <q-btn flat label="Cancelar" size="sm" no-caps @click="editingObs = null; obsText = ''" />
                 </template>
               </template>
@@ -201,61 +201,56 @@
 
       <!-- ══ ABA: HISTÓRICO ══ -->
       <template v-else>
-        <!-- Filtro de status no histórico -->
         <div class="filter-bar q-mb-lg">
           <div class="search-wrap">
-            <q-icon name="search" size="18px" style="color:#4b5680" />
+            <q-icon name="search" size="18px" class="search-icon" />
             <input v-model="histSearch" class="search-input" placeholder="Buscar equipe, atividade, validador…" />
           </div>
           <q-select v-model="histFilterStatus" label="Status"
             :options="[{label:'Aprovadas', value:'aprovada'},{label:'Reprovadas', value:'reprovada'}]"
             option-value="value" option-label="label" emit-value map-options
-            outlined dense clearable bg-color="surface" style="min-width:160px;" />
+            outlined dense clearable bg-color="surface" style="min-width:160px;" class="filter-select" />
           <q-btn v-if="histSearch || histFilterStatus"
             flat icon="close" label="Limpar" size="sm" no-caps color="grey"
             @click="histSearch = ''; histFilterStatus = null" />
-          <div class="q-ml-auto text-caption" style="color:#64748b">
+          <div class="q-ml-auto hist-count">
             {{ filteredHistory.length }} registro{{ filteredHistory.length !== 1 ? 's' : '' }}
           </div>
         </div>
 
-        <!-- Loading histórico -->
         <div v-if="loadingHistory" class="flex justify-center q-pa-xl">
           <q-spinner-dots size="48px" color="primary" />
         </div>
 
         <div v-else-if="filteredHistory.length === 0" class="empty-state">
-          <q-icon name="history" size="64px" style="color:#60a5fa;opacity:.4" />
-          <div class="q-mt-md text-grey-6">Nenhum registro de validação encontrado</div>
-          <div class="q-mt-xs text-caption text-grey-7">Ajuste o filtro de datas ou valide alguns serviços primeiro</div>
+          <q-icon name="history" size="56px" class="empty-icon" style="color:#60a5fa" />
+          <div class="empty-text">Nenhum registro encontrado</div>
+          <div class="empty-hint">Ajuste as datas ou valide alguns serviços primeiro</div>
         </div>
 
         <div v-else class="svc-list">
           <div
-            v-for="item in filteredHistory"
+            v-for="(item, hi) in filteredHistory"
             :key="item.id"
             class="svc-card hist-card"
             :class="`svc-card--${item.validation_status}`"
+            :style="{ '--si': hi }"
           >
-            <!-- Linha de validação (quem + quando) -->
             <div class="hist-validator-row">
-              <div class="hist-status-badge" :class="`hist-status-badge--${item.validation_status}`">
-                <q-icon :name="item.validation_status === 'aprovada' ? 'check_circle' : 'cancel'" size="16px" />
+              <div class="hist-status-badge" :class="`hist-badge--${item.validation_status}`">
+                <q-icon :name="item.validation_status === 'aprovada' ? 'check_circle' : 'cancel'" size="15px" />
                 {{ item.validation_status === 'aprovada' ? 'Aprovado' : 'Reprovado' }}
               </div>
               <div class="hist-meta">
-                <q-icon name="person" size="14px" class="q-mr-xs" style="color:#60a5fa" />
+                <q-icon name="person" size="13px" style="color:#60a5fa;flex-shrink:0" />
                 <span class="hist-validator">{{ item.validated_by || 'Desconhecido' }}</span>
                 <span class="hist-sep">·</span>
-                <q-icon name="schedule" size="14px" class="q-mr-xs" style="color:#64748b" />
+                <q-icon name="schedule" size="13px" style="color:#475569;flex-shrink:0" />
                 <span class="hist-datetime">{{ formatDatetime(item.validated_at) }}</span>
               </div>
             </div>
-
-            <!-- Separador -->
             <div class="hist-divider" />
 
-            <!-- Card header (serviço) -->
             <div class="svc-head">
               <div class="svc-team">
                 <span class="svc-prefix">{{ item.teams?.prefixo || '—' }}</span>
@@ -264,7 +259,6 @@
               <span class="svc-date">Criado em {{ formatDate(item.created_at) }}</span>
             </div>
 
-            <!-- Atividade + colaboradores -->
             <div class="svc-info">
               <q-chip dense color="blue-grey-8" text-color="white" size="sm" icon="build">
                 {{ item.activity_name || 'Sem atividade' }}
@@ -274,23 +268,17 @@
               </span>
             </div>
 
-            <!-- Fotos -->
             <div v-if="item.evidence_photos?.length" class="fotos-row">
-              <div
-                v-for="foto in item.evidence_photos"
-                :key="foto.id"
-                class="foto-thumb"
-                @click="openPhoto(foto, item.evidence_photos)"
-              >
+              <div v-for="foto in item.evidence_photos" :key="foto.id" class="foto-thumb"
+                @click="openPhoto(foto, item.evidence_photos)">
                 <img :src="photoUrl(foto.file_path)" :alt="foto.tipo" />
                 <span class="foto-tipo">{{ foto.tipo }}</span>
               </div>
             </div>
             <div v-else class="no-fotos">
-              <q-icon name="no_photography" size="20px" class="q-mr-xs" /> Sem fotos
+              <q-icon name="no_photography" size="18px" class="q-mr-xs" /> Sem fotos
             </div>
 
-            <!-- Observação (se reprovado) -->
             <div v-if="item.validation_obs" class="val-obs">
               <q-icon name="info" size="14px" class="q-mr-xs" />{{ item.validation_obs }}
             </div>
@@ -303,23 +291,16 @@
     <q-dialog v-model="showPhoto" maximized>
       <div class="photo-dialog" @click="showPhoto = false">
         <q-btn flat round icon="close" color="white" class="photo-close" @click.stop="showPhoto = false" />
-
-        <!-- Seta esquerda -->
         <q-btn v-if="currentPhotoList.length > 1"
           flat round icon="chevron_left" color="white" size="lg"
-          class="photo-nav photo-nav--left"
-          @click.stop="navPhoto(-1)" />
-
+          class="photo-nav photo-nav--left" @click.stop="navPhoto(-1)" />
         <div class="photo-center" @click.stop>
           <img :src="currentPhotoUrl" class="photo-full" />
           <div class="photo-counter">{{ currentPhotoIndex + 1 }} / {{ currentPhotoList.length }}</div>
         </div>
-
-        <!-- Seta direita -->
         <q-btn v-if="currentPhotoList.length > 1"
           flat round icon="chevron_right" color="white" size="lg"
-          class="photo-nav photo-nav--right"
-          @click.stop="navPhoto(1)" />
+          class="photo-nav photo-nav--right" @click.stop="navPhoto(1)" />
       </div>
     </q-dialog>
 
@@ -341,52 +322,50 @@ const grupos = [
   { key: 'GERE', icon: 'bolt', desc: 'Gestão de Emergências e Redes' }
 ]
 
-const selectedGroup    = ref(null)
-const activeTab        = ref('validacao')
+const selectedGroup     = ref(null)
+const activeTab         = ref('validacao')
 
-// ── Aba Validação ──────────────────────────────────────────
-const filterDate       = ref(new Date().toISOString().split('T')[0])
-const filterStatus     = ref(null)
-const filterSupervisor = ref(null)
+const filterDate        = ref(new Date().toISOString().split('T')[0])
+const filterStatus      = ref(null)
+const filterSupervisor  = ref(null)
 const filterResponsavel = ref(null)
-const search           = ref('')
-const loading          = ref(false)
-const savingId         = ref(null)
-const editingObs       = ref(null)
-const obsText          = ref('')
-const services         = ref([])
+const search            = ref('')
+const loading           = ref(false)
+const savingId          = ref(null)
+const editingObs        = ref(null)
+const obsText           = ref('')
+const services          = ref([])
 
-// ── Aba Histórico ──────────────────────────────────────────
-const histFilterStart  = ref('')
-const histFilterEnd    = ref(new Date().toISOString().split('T')[0])
-const histFilterStatus = ref(null)
-const histSearch       = ref('')
-const loadingHistory   = ref(false)
-const historyServices  = ref([])
+const histFilterStart   = ref('')
+const histFilterEnd     = ref(new Date().toISOString().split('T')[0])
+const histFilterStatus  = ref(null)
+const histSearch        = ref('')
+const loadingHistory    = ref(false)
+const historyServices   = ref([])
 
-// ── Grupos (contagens) ─────────────────────────────────────
 const loadingCounts = ref(false)
 const counts        = ref({})
 
-// ── Lightbox ───────────────────────────────────────────────
-const showPhoto        = ref(false)
-const currentPhotoUrl  = ref('')
-const currentPhotoList = ref([])
+const showPhoto         = ref(false)
+const currentPhotoUrl   = ref('')
+const currentPhotoList  = ref([])
 const currentPhotoIndex = ref(0)
 
-// ── KPIs ────────────────────────────────────────────────
 const kpis = computed(() => [
-  { label: 'ANALISADAS',  value: 'analisadas', icon: 'analytics',     color: '#60a5fa', count: services.value.filter(s => s.validation_status === 'aprovada' || s.validation_status === 'reprovada').length },
-  { label: 'PENDENTES',   value: 'pendente',   icon: 'hourglass_top', color: '#f59e0b', count: services.value.filter(s => !s.validation_status || s.validation_status === 'pendente').length },
-  { label: 'APROVADAS',   value: 'aprovada',   icon: 'check_circle',  color: '#4ade80', count: services.value.filter(s => s.validation_status === 'aprovada').length },
-  { label: 'REPROVADAS',  value: 'reprovada',  icon: 'cancel',        color: '#f87171', count: services.value.filter(s => s.validation_status === 'reprovada').length }
+  { label: 'ANALISADAS', value: 'analisadas', icon: 'analytics',     color: '#60a5fa',
+    count: services.value.filter(s => s.validation_status === 'aprovada' || s.validation_status === 'reprovada').length },
+  { label: 'PENDENTES',  value: 'pendente',   icon: 'hourglass_top', color: '#f59e0b',
+    count: services.value.filter(s => !s.validation_status || s.validation_status === 'pendente').length },
+  { label: 'APROVADAS',  value: 'aprovada',   icon: 'check_circle',  color: '#4ade80',
+    count: services.value.filter(s => s.validation_status === 'aprovada').length },
+  { label: 'REPROVADAS', value: 'reprovada',  icon: 'cancel',        color: '#f87171',
+    count: services.value.filter(s => s.validation_status === 'reprovada').length }
 ])
 
 const supervisoresList = computed(() => {
   const s = new Set(services.value.map(s => s.teams?.supervisor).filter(Boolean))
   return [...s].sort()
 })
-
 const responsaveisList = computed(() => {
   const s = new Set(services.value.map(s => s.teams?.responsavel).filter(Boolean))
   return [...s].sort()
@@ -394,70 +373,49 @@ const responsaveisList = computed(() => {
 
 const filteredServices = computed(() => {
   let list = services.value
-
   const v = filterStatus.value
-  if (v === 'pendente')
-    list = list.filter(s => !s.validation_status || s.validation_status === 'pendente')
-  else if (v === 'analisadas')
-    list = list.filter(s => s.validation_status === 'aprovada' || s.validation_status === 'reprovada')
-  else if (v)
-    list = list.filter(s => s.validation_status === v)
-
-  if (filterSupervisor.value)
-    list = list.filter(s => s.teams?.supervisor === filterSupervisor.value)
-
-  if (filterResponsavel.value)
-    list = list.filter(s => s.teams?.responsavel === filterResponsavel.value)
-
+  if (v === 'pendente')   list = list.filter(s => !s.validation_status || s.validation_status === 'pendente')
+  else if (v === 'analisadas') list = list.filter(s => s.validation_status === 'aprovada' || s.validation_status === 'reprovada')
+  else if (v)             list = list.filter(s => s.validation_status === v)
+  if (filterSupervisor.value)  list = list.filter(s => s.teams?.supervisor === filterSupervisor.value)
+  if (filterResponsavel.value) list = list.filter(s => s.teams?.responsavel === filterResponsavel.value)
   const q = search.value.trim().toLowerCase()
-  if (q) {
-    list = list.filter(s =>
-      (s.teams?.prefixo || '').toLowerCase().includes(q) ||
-      (s.teams?.nome || '').toLowerCase().includes(q) ||
-      (s.activity_name || '').toLowerCase().includes(q) ||
-      (s.colaboradores || []).some(c => c.toLowerCase().includes(q))
-    )
-  }
-
+  if (q) list = list.filter(s =>
+    (s.teams?.prefixo || '').toLowerCase().includes(q) ||
+    (s.teams?.nome || '').toLowerCase().includes(q) ||
+    (s.activity_name || '').toLowerCase().includes(q) ||
+    (s.colaboradores || []).some(c => c.toLowerCase().includes(q))
+  )
   return list
 })
 
 const filteredHistory = computed(() => {
   let list = historyServices.value
-
-  if (histFilterStatus.value)
-    list = list.filter(s => s.validation_status === histFilterStatus.value)
-
+  if (histFilterStatus.value) list = list.filter(s => s.validation_status === histFilterStatus.value)
   const q = histSearch.value.trim().toLowerCase()
-  if (q) {
-    list = list.filter(s =>
-      (s.teams?.prefixo || '').toLowerCase().includes(q) ||
-      (s.teams?.nome || '').toLowerCase().includes(q) ||
-      (s.activity_name || '').toLowerCase().includes(q) ||
-      (s.validated_by || '').toLowerCase().includes(q) ||
-      (s.colaboradores || []).some(c => c.toLowerCase().includes(q))
-    )
-  }
-
+  if (q) list = list.filter(s =>
+    (s.teams?.prefixo || '').toLowerCase().includes(q) ||
+    (s.teams?.nome || '').toLowerCase().includes(q) ||
+    (s.activity_name || '').toLowerCase().includes(q) ||
+    (s.validated_by || '').toLowerCase().includes(q) ||
+    (s.colaboradores || []).some(c => c.toLowerCase().includes(q))
+  )
   return list
 })
 
-// ── Selecionar grupo ─────────────────────────────────────
 async function selectGroup (g) {
   selectedGroup.value = g
   activeTab.value = 'validacao'
   filterStatus.value = null
+  historyServices.value = []
   await loadServices()
 }
 
 function switchTab (tab) {
   activeTab.value = tab
-  if (tab === 'historico' && historyServices.value.length === 0) {
-    loadHistory()
-  }
+  if (tab === 'historico' && historyServices.value.length === 0) loadHistory()
 }
 
-// ── Carregar contagens para os cards de grupo ─────────────
 async function loadCounts () {
   loadingCounts.value = true
   try {
@@ -469,14 +427,10 @@ async function loadCounts () {
         .or('validation_status.eq.pendente,validation_status.is.null')
       counts.value[g.key] = { pendente: count || 0 }
     }
-  } catch (e) {
-    console.warn('loadCounts:', e.message)
-  } finally {
-    loadingCounts.value = false
-  }
+  } catch (e) { console.warn('loadCounts:', e.message) }
+  finally { loadingCounts.value = false }
 }
 
-// ── Carregar serviços do grupo ────────────────────────────
 async function loadServices () {
   loading.value = true
   try {
@@ -485,24 +439,19 @@ async function loadServices () {
       .select('id, team_id, activity_name, colaboradores, created_at, validation_status, validation_obs, validated_at, validated_by, evidence_photos(*), teams!inner(prefixo, nome, supervisor, responsavel, processo)')
       .eq('teams.processo', selectedGroup.value)
       .order('created_at', { ascending: false })
-
     if (filterDate.value) {
       query = query
         .gte('created_at', filterDate.value + 'T00:00:00')
         .lte('created_at', filterDate.value + 'T23:59:59')
     }
-
     const { data, error } = await query
     if (error) throw error
     services.value = data || []
   } catch (e) {
     $q.notify({ type: 'negative', message: 'Erro ao carregar: ' + e.message })
-  } finally {
-    loading.value = false
-  }
+  } finally { loading.value = false }
 }
 
-// ── Carregar histórico de validações ─────────────────────
 async function loadHistory () {
   loadingHistory.value = true
   try {
@@ -512,31 +461,21 @@ async function loadHistory () {
       .eq('teams.processo', selectedGroup.value)
       .in('validation_status', ['aprovada', 'reprovada'])
       .order('validated_at', { ascending: false })
-
-    if (histFilterStart.value) {
-      query = query.gte('validated_at', histFilterStart.value + 'T00:00:00')
-    }
-    if (histFilterEnd.value) {
-      query = query.lte('validated_at', histFilterEnd.value + 'T23:59:59')
-    }
-
+    if (histFilterStart.value) query = query.gte('validated_at', histFilterStart.value + 'T00:00:00')
+    if (histFilterEnd.value)   query = query.lte('validated_at', histFilterEnd.value + 'T23:59:59')
     const { data, error } = await query
     if (error) throw error
     historyServices.value = data || []
   } catch (e) {
     $q.notify({ type: 'negative', message: 'Erro ao carregar histórico: ' + e.message })
-  } finally {
-    loadingHistory.value = false
-  }
+  } finally { loadingHistory.value = false }
 }
 
-// ── Aprovar ───────────────────────────────────────────────
 async function aprovar (svc) {
   savingId.value = svc.id
   try {
     const { error } = await supabase.from('services').update({
-      validation_status: 'aprovada',
-      validation_obs: '',
+      validation_status: 'aprovada', validation_obs: '',
       validated_at: new Date().toISOString(),
       validated_by: authStore.desktopUser?.email
     }).eq('id', svc.id)
@@ -545,70 +484,48 @@ async function aprovar (svc) {
     svc.validation_obs = ''
     $q.notify({ type: 'positive', message: 'Serviço aprovado!' })
     await loadCounts()
-  } catch (e) {
-    $q.notify({ type: 'negative', message: e.message })
-  } finally {
-    savingId.value = null
-  }
+  } catch (e) { $q.notify({ type: 'negative', message: e.message }) }
+  finally { savingId.value = null }
 }
 
-// ── Reprovar ─────────────────────────────────────────────
-function iniciarReprovar (svc) {
-  editingObs.value = svc.id
-  obsText.value = svc.validation_obs || ''
-}
+function iniciarReprovar (svc) { editingObs.value = svc.id; obsText.value = svc.validation_obs || '' }
 
 async function reprovar (svc) {
   savingId.value = svc.id
   try {
     const { error } = await supabase.from('services').update({
-      validation_status: 'reprovada',
-      validation_obs: obsText.value,
+      validation_status: 'reprovada', validation_obs: obsText.value,
       validated_at: new Date().toISOString(),
       validated_by: authStore.desktopUser?.email
     }).eq('id', svc.id)
     if (error) throw error
     svc.validation_status = 'reprovada'
     svc.validation_obs = obsText.value
-    editingObs.value = null
-    obsText.value = ''
+    editingObs.value = null; obsText.value = ''
     $q.notify({ type: 'negative', message: 'Serviço reprovado.' })
     await loadCounts()
-  } catch (e) {
-    $q.notify({ type: 'negative', message: e.message })
-  } finally {
-    savingId.value = null
-  }
+  } catch (e) { $q.notify({ type: 'negative', message: e.message }) }
+  finally { savingId.value = null }
 }
 
-// ── Reabrir ───────────────────────────────────────────────
 async function reabrir (svc) {
   savingId.value = svc.id
   try {
     const { error } = await supabase.from('services').update({
-      validation_status: 'pendente',
-      validation_obs: '',
-      validated_at: null,
-      validated_by: null
+      validation_status: 'pendente', validation_obs: '',
+      validated_at: null, validated_by: null
     }).eq('id', svc.id)
     if (error) throw error
-    svc.validation_status = 'pendente'
-    svc.validation_obs = ''
+    svc.validation_status = 'pendente'; svc.validation_obs = ''
     $q.notify({ type: 'info', message: 'Serviço reaberto para validação.' })
     await loadCounts()
-  } catch (e) {
-    $q.notify({ type: 'negative', message: e.message })
-  } finally {
-    savingId.value = null
-  }
+  } catch (e) { $q.notify({ type: 'negative', message: e.message }) }
+  finally { savingId.value = null }
 }
 
-// ── Foto ──────────────────────────────────────────────────
 function photoUrl (filePath) {
   if (!filePath) return ''
-  try {
-    return storage.getPublicUrl('evidencias', filePath) || ''
-  } catch { return '' }
+  try { return storage.getPublicUrl('evidencias', filePath) || '' } catch { return '' }
 }
 
 function openPhoto (foto, allPhotos) {
@@ -633,142 +550,311 @@ function onKeydown (e) {
   if (e.key === 'Escape')     showPhoto.value = false
 }
 
-// ── Utils ─────────────────────────────────────────────────
 function formatDate (iso) {
   if (!iso) return '—'
   return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
-
 function formatDatetime (iso) {
   if (!iso) return '—'
-  return new Date(iso).toLocaleString('pt-BR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
-  })
+  return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
+function statusLabel (s) { return { aprovada: 'Aprovada', reprovada: 'Reprovada', pendente: 'Pendente' }[s] || 'Pendente' }
+function statusColor (s) { return { aprovada: 'positive', reprovada: 'negative', pendente: 'warning' }[s] || 'warning' }
 
-function statusLabel (s) {
-  const map = { aprovada: 'Aprovada', reprovada: 'Reprovada', pendente: 'Pendente' }
-  return map[s] || 'Pendente'
-}
-
-function statusColor (s) {
-  const map = { aprovada: 'positive', reprovada: 'negative', pendente: 'warning' }
-  return map[s] || 'warning'
-}
-
-onMounted(() => {
-  loadCounts()
-  window.addEventListener('keydown', onKeydown)
-})
+onMounted(() => { loadCounts(); window.addEventListener('keydown', onKeydown) })
 onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <style scoped>
-.val-page { background: var(--bg-page, #0f1729); min-height: 100vh; }
-.val-title { font-size: 1.6rem; font-weight: 700; color: #e2e8f0; }
-.val-sub   { font-size: 0.9rem; color: #64748b; margin-top: 2px; }
+/* ─── Keyframes ─────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes headerIn {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes kpiIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes badgePulse {
+  0%, 100% { box-shadow: 0 0 0 0 #f59e0b30; }
+  50%       { box-shadow: 0 0 0 6px transparent; }
+}
+@keyframes countGlow {
+  0%, 100% { text-shadow: none; }
+  50%       { text-shadow: 0 0 14px currentColor; }
+}
+@keyframes svcIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
 
-/* ── Tabs ── */
-.tab-bar {
-  display: flex; gap: 4px;
-  background: #1e2a45;
-  border: 1.5px solid #2d3e5e;
-  border-radius: 12px;
-  padding: 4px;
-  width: fit-content;
+/* ─── Page ──────────────────────────────────────────────────── */
+.val-page {
+  background:
+    radial-gradient(ellipse 70% 45% at 50% 0%, #0f2a5520 0%, transparent 65%),
+    #070d1a;
+  min-height: 100vh;
 }
-.tab-btn {
-  display: flex; align-items: center;
-  background: transparent; border: none; outline: none;
-  color: #64748b; font-size: 0.88rem; font-weight: 600;
-  padding: 8px 20px; border-radius: 8px; cursor: pointer;
-  transition: background .15s, color .15s;
-}
-.tab-btn:hover { color: #94a3b8; background: #ffffff08; }
-.tab-btn--active { background: #2563eb; color: #fff; }
 
-/* ── Filter bar ── */
-.filter-bar {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+/* ─── Header (screen 1) ─────────────────────────────────────── */
+.val-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: #3b82f6;
+  margin-bottom: 10px;
+  animation: headerIn 0.5s cubic-bezier(0.16,1,0.3,1) both;
 }
-.search-wrap {
-  display: flex; align-items: center; gap: 8px;
-  background: #1e2a45; border: 1.5px solid #2d3e5e;
-  border-radius: 10px; padding: 0 14px; flex: 1; min-width: 220px; height: 40px;
+.val-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #f1f5f9;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  animation: headerIn 0.55s cubic-bezier(0.16,1,0.3,1) 0.05s both;
 }
-.search-input {
-  background: transparent; border: none; outline: none;
-  color: #e2e8f0; font-size: 0.9rem; width: 100%;
+.val-sub {
+  font-size: 0.9rem;
+  color: #475569;
+  margin-top: 6px;
+  animation: headerIn 0.55s cubic-bezier(0.16,1,0.3,1) 0.1s both;
 }
-.search-input::placeholder { color: #4b5680; }
 
-/* ── Group cards ── */
+/* ─── Group cards ───────────────────────────────────────────── */
 .group-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 24px;
-  max-width: 900px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  max-width: 960px;
 }
-.group-card {
-  background: #1e2a45;
-  border: 1.5px solid #2d3e5e;
-  border-radius: 20px;
-  padding: 40px 32px;
-  cursor: pointer;
-  transition: transform .18s, border-color .18s, box-shadow .18s;
-  text-align: center;
-}
-.group-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 40px #0008;
-}
-.group-card--gstc:hover  { border-color: #3b82f6; }
-.group-card--goman:hover { border-color: #f59e0b; }
-.group-card--gere:hover  { border-color: #4ade80; }
-.group-icon { color: #60a5fa; margin-bottom: 16px; }
-.group-card--goman .group-icon { color: #f59e0b; }
-.group-card--gere  .group-icon { color: #4ade80; }
-.group-name { font-size: 1.8rem; font-weight: 800; color: #e2e8f0; margin-bottom: 6px; }
-.group-desc { font-size: 0.8rem; color: #64748b; margin-bottom: 20px; line-height: 1.4; }
-.gbadge {
-  display: inline-block;
-  padding: 4px 14px;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-.gbadge--pending { background: #f59e0b22; color: #f59e0b; }
 
-/* ── KPIs ── */
-.kpi-row { display: flex; gap: 16px; flex-wrap: wrap; }
-.kpi-tile {
-  flex: 1; min-width: 160px;
-  background: #1e2a45;
-  border: 1.5px solid #2d3e5e;
-  border-radius: 16px;
-  padding: 20px;
-  display: flex; align-items: center; gap: 16px;
-  transition: border-color .15s;
+.group-card {
+  position: relative;
+  background: #0d1829;
+  border: 1px solid #1a2d4a;
+  border-radius: 24px;
+  padding: 36px 28px 28px;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    transform 0.28s cubic-bezier(0.16,1,0.3,1),
+    border-color 0.25s ease,
+    box-shadow 0.28s ease;
+  animation: fadeUp 0.55s cubic-bezier(0.16,1,0.3,1) both;
+  animation-delay: calc(var(--i, 0) * 110ms + 150ms);
 }
-.kpi-tile.kpi-active { border-color: #3b82f6; }
-.kpi-icon {
-  width: 48px; height: 48px; border-radius: 12px;
+
+/* Top accent bar — slides down on hover */
+.card-top-bar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: 24px 24px 0 0;
+  background: var(--g-accent, #3b82f6);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
+}
+.group-card--gstc  { --g-accent: #3b82f6; }
+.group-card--goman { --g-accent: #f59e0b; }
+.group-card--gere  { --g-accent: #10b981; }
+
+.group-card:hover .card-top-bar { transform: scaleX(1); }
+
+.group-card--gstc:hover  {
+  border-color: #3b82f650;
+  box-shadow: 0 0 0 1px #3b82f620, 0 24px 64px #3b82f612, 0 8px 24px #00000040;
+  transform: translateY(-6px);
+}
+.group-card--goman:hover {
+  border-color: #f59e0b50;
+  box-shadow: 0 0 0 1px #f59e0b20, 0 24px 64px #f59e0b10, 0 8px 24px #00000040;
+  transform: translateY(-6px);
+}
+.group-card--gere:hover  {
+  border-color: #10b98150;
+  box-shadow: 0 0 0 1px #10b98120, 0 24px 64px #10b98110, 0 8px 24px #00000040;
+  transform: translateY(-6px);
+}
+
+/* Icon container */
+.group-icon-wrap {
+  width: 72px; height: 72px;
+  border-radius: 20px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 22px;
+  background: color-mix(in srgb, var(--g-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--g-accent) 25%, transparent);
+  transition: background 0.3s, box-shadow 0.3s, transform 0.3s;
+}
+.group-icon-el { color: var(--g-accent); }
+
+.group-card:hover .group-icon-wrap {
+  background: color-mix(in srgb, var(--g-accent) 18%, transparent);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--g-accent) 30%, transparent);
+  transform: scale(1.08);
+}
+
+.group-name {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #f1f5f9;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+.group-desc {
+  font-size: 0.78rem;
+  color: #475569;
+  line-height: 1.5;
+  margin-bottom: 22px;
+}
+
+/* Badge */
+.gbadge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 0.78rem; font-weight: 600;
+}
+.gbadge--pending {
+  background: #f59e0b10;
+  border: 1px solid #f59e0b30;
+  color: #f59e0b;
+  animation: badgePulse 3s ease-in-out infinite;
+}
+.badge-count { font-size: 0.92rem; font-weight: 800; }
+.badge-label { font-size: 0.74rem; opacity: 0.8; }
+
+/* Arrow indicator */
+.card-arrow {
+  position: absolute; bottom: 22px; right: 22px;
+  color: #1d2e4a;
+  transition: color 0.25s, transform 0.25s;
+}
+.group-card:hover .card-arrow {
+  color: var(--g-accent);
+  transform: translateX(3px);
+}
+
+/* ─── Screen 2 Header ───────────────────────────────────────── */
+.screen2-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+}
+.screen2-title { font-size: 1.5rem; }
+.header-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ctrl-input { }
+.refresh-btn { height: 40px; border-radius: 10px; }
+.back-btn { color: #475569; }
+
+/* ─── Tabs ──────────────────────────────────────────────────── */
+.tab-bar {
+  display: inline-flex; gap: 3px;
+  background: #0d1829;
+  border: 1px solid #1a2d4a;
+  border-radius: 12px;
+  padding: 4px;
+}
+.tab-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: transparent; border: none; outline: none;
+  color: #475569;
+  font-size: 0.85rem; font-weight: 600;
+  padding: 8px 20px; border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  letter-spacing: .01em;
+}
+.tab-btn:hover:not(.tab-btn--active) { color: #94a3b8; background: #ffffff06; }
+.tab-btn--active {
+  background: #1e3a6e;
+  color: #93c5fd;
+  box-shadow: inset 0 1px 0 #3b82f620, 0 1px 3px #00000030;
+}
+
+/* ─── Filter bar ────────────────────────────────────────────── */
+.filter-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.search-wrap {
+  display: flex; align-items: center; gap: 8px;
+  background: #0d1829;
+  border: 1px solid #1a2d4a;
+  border-radius: 10px; padding: 0 14px;
+  flex: 1; min-width: 220px; height: 40px;
+  transition: border-color 0.2s;
+}
+.search-wrap:focus-within { border-color: #3b82f650; }
+.search-icon { color: #334155; flex-shrink: 0; }
+.search-input {
+  background: transparent; border: none; outline: none;
+  color: #e2e8f0; font-size: 0.88rem; width: 100%;
+}
+.search-input::placeholder { color: #334155; }
+
+.hist-count { color: #475569; font-size: 0.8rem; white-space: nowrap; }
+
+/* ─── KPI tiles ─────────────────────────────────────────────── */
+.kpi-row { display: flex; gap: 12px; flex-wrap: wrap; }
+
+.kpi-tile {
+  flex: 1; min-width: 150px;
+  background: #0d1829;
+  border: 1px solid #1a2d4a;
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex; align-items: center; gap: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  animation: kpiIn 0.45s cubic-bezier(0.16,1,0.3,1) both;
+  animation-delay: calc(var(--ki, 0) * 60ms + 50ms);
+}
+.kpi-tile:hover { transform: translateY(-2px); }
+.kpi-tile.kpi-active {
+  border-color: #3b82f640;
+  background: #0f1f38;
+  box-shadow: 0 0 0 1px #3b82f620;
+}
+
+.kpi-icon-wrap {
+  width: 44px; height: 44px;
+  border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+  background: color-mix(in srgb, var(--kc, #60a5fa) 14%, transparent);
+  color: var(--kc, #60a5fa);
+  border: 1px solid color-mix(in srgb, var(--kc, #60a5fa) 20%, transparent);
 }
-.kpi-value { font-size: 1.8rem; font-weight: 800; color: #e2e8f0; line-height: 1; }
-.kpi-label { font-size: 0.72rem; color: #64748b; text-transform: uppercase; letter-spacing: .05em; margin-top: 4px; }
+.kpi-value {
+  font-size: 1.9rem; font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+.kpi-label {
+  font-size: 0.68rem; color: #475569;
+  text-transform: uppercase; letter-spacing: .07em;
+  margin-top: 4px; font-weight: 600;
+}
 
-/* ── Service cards ── */
-.svc-list { display: flex; flex-direction: column; gap: 16px; }
+/* ─── Service cards ─────────────────────────────────────────── */
+.svc-list { display: flex; flex-direction: column; gap: 12px; }
+
 .svc-card {
-  background: #1e2a45;
-  border: 1.5px solid #2d3e5e;
+  background: #0d1829;
+  border: 1px solid #1a2d4a;
   border-radius: 16px;
-  padding: 20px 24px;
-  border-left: 4px solid #2d3e5e;
+  padding: 18px 22px;
+  border-left: 3px solid #1a2d4a;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  animation: svcIn 0.4s cubic-bezier(0.16,1,0.3,1) both;
+  animation-delay: calc(var(--si, 0) * 40ms);
 }
+.svc-card:hover { box-shadow: 0 4px 20px #00000030; }
 .svc-card--aprovada  { border-left-color: #4ade80; }
 .svc-card--reprovada { border-left-color: #f87171; }
 .svc-card--pendente  { border-left-color: #f59e0b; }
@@ -779,89 +865,107 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 }
 .svc-team { display: flex; align-items: center; gap: 10px; }
 .svc-prefix {
-  background: #2563eb; color: #fff;
-  border-radius: 8px; padding: 3px 10px;
-  font-size: 0.8rem; font-weight: 700;
+  background: #1d3a7a; color: #93c5fd;
+  border-radius: 7px; padding: 3px 10px;
+  font-size: 0.78rem; font-weight: 700; letter-spacing: .02em;
 }
-.svc-nome { color: #94a3b8; font-size: 0.85rem; }
-.svc-date { color: #64748b; font-size: 0.8rem; }
+.svc-nome { color: #64748b; font-size: 0.83rem; }
+.svc-date { color: #334155; font-size: 0.78rem; }
 
 .svc-info { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
-.svc-colab { color: #64748b; font-size: 0.8rem; }
+.svc-colab { color: #475569; font-size: 0.78rem; }
 
-/* Fotos */
-.fotos-row {
-  display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px;
-}
+.fotos-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .foto-thumb {
-  position: relative; width: 90px; height: 90px;
+  position: relative; width: 88px; height: 88px;
   border-radius: 10px; overflow: hidden; cursor: pointer;
-  border: 2px solid #2d3e5e;
+  border: 1.5px solid #1a2d4a;
+  transition: border-color 0.2s, transform 0.2s;
 }
+.foto-thumb:hover { border-color: #3b82f660; transform: scale(1.04); }
 .foto-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .foto-tipo {
   position: absolute; bottom: 0; left: 0; right: 0;
-  background: #0008; color: #fff; font-size: 0.65rem;
-  text-align: center; padding: 2px 0; text-transform: uppercase;
+  background: linear-gradient(transparent, #000a);
+  color: #fff; font-size: 0.62rem;
+  text-align: center; padding: 4px 0 2px;
+  text-transform: uppercase; letter-spacing: .04em;
 }
-.no-fotos { color: #64748b; font-size: 0.82rem; display: flex; align-items: center; margin-bottom: 14px; }
-
+.no-fotos { color: #334155; font-size: 0.8rem; display: flex; align-items: center; margin-bottom: 12px; }
 .obs-area { margin-bottom: 12px; }
 .val-obs {
   display: flex; align-items: flex-start; gap: 6px;
-  background: #f8717122; color: #f87171;
+  background: #f8717112; color: #fca5a5;
+  border: 1px solid #f8717120;
   border-radius: 8px; padding: 8px 12px;
-  font-size: 0.82rem; margin-bottom: 12px;
+  font-size: 0.8rem; margin-bottom: 12px;
 }
+.svc-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
-.svc-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-
-/* ── Histórico ── */
+/* ─── Histórico ─────────────────────────────────────────────── */
 .hist-card { padding-top: 16px; }
+
 .hist-validator-row {
-  display: flex; align-items: center; gap: 16px;
-  margin-bottom: 14px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 12px; flex-wrap: wrap;
 }
 .hist-status-badge {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 14px; border-radius: 999px;
-  font-size: 0.82rem; font-weight: 700; flex-shrink: 0;
+  padding: 4px 14px; border-radius: 999px;
+  font-size: 0.78rem; font-weight: 700; flex-shrink: 0;
 }
-.hist-status-badge--aprovada  { background: #4ade8022; color: #4ade80; }
-.hist-status-badge--reprovada { background: #f8717122; color: #f87171; }
+.hist-badge--aprovada  { background: #4ade8018; color: #86efac; border: 1px solid #4ade8030; }
+.hist-badge--reprovada { background: #f8717118; color: #fca5a5; border: 1px solid #f8717130; }
 
 .hist-meta {
   display: flex; align-items: center; gap: 6px;
-  font-size: 0.84rem; flex-wrap: wrap;
+  font-size: 0.82rem; flex-wrap: wrap;
 }
 .hist-validator { color: #93c5fd; font-weight: 600; }
-.hist-sep { color: #334155; }
-.hist-datetime { color: #64748b; }
+.hist-sep { color: #1d2e4a; margin: 0 2px; }
+.hist-datetime { color: #475569; }
 
-.hist-divider {
-  height: 1px; background: #2d3e5e;
-  margin-bottom: 14px;
-}
+.hist-divider { height: 1px; background: #131f35; margin-bottom: 14px; }
 
-/* Empty */
-.empty-state { text-align: center; padding: 60px 0; color: #64748b; }
+/* ─── Empty state ───────────────────────────────────────────── */
+.empty-state { text-align: center; padding: 70px 0; }
+.empty-icon { color: #4ade80; opacity: 0.35; display: block; margin: 0 auto 16px; }
+.empty-text { color: #475569; font-size: 0.95rem; font-weight: 500; }
+.empty-hint { color: #334155; font-size: 0.8rem; margin-top: 6px; }
 
-/* Lightbox */
+/* ─── Lightbox ──────────────────────────────────────────────── */
 .photo-dialog {
-  background: #000d; display: flex; align-items: center; justify-content: center;
+  background: #000c;
+  backdrop-filter: blur(12px);
+  display: flex; align-items: center; justify-content: center;
   width: 100%; height: 100%; position: relative;
 }
 .photo-close { position: absolute; top: 16px; right: 16px; z-index: 10; }
 .photo-center { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.photo-full { max-width: 88vw; max-height: 85vh; object-fit: contain; border-radius: 12px; }
+.photo-full { max-width: 88vw; max-height: 84vh; object-fit: contain; border-radius: 14px; box-shadow: 0 0 80px #000a; }
 .photo-counter {
-  color: #fff; font-size: 0.85rem; background: #0006;
-  padding: 4px 14px; border-radius: 999px;
+  color: #94a3b8; font-size: 0.82rem;
+  background: #0d1829cc;
+  border: 1px solid #1a2d4a;
+  padding: 4px 16px; border-radius: 999px;
+  font-variant-numeric: tabular-nums;
 }
 .photo-nav {
   position: absolute; top: 50%; transform: translateY(-50%);
-  background: #0005 !important; border-radius: 50% !important;
+  background: #0d1829bb !important;
+  border: 1px solid #1a2d4a !important;
+  border-radius: 50% !important;
+  transition: background 0.2s, transform 0.2s;
 }
-.photo-nav--left  { left: 16px; }
-.photo-nav--right { right: 16px; }
+.photo-nav:hover { background: #162444bb !important; transform: translateY(-50%) scale(1.08) !important; }
+.photo-nav--left  { left: 20px; }
+.photo-nav--right { right: 20px; }
+
+/* ─── Reduced motion ────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .group-card, .val-eyebrow, .val-title, .val-sub,
+  .kpi-tile, .svc-card { animation: none; }
+  .group-card, .group-icon-wrap, .card-top-bar,
+  .foto-thumb, .photo-nav { transition: none; }
+}
 </style>
