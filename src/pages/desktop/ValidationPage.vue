@@ -342,8 +342,7 @@ async function reabrir (svc) {
 function photoUrl (filePath) {
   if (!filePath) return ''
   try {
-    const { data } = storage.getPublicUrl('evidencias', filePath)
-    return data?.publicUrl || ''
+    return storage.getPublicUrl('evidencias', filePath) || ''
   } catch { return '' }
 }
 
