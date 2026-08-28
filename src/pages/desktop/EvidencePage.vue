@@ -308,7 +308,7 @@ import { useEvidenceStore } from 'src/stores/evidence'
 import { useTeamsStore } from 'src/stores/teams'
 import { useAuthStore } from 'src/stores/auth'
 import { storage } from 'src/services/supabase'
-import { EQUIPES_FILTRO } from 'src/data/equipes-filtro'
+import { COORDENADORES } from 'src/data/equipes-filtro'
 
 const evidenceStore = useEvidenceStore()
 const teamsStore = useTeamsStore()
@@ -338,7 +338,7 @@ const supervisoresList = computed(() => {
 const coordenadoresList = computed(() => {
   const fromDB = new Set(teamsStore.teams.map(t => t.coordenador).filter(Boolean))
   if (fromDB.size > 0) return [...fromDB].sort()
-  return [...new Set(Object.values(EQUIPES_FILTRO).map(e => e.coordenador).filter(Boolean))].sort()
+  return COORDENADORES
 })
 
 const statusOptions = [
