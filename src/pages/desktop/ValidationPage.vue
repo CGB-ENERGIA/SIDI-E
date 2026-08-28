@@ -109,7 +109,7 @@
               v-for="foto in svc.evidence_photos"
               :key="foto.id"
               class="foto-thumb"
-              @click="openPhoto(foto)"
+              @click="openPhoto(foto, svc.evidence_photos)"
             >
               <img :src="photoUrl(foto.file_path)" :alt="foto.tipo" />
               <span class="foto-tipo">{{ foto.tipo }}</span>
@@ -160,7 +160,23 @@
     <q-dialog v-model="showPhoto" maximized>
       <div class="photo-dialog" @click="showPhoto = false">
         <q-btn flat round icon="close" color="white" class="photo-close" @click.stop="showPhoto = false" />
-        <img :src="currentPhotoUrl" class="photo-full" @click.stop />
+
+        <!-- Seta esquerda -->
+        <q-btn v-if="currentPhotoList.length > 1"
+          flat round icon="chevron_left" color="white" size="lg"
+          class="photo-nav photo-nav--left"
+          @click.stop="navPhoto(-1)" />
+
+        <div class="photo-center" @click.stop>
+          <img :src="currentPhotoUrl" class="photo-full" />
+          <div class="photo-counter">{{ currentPhotoIndex + 1 }} / {{ currentPhotoList.length }}</div>
+        </div>
+
+        <!-- Seta direita -->
+        <q-btn v-if="currentPhotoList.length > 1"
+          flat round icon="chevron_right" color="white" size="lg"
+          class="photo-nav photo-nav--right"
+          @click.stop="navPhoto(1)" />
       </div>
     </q-dialog>
 
@@ -168,7 +184,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { supabase, storage } from 'src/services/supabase'
 import { useAuthStore } from 'src/stores/auth'
 import { useQuasar } from 'quasar'
@@ -192,8 +208,10 @@ const editingObs    = ref(null)
 const obsText       = ref('')
 const services      = ref([])
 const counts        = ref({})
-const showPhoto     = ref(false)
-const currentPhotoUrl = ref('')
+const showPhoto        = ref(false)
+const currentPhotoUrl  = ref('')
+const currentPhotoList = ref([])
+const currentPhotoIndex = ref(0)
 
 // ── KPIs ────────────────────────────────────────────────
 const kpis = computed(() => [
@@ -346,9 +364,26 @@ function photoUrl (filePath) {
   } catch { return '' }
 }
 
-function openPhoto (foto) {
-  currentPhotoUrl.value = photoUrl(foto.file_path)
+function openPhoto (foto, allPhotos) {
+  currentPhotoList.value = allPhotos || [foto]
+  currentPhotoIndex.value = currentPhotoList.value.findIndex(p => p.id === foto.id)
+  if (currentPhotoIndex.value < 0) currentPhotoIndex.value = 0
+  currentPhotoUrl.value = photoUrl(currentPhotoList.value[currentPhotoIndex.value].file_path)
   showPhoto.value = true
+}
+
+function navPhoto (dir) {
+  const list = currentPhotoList.value
+  if (list.length <= 1) return
+  currentPhotoIndex.value = (currentPhotoIndex.value + dir + list.length) % list.length
+  currentPhotoUrl.value = photoUrl(list[currentPhotoIndex.value].file_path)
+}
+
+function onKeydown (e) {
+  if (!showPhoto.value) return
+  if (e.key === 'ArrowRight') navPhoto(1)
+  if (e.key === 'ArrowLeft')  navPhoto(-1)
+  if (e.key === 'Escape')     showPhoto.value = false
 }
 
 // ── Utils ─────────────────────────────────────────────────
@@ -367,7 +402,11 @@ function statusColor (s) {
   return map[s] || 'warning'
 }
 
-onMounted(loadCounts)
+onMounted(() => {
+  loadCounts()
+  window.addEventListener('keydown', onKeydown)
+})
+onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <style scoped>
@@ -496,6 +535,17 @@ onMounted(loadCounts)
   background: #000d; display: flex; align-items: center; justify-content: center;
   width: 100%; height: 100%; position: relative;
 }
-.photo-close { position: absolute; top: 16px; right: 16px; }
-.photo-full { max-width: 95vw; max-height: 90vh; object-fit: contain; border-radius: 12px; }
+.photo-close { position: absolute; top: 16px; right: 16px; z-index: 10; }
+.photo-center { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.photo-full { max-width: 88vw; max-height: 85vh; object-fit: contain; border-radius: 12px; }
+.photo-counter {
+  color: #fff; font-size: 0.85rem; background: #0006;
+  padding: 4px 14px; border-radius: 999px;
+}
+.photo-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  background: #0005 !important; border-radius: 50% !important;
+}
+.photo-nav--left  { left: 16px; }
+.photo-nav--right { right: 16px; }
 </style>
