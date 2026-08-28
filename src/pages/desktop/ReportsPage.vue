@@ -253,7 +253,10 @@ const filteredServices = computed(() => {
   return services.value.filter(s => {
     const prefixo = s.teams?.prefixo
     if (filterSupervisor.value && s.teams?.supervisor !== filterSupervisor.value) return false
-    if (filterCoordenador.value && s.teams?.coordenador !== filterCoordenador.value) return false
+    if (filterCoordenador.value) {
+      const team = teamsStore.teams.find(t => t.id === s.team_id)
+      if (team?.coordenador !== filterCoordenador.value) return false
+    }
     return true
   })
 })

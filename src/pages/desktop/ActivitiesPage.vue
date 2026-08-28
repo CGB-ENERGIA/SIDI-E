@@ -292,7 +292,10 @@ const resumoEquipes = computed(() => {
   if (filterSupervisor.value)
     result = result.filter(e => e.servicos.some(s => s.teams?.supervisor === filterSupervisor.value))
   if (filterCoordenador.value)
-    result = result.filter(e => e.servicos.some(s => s.teams?.coordenador === filterCoordenador.value))
+    result = result.filter(e => {
+      const team = teamsStore.teams.find(t => t.id === e.teamId)
+      return team?.coordenador === filterCoordenador.value
+    })
   return result
 })
 
@@ -313,7 +316,7 @@ async function loadAtividades () {
   try {
     let query = supabase
       .from('services')
-      .select('id, team_id, activity_name, colaboradores, created_at, teams(prefixo, nome, supervisor, coordenador)')
+      .select('id, team_id, activity_name, colaboradores, created_at, teams(prefixo, nome, supervisor)')
       .order('created_at', { ascending: false })
     if (atividadesDate.value) {
       query = query

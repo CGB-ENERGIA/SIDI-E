@@ -354,7 +354,10 @@ const filteredRows = computed(() => {
     if (filters.value.status && r.sync_status !== filters.value.status) return false
     const prefixo = r.teams?.prefixo
     if (filters.value.supervisor && r.teams?.supervisor !== filters.value.supervisor) return false
-    if (filters.value.coordenador && r.teams?.coordenador !== filters.value.coordenador) return false
+    if (filters.value.coordenador) {
+      const team = teamsStore.teams.find(t => t.id === r.team_id)
+      if (team?.coordenador !== filters.value.coordenador) return false
+    }
     return true
   })
 })
