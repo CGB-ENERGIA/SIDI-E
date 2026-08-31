@@ -128,6 +128,46 @@
           </div>
         </div>
 
+        <!-- Gráfico de resumo -->
+        <div v-if="!loading && services.length > 0" class="summary-card q-mb-xl">
+          <div class="summary-left">
+            <svg class="donut-svg" viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+              <!-- Trilha -->
+              <circle r="52" cx="70" cy="70" fill="none" stroke="#1a2d4a" stroke-width="14" />
+              <!-- Segmentos -->
+              <circle v-for="seg in donutSegments" :key="seg.label"
+                r="52" cx="70" cy="70" fill="none"
+                :stroke="seg.color" stroke-width="14" stroke-linecap="butt"
+                :stroke-dasharray="`${seg.len} ${donutC}`"
+                :stroke-dashoffset="-seg.offset"
+                transform="rotate(-90 70 70)"
+                style="transition: stroke-dasharray 0.6s ease"
+              />
+              <!-- Centro -->
+              <text x="70" y="62" text-anchor="middle" fill="#f1f5f9"
+                font-size="24" font-weight="800" font-family="sans-serif">{{ services.length }}</text>
+              <text x="70" y="80" text-anchor="middle" fill="#475569"
+                font-size="11" font-family="sans-serif">serviços</text>
+            </svg>
+          </div>
+          <div class="summary-right">
+            <div class="summary-title">Resumo do dia</div>
+            <div class="summary-legend">
+              <div class="legend-row" v-for="item in donutLegend" :key="item.label">
+                <div class="legend-indicator" :style="`background:${item.color}`" />
+                <div class="legend-info">
+                  <span class="legend-label">{{ item.label }}</span>
+                  <span class="legend-count">{{ item.count }} serviço{{ item.count !== 1 ? 's' : '' }}</span>
+                </div>
+                <div class="legend-pct" :style="`color:${item.color}`">{{ item.pct }}%</div>
+                <div class="legend-bar-wrap">
+                  <div class="legend-bar-fill" :style="`width:${item.pct}%;background:${item.color}`" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Lista de serviços -->
         <div v-if="loading" class="flex justify-center q-pa-xl">
           <q-spinner-dots size="48px" color="primary" />
@@ -400,6 +440,38 @@ const filteredServices = computed(() => {
     (s.colaboradores || []).some(c => c.toLowerCase().includes(q))
   )
   return list
+})
+
+// ── Donut chart ───────────────────────────────────────────────
+const donutC = 2 * Math.PI * 52
+
+const donutSegments = computed(() => {
+  const total = services.value.length
+  if (!total) return []
+  const approved = services.value.filter(s => s.validation_status === 'aprovada').length
+  const rejected = services.value.filter(s => s.validation_status === 'reprovada').length
+  const pending  = total - approved - rejected
+  const aLen = (approved / total) * donutC
+  const rLen = (rejected / total) * donutC
+  const pLen = (pending  / total) * donutC
+  return [
+    { label: 'Aprovados',  color: '#4ade80', len: aLen, offset: 0 },
+    { label: 'Reprovados', color: '#f87171', len: rLen, offset: aLen },
+    { label: 'Pendentes',  color: '#f59e0b', len: pLen, offset: aLen + rLen }
+  ]
+})
+
+const donutLegend = computed(() => {
+  const total = services.value.length
+  if (!total) return []
+  const approved = services.value.filter(s => s.validation_status === 'aprovada').length
+  const rejected = services.value.filter(s => s.validation_status === 'reprovada').length
+  const pending  = total - approved - rejected
+  return [
+    { label: 'Aprovados',  color: '#4ade80', count: approved, pct: Math.round(approved / total * 100) },
+    { label: 'Reprovados', color: '#f87171', count: rejected, pct: Math.round(rejected / total * 100) },
+    { label: 'Pendentes',  color: '#f59e0b', count: pending,  pct: Math.round(pending  / total * 100) }
+  ]
 })
 
 const filteredHistory = computed(() => {
@@ -1038,6 +1110,77 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 .photo-nav:hover { background: #162444bb !important; transform: translateY(-50%) scale(1.08) !important; }
 .photo-nav--left  { left: 20px; }
 .photo-nav--right { right: 20px; }
+
+/* ─── Summary card (donut) ──────────────────────────────────── */
+.summary-card {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  background: #0d1829;
+  border: 1px solid #1a2d4a;
+  border-radius: 20px;
+  padding: 28px 32px;
+  animation: kpiIn 0.45s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+.summary-left { flex-shrink: 0; }
+
+.donut-svg {
+  width: 140px; height: 140px;
+  display: block;
+  filter: drop-shadow(0 4px 20px #00000040);
+}
+
+.summary-right { flex: 1; min-width: 0; }
+
+.summary-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: #334155;
+  margin-bottom: 16px;
+}
+
+.summary-legend { display: flex; flex-direction: column; gap: 12px; }
+
+.legend-row {
+  display: grid;
+  grid-template-columns: 10px 1fr auto 120px;
+  align-items: center;
+  gap: 12px;
+}
+
+.legend-indicator {
+  width: 10px; height: 10px;
+  border-radius: 3px; flex-shrink: 0;
+}
+
+.legend-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.legend-label { font-size: 0.83rem; font-weight: 600; color: #94a3b8; }
+.legend-count { font-size: 0.72rem; color: #334155; }
+
+.legend-pct {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 44px;
+}
+
+.legend-bar-wrap {
+  height: 5px;
+  background: #1a2d4a;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.legend-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.7s cubic-bezier(0.16,1,0.3,1);
+  opacity: 0.85;
+}
 
 /* ─── Reduced motion ────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
