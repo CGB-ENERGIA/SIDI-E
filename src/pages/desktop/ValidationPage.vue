@@ -89,6 +89,10 @@
           @click="switchTab('validacao')">
           <q-icon name="verified" size="17px" />Validação
         </button>
+        <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'resumo' }"
+          @click="switchTab('resumo')">
+          <q-icon name="donut_large" size="17px" />Resumo
+        </button>
         <button class="tab-btn" :class="{ 'tab-btn--active': activeTab === 'historico' }"
           @click="switchTab('historico')">
           <q-icon name="history" size="17px" />Histórico
@@ -124,46 +128,6 @@
             <div class="kpi-body">
               <div class="kpi-value" :style="`color:${k.color}`">{{ k.count }}</div>
               <div class="kpi-label">{{ k.label }}</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Gráfico de resumo -->
-        <div v-if="!loading && services.length > 0" class="summary-card q-mb-xl">
-          <div class="summary-left">
-            <svg class="donut-svg" viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
-              <!-- Trilha -->
-              <circle r="52" cx="70" cy="70" fill="none" stroke="#1a2d4a" stroke-width="14" />
-              <!-- Segmentos -->
-              <circle v-for="seg in donutSegments" :key="seg.label"
-                r="52" cx="70" cy="70" fill="none"
-                :stroke="seg.color" stroke-width="14" stroke-linecap="butt"
-                :stroke-dasharray="`${seg.len} ${donutC}`"
-                :stroke-dashoffset="-seg.offset"
-                transform="rotate(-90 70 70)"
-                style="transition: stroke-dasharray 0.6s ease"
-              />
-              <!-- Centro -->
-              <text x="70" y="62" text-anchor="middle" fill="#f1f5f9"
-                font-size="24" font-weight="800" font-family="sans-serif">{{ services.length }}</text>
-              <text x="70" y="80" text-anchor="middle" fill="#475569"
-                font-size="11" font-family="sans-serif">serviços</text>
-            </svg>
-          </div>
-          <div class="summary-right">
-            <div class="summary-title">Resumo do dia</div>
-            <div class="summary-legend">
-              <div class="legend-row" v-for="item in donutLegend" :key="item.label">
-                <div class="legend-indicator" :style="`background:${item.color}`" />
-                <div class="legend-info">
-                  <span class="legend-label">{{ item.label }}</span>
-                  <span class="legend-count">{{ item.count }} serviço{{ item.count !== 1 ? 's' : '' }}</span>
-                </div>
-                <div class="legend-pct" :style="`color:${item.color}`">{{ item.pct }}%</div>
-                <div class="legend-bar-wrap">
-                  <div class="legend-bar-fill" :style="`width:${item.pct}%;background:${item.color}`" />
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -252,8 +216,69 @@
         </div>
       </template>
 
+      <!-- ══ ABA: RESUMO ══ -->
+      <template v-if="activeTab === 'resumo'">
+        <div v-if="loading" class="flex justify-center q-pa-xl">
+          <q-spinner-dots size="48px" color="primary" />
+        </div>
+        <div v-else-if="services.length === 0" class="empty-state">
+          <q-icon name="donut_large" size="56px" class="empty-icon" style="color:#60a5fa" />
+          <div class="empty-text">Nenhum serviço encontrado para a data selecionada</div>
+        </div>
+        <div v-else class="resumo-wrap">
+          <!-- Donut central -->
+          <div class="resumo-donut-card">
+            <div class="resumo-donut-header">
+              <div class="resumo-eyebrow">Resumo do dia · {{ selectedGroup }}</div>
+              <div class="resumo-date">{{ filterDate ? new Date(filterDate + 'T12:00:00').toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' }) : '—' }}</div>
+            </div>
+            <div class="resumo-body">
+              <div class="resumo-chart-wrap">
+                <svg class="donut-svg-lg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                  <!-- Glow filter -->
+                  <defs>
+                    <filter id="glow-g"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                    <filter id="glow-r"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                    <filter id="glow-a"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                  </defs>
+                  <!-- Trilha de fundo -->
+                  <circle r="76" cx="100" cy="100" fill="none" stroke="#1a2d4a" stroke-width="20" />
+                  <!-- Segmentos -->
+                  <circle v-for="seg in donutSegments" :key="seg.label"
+                    r="76" cx="100" cy="100" fill="none"
+                    :stroke="seg.color" stroke-width="20" stroke-linecap="butt"
+                    :stroke-dasharray="`${seg.len} ${donutC}`"
+                    :stroke-dashoffset="-seg.offset"
+                    transform="rotate(-90 100 100)"
+                    style="transition: stroke-dasharray 0.7s cubic-bezier(0.16,1,0.3,1)"
+                  />
+                  <!-- Centro -->
+                  <text x="100" y="90" text-anchor="middle" fill="#f1f5f9"
+                    font-size="36" font-weight="800" font-family="sans-serif">{{ services.length }}</text>
+                  <text x="100" y="114" text-anchor="middle" fill="#475569"
+                    font-size="13" font-family="sans-serif">serviços</text>
+                </svg>
+              </div>
+              <div class="resumo-legend-col">
+                <div class="resumo-legend-item" v-for="item in donutLegend" :key="item.label">
+                  <div class="resumo-item-top">
+                    <div class="resumo-dot" :style="`background:${item.color};box-shadow:0 0 8px ${item.color}80`" />
+                    <span class="resumo-item-label">{{ item.label }}</span>
+                    <span class="resumo-item-pct" :style="`color:${item.color}`">{{ item.pct }}%</span>
+                  </div>
+                  <div class="resumo-item-count">{{ item.count }} serviço{{ item.count !== 1 ? 's' : '' }}</div>
+                  <div class="resumo-bar-track">
+                    <div class="resumo-bar-fill" :style="`width:${item.pct}%;background:${item.color}`" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
       <!-- ══ ABA: HISTÓRICO ══ -->
-      <template v-else>
+      <template v-else-if="activeTab === 'historico'">
         <div class="filter-bar q-mb-lg">
           <div class="search-wrap">
             <q-icon name="search" size="18px" class="search-icon" />
@@ -443,7 +468,7 @@ const filteredServices = computed(() => {
 })
 
 // ── Donut chart ───────────────────────────────────────────────
-const donutC = 2 * Math.PI * 52
+const donutC = 2 * Math.PI * 76
 
 const donutSegments = computed(() => {
   const total = services.value.length
@@ -499,6 +524,7 @@ async function selectGroup (g) {
 function switchTab (tab) {
   activeTab.value = tab
   if (tab === 'historico' && historyServices.value.length === 0) loadHistory()
+  if (tab === 'resumo' && services.value.length === 0) loadServices()
 }
 
 async function loadCounts () {
@@ -1111,75 +1137,84 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 .photo-nav--left  { left: 20px; }
 .photo-nav--right { right: 20px; }
 
-/* ─── Summary card (donut) ──────────────────────────────────── */
-.summary-card {
+/* ─── Aba Resumo ────────────────────────────────────────────── */
+.resumo-wrap {
   display: flex;
-  align-items: center;
-  gap: 32px;
+  justify-content: center;
+  padding: 20px 0;
+}
+
+.resumo-donut-card {
   background: #0d1829;
   border: 1px solid #1a2d4a;
-  border-radius: 20px;
-  padding: 28px 32px;
-  animation: kpiIn 0.45s cubic-bezier(0.16,1,0.3,1) both;
+  border-radius: 24px;
+  padding: 36px 48px;
+  width: 100%;
+  max-width: 780px;
+  animation: fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both;
 }
 
-.summary-left { flex-shrink: 0; }
+.resumo-donut-header {
+  margin-bottom: 36px;
+  display: flex; align-items: baseline; justify-content: space-between;
+}
+.resumo-eyebrow {
+  font-size: 0.72rem; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: #3b82f6;
+}
+.resumo-date { font-size: 0.82rem; color: #334155; }
 
-.donut-svg {
-  width: 140px; height: 140px;
+.resumo-body {
+  display: flex; align-items: center; gap: 56px;
+}
+
+.resumo-chart-wrap { flex-shrink: 0; }
+
+.donut-svg-lg {
+  width: 200px; height: 200px;
   display: block;
-  filter: drop-shadow(0 4px 20px #00000040);
+  filter: drop-shadow(0 8px 32px #00000050);
 }
 
-.summary-right { flex: 1; min-width: 0; }
-
-.summary-title {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: #334155;
-  margin-bottom: 16px;
+.resumo-legend-col {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 22px;
 }
 
-.summary-legend { display: flex; flex-direction: column; gap: 12px; }
+.resumo-legend-item { display: flex; flex-direction: column; gap: 6px; }
 
-.legend-row {
-  display: grid;
-  grid-template-columns: 10px 1fr auto 120px;
-  align-items: center;
-  gap: 12px;
+.resumo-item-top {
+  display: flex; align-items: center; gap: 10px;
 }
-
-.legend-indicator {
-  width: 10px; height: 10px;
-  border-radius: 3px; flex-shrink: 0;
+.resumo-dot {
+  width: 12px; height: 12px;
+  border-radius: 4px; flex-shrink: 0;
 }
-
-.legend-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.legend-label { font-size: 0.83rem; font-weight: 600; color: #94a3b8; }
-.legend-count { font-size: 0.72rem; color: #334155; }
-
-.legend-pct {
-  font-size: 1.1rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+.resumo-item-label {
+  flex: 1;
+  font-size: 0.9rem; font-weight: 600; color: #94a3b8;
+}
+.resumo-item-pct {
+  font-size: 1.4rem; font-weight: 800;
+  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
-  text-align: right;
-  min-width: 44px;
 }
-
-.legend-bar-wrap {
-  height: 5px;
+.resumo-item-count {
+  font-size: 0.75rem; color: #334155;
+  padding-left: 22px;
+}
+.resumo-bar-track {
+  height: 6px;
   background: #1a2d4a;
   border-radius: 999px;
   overflow: hidden;
 }
-.legend-bar-fill {
+.resumo-bar-fill {
   height: 100%;
   border-radius: 999px;
-  transition: width 0.7s cubic-bezier(0.16,1,0.3,1);
-  opacity: 0.85;
+  transition: width 0.8s cubic-bezier(0.16,1,0.3,1);
+  opacity: 0.9;
 }
 
 /* ─── Reduced motion ────────────────────────────────────────── */
