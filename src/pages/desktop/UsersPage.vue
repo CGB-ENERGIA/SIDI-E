@@ -38,6 +38,7 @@
           <thead>
             <tr>
               <th>Usuário</th>
+              <th>Papel</th>
               <th>Criado em</th>
               <th>Último acesso</th>
               <th>Confirmado</th>
@@ -54,6 +55,19 @@
                     <div class="user-meta">{{ u.user_metadata?.nome || '—' }}</div>
                   </div>
                 </div>
+              </td>
+              <td>
+                <select
+                  class="role-select"
+                  :class="'role-' + getRole(u)"
+                  :value="getRole(u)"
+                  :disabled="savingRole === u.id"
+                  @change="changeRole(u, $event.target.value)"
+                >
+                  <option value="viewer">Viewer</option>
+                  <option value="editor">Editor</option>
+                  <option value="admin">Admin</option>
+                </select>
               </td>
               <td class="date-cell">{{ fmt(u.created_at) }}</td>
               <td class="date-cell">{{ u.last_sign_in_at ? fmt(u.last_sign_in_at) : 'Nunca' }}</td>
@@ -195,6 +209,27 @@ const selectedUser = ref(null)
 const resetPwd = ref('')
 
 const form = ref({ email: '', nome: '', matricula: '', password: '' })
+const savingRole = ref(null)
+
+function getRole (u) {
+  return u.app_metadata?.portal_role || 'viewer'
+}
+
+async function changeRole (u, newRole) {
+  savingRole.value = u.id
+  try {
+    const { error } = await adminClient.auth.admin.updateUserById(u.id, {
+      app_metadata: { ...u.app_metadata, portal_role: newRole }
+    })
+    if (error) throw error
+    u.app_metadata = { ...u.app_metadata, portal_role: newRole }
+    $q.notify({ type: 'positive', message: `Papel de ${u.email} alterado para ${newRole}.` })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro ao alterar papel: ' + e.message })
+  } finally {
+    savingRole.value = null
+  }
+}
 
 const filtered = computed(() => {
   const q = search.value.toLowerCase()
@@ -412,4 +447,28 @@ onMounted(loadUsers)
 .icon-btn:hover { background: rgba(255,255,255,0.08); }
 .icon-btn.danger { color: #FF5252; border-color: rgba(255,82,82,.3); }
 .icon-btn.danger:hover { background: rgba(255,82,82,.12); }
+
+.role-select {
+  appearance: none;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  padding: 4px 28px 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+  transition: border-color .15s, background .15s;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+.role-select:disabled { opacity: .5; cursor: not-allowed; }
+
+.role-viewer  { background: rgba(100,116,139,.18); color: #94a3b8; }
+.role-editor  { background: rgba(59,130,246,.15);  color: #60a5fa; }
+.role-admin   { background: rgba(234,179, 8,.15);  color: #fbbf24; }
+
+.role-viewer option, .role-editor option, .role-admin option {
+  background: #1e2b3c; color: #e2e8f0;
+}
 </style>
