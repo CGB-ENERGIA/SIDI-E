@@ -196,20 +196,27 @@
             </div>
 
             <div class="svc-actions">
-              <template v-if="svc.validation_status === 'pendente' || !svc.validation_status">
-                <q-btn unelevated color="positive" icon="check_circle" label="Aprovar"
-                  size="sm" no-caps @click="aprovar(svc)" :loading="savingId === svc.id" class="action-btn" />
-                <q-btn v-if="editingObs !== svc.id"
-                  unelevated color="negative" icon="cancel" label="Reprovar"
-                  size="sm" no-caps @click="iniciarReprovar(svc)" class="action-btn" />
+              <template v-if="authStore.isAdmin">
+                <template v-if="svc.validation_status === 'pendente' || !svc.validation_status">
+                  <q-btn unelevated color="positive" icon="check_circle" label="Aprovar"
+                    size="sm" no-caps @click="aprovar(svc)" :loading="savingId === svc.id" class="action-btn" />
+                  <q-btn v-if="editingObs !== svc.id"
+                    unelevated color="negative" icon="cancel" label="Reprovar"
+                    size="sm" no-caps @click="iniciarReprovar(svc)" class="action-btn" />
+                  <template v-else>
+                    <q-btn unelevated color="negative" icon="send" label="Confirmar reprovação"
+                      size="sm" no-caps @click="reprovar(svc)" :loading="savingId === svc.id" class="action-btn" />
+                    <q-btn flat label="Cancelar" size="sm" no-caps @click="editingObs = null; obsText = ''" />
+                  </template>
+                </template>
                 <template v-else>
-                  <q-btn unelevated color="negative" icon="send" label="Confirmar reprovação"
-                    size="sm" no-caps @click="reprovar(svc)" :loading="savingId === svc.id" class="action-btn" />
-                  <q-btn flat label="Cancelar" size="sm" no-caps @click="editingObs = null; obsText = ''" />
+                  <q-btn flat color="grey" icon="undo" label="Reabrir" size="sm" no-caps @click="reabrir(svc)" />
                 </template>
               </template>
               <template v-else>
-                <q-btn flat color="grey" icon="undo" label="Reabrir" size="sm" no-caps @click="reabrir(svc)" />
+                <span class="readonly-badge">
+                  <q-icon name="visibility" size="14px" class="q-mr-xs" />Somente visualização
+                </span>
               </template>
             </div>
           </div>
@@ -1147,7 +1154,14 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
   border-radius: 8px; padding: 8px 12px;
   font-size: 0.8rem; margin-bottom: 12px;
 }
-.svc-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.svc-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+.readonly-badge {
+  display: inline-flex; align-items: center;
+  font-size: 0.75rem; color: #334155;
+  background: #1a2d4a; border: 1px solid #243650;
+  border-radius: 8px; padding: 4px 12px;
+}
 
 /* ─── Histórico duas colunas ────────────────────────────────── */
 .hist-two-col {

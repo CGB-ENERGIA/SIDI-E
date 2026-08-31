@@ -173,7 +173,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from 'src/stores/auth'
-import { supabase } from 'src/services/supabase'
+import { supabase, supabaseAdmin } from 'src/services/supabase'
+
+const adminClient = supabaseAdmin || supabase
 
 const $q = useQuasar()
 const authStore = useAuthStore()
@@ -228,7 +230,7 @@ function generatePassword () {
 async function loadUsers () {
   loading.value = true
   try {
-    const { data, error } = await supabase.auth.admin.listUsers()
+    const { data, error } = await adminClient.auth.admin.listUsers()
     if (error) throw error
     users.value = (data?.users || []).sort((a, b) =>
       new Date(b.created_at) - new Date(a.created_at)
@@ -261,7 +263,7 @@ function openDelete (u) {
 async function createUser () {
   saving.value = true
   try {
-    const { error } = await supabase.auth.admin.createUser({
+    const { error } = await adminClient.auth.admin.createUser({
       email: form.value.email.trim(),
       password: form.value.password,
       email_confirm: true,
@@ -284,7 +286,7 @@ async function createUser () {
 async function resetPassword () {
   saving.value = true
   try {
-    const { error } = await supabase.auth.admin.updateUserById(
+    const { error } = await adminClient.auth.admin.updateUserById(
       selectedUser.value.id,
       { password: resetPwd.value }
     )
@@ -301,7 +303,7 @@ async function resetPassword () {
 async function deleteUser () {
   saving.value = true
   try {
-    const { error } = await supabase.auth.admin.deleteUser(selectedUser.value.id)
+    const { error } = await adminClient.auth.admin.deleteUser(selectedUser.value.id)
     if (error) throw error
     $q.notify({ type: 'positive', message: 'Usuário desativado.' })
     showDelete.value = false

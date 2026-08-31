@@ -73,8 +73,12 @@
         <table v-else class="teams-table">
           <thead>
             <tr>
-              <th @click="sortBy('prefixo')" class="sortable">Prefixo <sort-icon col="prefixo" /></th>
-              <th @click="sortBy('nome')" class="sortable">Nome <sort-icon col="nome" /></th>
+              <th @click="sortBy('prefixo')" class="sortable">Prefixo
+                <q-icon :name="sortCol === 'prefixo' ? (sortAsc ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'" size="14px" />
+              </th>
+              <th @click="sortBy('nome')" class="sortable">Nome
+                <q-icon :name="sortCol === 'nome' ? (sortAsc ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'" size="14px" />
+              </th>
               <th>Responsável</th>
               <th>Base</th>
               <th>Processo</th>
