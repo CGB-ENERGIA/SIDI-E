@@ -438,10 +438,19 @@ async function loadTeamCollaborators (teamId) {
   if (!teamId) return
   try {
     if (onlineStore.isOnline) {
-      // Carrega TODOS os colaboradores ativos (catálogo global)
-      const { data } = await supabase
-        .from('collaborators').select('id, nome, funcao').order('nome')
-      const rows = data || []
+      // Carrega TODOS os colaboradores ativos (catálogo global), paginando para superar o limite de 1000
+      const allRows = []
+      let from = 0
+      const pageSize = 1000
+      while (true) {
+        const { data, error } = await supabase
+          .from('collaborators').select('id, nome, funcao').order('nome').range(from, from + pageSize - 1)
+        if (error || !data?.length) break
+        allRows.push(...data)
+        if (data.length < pageSize) break
+        from += pageSize
+      }
+      const rows = allRows
       const seen = new Set()
       const options = []
       for (const c of rows) {
