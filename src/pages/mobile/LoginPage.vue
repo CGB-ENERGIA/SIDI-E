@@ -167,7 +167,7 @@
             <div v-else class="row items-center gap-sm">
               <q-select
                 :model-value="col.nome"
-                :options="filteredCollabs"
+                :options="col.filteredOptions"
                 option-label="label"
                 option-value="value"
                 emit-value
@@ -178,7 +178,7 @@
                 input-debounce="0"
                 behavior="menu"
                 class="col input-upper"
-                @filter="filterCollab"
+                @filter="(val, update) => filterCollab(col, val, update)"
                 @update:model-value="v => onCollabSelected(col, typeof v === 'object' ? v?.value : v)"
                 @blur="ev => onCollabBlur(col, ev)"
               >
@@ -310,13 +310,12 @@ const teamsLoading = ref(false)
 const teamInput = ref('')
 
 const teamCollaborators = ref([])
-const filteredCollabs = ref([])
-const collabFilterInput = ref('')
 
-// Re-aplica o filtro atual quando os colaboradores carregam (resolve race condition)
+// Quando o catálogo carrega, popula o filteredOptions de cada slot existente
 watch(teamCollaborators, (val) => {
-  const needle = collabFilterInput.value.toUpperCase()
-  filteredCollabs.value = needle ? val.filter(o => o.label.includes(needle) || o.chapa === needle) : val
+  for (const col of form.value.colaboradores) {
+    if (!col.validated && !col.validating) col.filteredOptions = val
+  }
 })
 
 // ── Computed ──────────────────────────────────────────────────────────
@@ -330,12 +329,11 @@ const filteredTeams = computed(() => {
 
 const today = new Date().toISOString().split('T')[0]
 
+const emptyColab = () => ({ nome: '', validated: false, validating: false, isNew: false, filteredOptions: [] })
+
 const form = ref({
   prefixo: '',
-  colaboradores: [
-    { nome: '', validated: false, validating: false, isNew: false },
-    { nome: '', validated: false, validating: false, isNew: false }
-  ],
+  colaboradores: [emptyColab(), emptyColab()],
   data: today
 })
 
@@ -386,7 +384,6 @@ function filterTeams (val, update) {
 }
 
 function onEquipeSelecionada (equipe) {
-  const emptyColab = () => ({ nome: '', validated: false, validating: false, isNew: false })
   if (equipe) {
     form.value.prefixo = equipe.prefixo
     equipeNaoEncontrada.value = false
@@ -398,7 +395,6 @@ function onEquipeSelecionada (equipe) {
     form.value.prefixo = ''
     equipeNaoEncontrada.value = false
     teamCollaborators.value = []
-    filteredCollabs.value = []
     form.value.colaboradores = [emptyColab(), emptyColab()]
   }
 }
@@ -456,7 +452,7 @@ async function loadTeamCollaborators (teamId) {
         options.push({ label: chapa ? `${nome} (${chapa})` : nome, value: nome, chapa })
       }
       teamCollaborators.value = options
-      filteredCollabs.value = options
+      for (const col of form.value.colaboradores) col.filteredOptions = options
       // Espelha no IndexedDB para uso offline
       await offlineDB.replaceTeamCollaborators(
         teamId,
@@ -473,16 +469,15 @@ async function loadTeamCollaborators (teamId) {
         options.push({ label: nome, value: nome, chapa: '' })
       }
       teamCollaborators.value = options
-      filteredCollabs.value = options
+      for (const col of form.value.colaboradores) col.filteredOptions = options
     }
   } catch { /* silencioso */ }
 }
 
-function filterCollab (val, update) {
-  collabFilterInput.value = val || ''
+function filterCollab (col, val, update) {
   update(() => {
-    const needle = collabFilterInput.value.toUpperCase()
-    filteredCollabs.value = needle
+    const needle = (val || '').toUpperCase()
+    col.filteredOptions = needle
       ? teamCollaborators.value.filter(o => o.label.includes(needle) || o.chapa === needle)
       : teamCollaborators.value
   })
@@ -611,7 +606,9 @@ function editarColaborador (col) {
 }
 
 function addColaborador () {
-  form.value.colaboradores.push({ nome: '', validated: false, validating: false, isNew: false })
+  const col = emptyColab()
+  col.filteredOptions = teamCollaborators.value
+  form.value.colaboradores.push(col)
 }
 
 function removeColaborador (idx) {
