@@ -55,6 +55,7 @@
           class="q-mb-md"
           :rules="[v => !!v || 'Informe o prefixo']"
           input-debounce="200"
+          :input-class="'text-uppercase'"
           :loading="teamsLoading"
           @filter="filterTeams"
           @update:model-value="onEquipeSelecionada"
@@ -376,7 +377,7 @@ onMounted(async () => {
 })
 
 function filterTeams (val, update) {
-  teamInput.value = val
+  teamInput.value = val.toUpperCase()
   update()
 }
 
