@@ -184,15 +184,40 @@
               >
                 <template #prepend><q-icon name="person" /></template>
                 <template #no-option="{ inputValue }">
-                  <q-item v-if="inputValue" clickable @click="onCollabSelected(col, inputValue)">
+                  <q-item
+                    v-if="inputValue && resolveByMatricula(inputValue)"
+                    clickable
+                    v-close-popup
+                    @click="onCollabSelected(col, resolveByMatricula(inputValue))"
+                  >
+                    <q-item-section avatar>
+                      <q-icon name="badge" color="primary" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label class="text-primary text-weight-bold">
+                        Matrícula {{ inputValue }}
+                      </q-item-label>
+                      <q-item-label caption>{{ resolveByMatricula(inputValue) }}</q-item-label>
+                    </q-item-section>
+                  </q-item>
+                  <q-item
+                    v-else-if="inputValue && !/^\d+$/.test(String(inputValue).trim())"
+                    clickable
+                    v-close-popup
+                    @click="onCollabSelected(col, inputValue)"
+                  >
+                    <q-item-section avatar>
+                      <q-icon name="person_add" color="primary" />
+                    </q-item-section>
                     <q-item-section class="text-caption text-primary">
-                      <q-icon name="person_add" size="16px" class="q-mr-xs" />
-                      Cadastrar "{{ inputValue.toUpperCase() }}"
+                      Cadastrar "{{ String(inputValue).toUpperCase() }}"
                     </q-item-section>
                   </q-item>
                   <q-item v-else>
                     <q-item-section class="text-grey text-caption">
-                      {{ equipeEncontrada ? 'Nenhum colaborador cadastrado ainda' : 'Selecione a equipe primeiro' }}
+                      {{ equipeEncontrada
+                        ? (inputValue ? 'Matrícula não encontrada — digite o nome completo' : 'Digite o nome ou a matrícula')
+                        : 'Selecione a equipe primeiro' }}
                     </q-item-section>
                   </q-item>
                 </template>
@@ -457,7 +482,9 @@ async function loadTeamCollaborators (teamId) {
         const nome = c.nome.trim().toUpperCase()
         if (seen.has(nome)) continue
         seen.add(nome)
-        const chapa = (c.funcao || '').trim()
+        const chapaRaw = (c.funcao || '').trim()
+        // Matrícula fica em `funcao` quando é só dígitos; cargo (Eletricista etc.) não entra na busca
+        const chapa = /^\d+$/.test(chapaRaw) ? chapaRaw : ''
         options.push({ label: chapa ? `${nome} (${chapa})` : nome, value: nome, chapa })
       }
       teamCollaborators.value = options
@@ -465,7 +492,12 @@ async function loadTeamCollaborators (teamId) {
       // Espelha no IndexedDB para uso offline
       await offlineDB.replaceTeamCollaborators(
         teamId,
-        rows.map(c => ({ id: c.id, nome: c.nome, teamId }))
+        rows.map(c => ({
+          id: c.id,
+          nome: c.nome,
+          teamId,
+          funcao: c.funcao || ''
+        }))
       )
     } else {
       const local = await offlineDB.getCollaboratorsByTeam(teamId)
@@ -475,7 +507,9 @@ async function loadTeamCollaborators (teamId) {
         const nome = c.nome.trim().toUpperCase()
         if (seen.has(nome)) continue
         seen.add(nome)
-        options.push({ label: nome, value: nome, chapa: '' })
+        const chapaRaw = String(c.funcao || c.chapa || '').trim()
+        const chapa = /^\d+$/.test(chapaRaw) ? chapaRaw : ''
+        options.push({ label: chapa ? `${nome} (${chapa})` : nome, value: nome, chapa })
       }
       teamCollaborators.value = options
       for (const col of form.value.colaboradores) col.filteredOptions = options
@@ -483,19 +517,62 @@ async function loadTeamCollaborators (teamId) {
   } catch { /* silencioso */ }
 }
 
+/** Normaliza matrícula (só dígitos) para comparação */
+function normChapa (v) {
+  return String(v || '').replace(/\D/g, '')
+}
+
+/** Resolve matrícula → nome. Aceita match exato ou único por prefixo. */
+function resolveByMatricula (raw) {
+  const digits = normChapa(raw)
+  if (!digits) return null
+  const opts = teamCollaborators.value.filter(o => normChapa(o.chapa))
+  const exact = opts.filter(o => normChapa(o.chapa) === digits)
+  if (exact.length === 1) return exact[0].value
+  if (exact.length > 1) return exact[0].value
+  const prefixed = opts.filter(o => normChapa(o.chapa).startsWith(digits) || digits.startsWith(normChapa(o.chapa)))
+  if (prefixed.length === 1) return prefixed[0].value
+  return null
+}
+
+function findOptByNomeOrChapa (raw) {
+  const input = String(raw || '').trim().toUpperCase()
+  if (!input) return null
+  const byValue = teamCollaborators.value.find(o => o.value === input)
+  if (byValue) return byValue
+  const byChapa = teamCollaborators.value.find(o => normChapa(o.chapa) === normChapa(input))
+  return byChapa || null
+}
+
 function filterCollab (col, val, update) {
   update(() => {
-    const needle = (val || '').toUpperCase()
-    col.filteredOptions = needle
-      ? teamCollaborators.value.filter(o => o.label.includes(needle) || o.chapa === needle)
-      : teamCollaborators.value
+    const needle = (val || '').toUpperCase().trim()
+    const digits = normChapa(needle)
+    if (!needle) {
+      col.filteredOptions = teamCollaborators.value
+      return
+    }
+    const matched = teamCollaborators.value.filter(o => {
+      const chapa = normChapa(o.chapa)
+      return o.label.includes(needle) ||
+        o.value.includes(needle) ||
+        (digits && chapa && (chapa === digits || chapa.startsWith(digits) || digits.startsWith(chapa)))
+    })
+    // Prioriza match de matrícula no topo
+    matched.sort((a, b) => {
+      const aExact = normChapa(a.chapa) === digits ? 0 : (normChapa(a.chapa).startsWith(digits) ? 1 : 2)
+      const bExact = normChapa(b.chapa) === digits ? 0 : (normChapa(b.chapa).startsWith(digits) ? 1 : 2)
+      return aExact - bExact || a.value.localeCompare(b.value)
+    })
+    col.filteredOptions = matched
   })
 }
 
 // Chamado ao selecionar do dropdown OU ao digitar e confirmar via new-value-mode
 function onCollabSelected (col, v) {
   if (!v) return
-  col.nome = (v || '').toUpperCase()
+  const resolved = resolveByMatricula(v) || String(v).trim().toUpperCase()
+  col.nome = resolved
   validarColaborador(col)
 }
 
@@ -503,15 +580,47 @@ function onCollabSelected (col, v) {
 function onCollabBlur (col, ev) {
   const v = ev?.target?.value?.trim()
   if (v && !col.validated && !col.validating) {
-    col.nome = v.toUpperCase()
+    const resolved = resolveByMatricula(v) || v.toUpperCase()
+    col.nome = resolved
     validarColaborador(col)
   }
 }
 
 // Valida e auto-cadastra o colaborador
 async function validarColaborador (col) {
-  const nome = col.nome.trim().toUpperCase()
-  if (!nome || !equipeEncontrada.value?.id) return
+  let raw = col.nome.trim().toUpperCase()
+  if (!raw || !equipeEncontrada.value?.id) return
+
+  // Se digitou matrícula, troca pelo nome cadastrado
+  const fromMatricula = resolveByMatricula(raw)
+  if (fromMatricula) {
+    raw = fromMatricula
+    col.nome = fromMatricula
+  } else if (/^\d+$/.test(raw)) {
+    // Número sem cadastro: não cadastra matrícula como "nome"
+    const matches = teamCollaborators.value.filter(o => {
+      const chapa = normChapa(o.chapa)
+      return chapa && (chapa.startsWith(raw) || raw.startsWith(chapa))
+    })
+    if (matches.length > 1) {
+      col.nome = ''
+      col.validated = false
+      $q.notify({
+        type: 'warning',
+        message: `Matrícula "${raw}" ambígua (${matches.length} colaboradores). Digite a matrícula completa.`
+      })
+      return
+    }
+    col.nome = ''
+    col.validated = false
+    $q.notify({
+      type: 'negative',
+      message: `Nenhum colaborador com matrícula "${raw}". Digite o nome completo para cadastrar.`
+    })
+    return
+  }
+
+  const nome = raw
 
   // Bloqueia nome duplicado na mesma lista
   const duplicado = form.value.colaboradores.some(c => c !== col && c.nome.trim().toUpperCase() === nome)
@@ -546,15 +655,28 @@ async function validarColaborador (col) {
         return
       }
 
-      // 1 pessoa = 1 equipe: busca em qualquer equipe e transfere se necessário
-      const { data: existingList, error: findErr } = await supabase
+      // Busca por nome OU matrícula (funcao)
+      let rows = []
+      const { data: byName, error: findErr } = await supabase
         .from('collaborators')
-        .select('id, team_id')
+        .select('id, team_id, nome, funcao')
         .ilike('nome', nome)
       if (findErr) throw findErr
+      rows = byName || []
 
+      if (!rows.length && /^\d+$/.test(String(col.nome))) {
+        const { data: byChapa } = await supabase
+          .from('collaborators')
+          .select('id, team_id, nome, funcao')
+          .eq('funcao', String(col.nome).replace(/\D/g, ''))
+        rows = byChapa || []
+        if (rows[0]?.nome) {
+          col.nome = rows[0].nome.trim().toUpperCase()
+        }
+      }
+
+      const finalNome = col.nome.trim().toUpperCase()
       const currentTeamId = equipeEncontrada.value.id
-      const rows = existingList || []
 
       if (rows.length) {
         const keep = rows.find(r => r.team_id === currentTeamId) || rows[0]
@@ -565,36 +687,42 @@ async function validarColaborador (col) {
         if (keep.team_id !== currentTeamId) {
           await supabase
             .from('collaborators')
-            .update({ team_id: currentTeamId, nome })
+            .update({ team_id: currentTeamId, nome: finalNome })
             .eq('id', keep.id)
           col.isNew = false
           $q.notify({
             type: 'info',
-            message: `"${nome}" estava em outra equipe e foi transferido para ${equipeEncontrada.value.prefixo}.`
+            message: `"${finalNome}" estava em outra equipe e foi transferido para ${equipeEncontrada.value.prefixo}.`
           })
         } else {
           col.isNew = false
         }
-        await offlineDB.deleteCollaboratorsByNome(nome)
-        await offlineDB.saveCollaborator({ id: keep.id, teamId: currentTeamId, nome })
+        await offlineDB.deleteCollaboratorsByNome(finalNome)
+        await offlineDB.saveCollaborator({ id: keep.id, teamId: currentTeamId, nome: finalNome })
       } else {
         const { data: inserted, error: insErr } = await supabase
           .from('collaborators')
-          .insert({ team_id: currentTeamId, nome })
+          .insert({ team_id: currentTeamId, nome: finalNome })
           .select('id')
           .single()
         if (insErr) throw insErr
         col.isNew = true
-        await offlineDB.saveCollaborator({ id: inserted?.id, teamId: currentTeamId, nome })
+        await offlineDB.saveCollaborator({ id: inserted?.id, teamId: currentTeamId, nome: finalNome })
       }
 
-      if (!teamCollaborators.value.includes(nome)) {
-        teamCollaborators.value = [...teamCollaborators.value, nome].sort()
+      const known = findOptByNomeOrChapa(finalNome)
+      if (!known) {
+        teamCollaborators.value = [
+          ...teamCollaborators.value,
+          { label: finalNome, value: finalNome, chapa: '' }
+        ].sort((a, b) => a.value.localeCompare(b.value))
       }
+      col.nome = finalNome
       col.validated = true
     } else {
-      // Offline: valida localmente, sincroniza depois
-      col.isNew = !teamCollaborators.value.includes(nome)
+      // Offline: resolve matrícula no cache local
+      const known = findOptByNomeOrChapa(nome)
+      col.isNew = !known
       col.validated = true
       if (col.isNew) {
         await offlineDB.saveCollaborator({ teamId: equipeEncontrada.value.id, nome })

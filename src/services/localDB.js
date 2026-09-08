@@ -66,7 +66,8 @@ export const offlineDB = {
       await db.collaborators.put({
         ...c,
         teamId,
-        nome: (c.nome || '').trim().toUpperCase()
+        nome: (c.nome || '').trim().toUpperCase(),
+        funcao: c.funcao || c.chapa || ''
       })
     }
   },
