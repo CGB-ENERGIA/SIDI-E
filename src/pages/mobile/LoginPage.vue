@@ -381,25 +381,20 @@ function filterTeams (val, update) {
 }
 
 function onEquipeSelecionada (equipe) {
+  const emptyColab = () => ({ nome: '', validated: false, validating: false, isNew: false })
   if (equipe) {
     form.value.prefixo = equipe.prefixo
     equipeNaoEncontrada.value = false
     solicitacaoEnviada.value = false
-    // Reseta colaboradores ao trocar equipe (mínimo 2)
-    form.value.colaboradores = [
-      { nome: '', validated: false, validating: false, isNew: false },
-      { nome: '', validated: false, validating: false, isNew: false }
-    ]
+    const slots = equipe.processo === 'GOMAN' ? 6 : 2
+    form.value.colaboradores = Array.from({ length: slots }, emptyColab)
     loadTeamCollaborators(equipe.id)
   } else {
     form.value.prefixo = ''
     equipeNaoEncontrada.value = false
     teamCollaborators.value = []
     filteredCollabs.value = []
-    form.value.colaboradores = [
-      { nome: '', validated: false, validating: false, isNew: false },
-      { nome: '', validated: false, validating: false, isNew: false }
-    ]
+    form.value.colaboradores = [emptyColab(), emptyColab()]
   }
 }
 
