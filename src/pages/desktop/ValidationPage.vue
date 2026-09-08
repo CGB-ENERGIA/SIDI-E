@@ -39,8 +39,12 @@
                 <q-spinner-dots v-if="loadingCounts" size="10px" />
                 <template v-else>
                   <span class="badge-count">{{ counts[g.key]?.pendente ?? 0 }}</span>
-                  <span class="badge-label">pendentes</span>
+                  <span class="badge-label">hoje</span>
                 </template>
+              </span>
+              <span v-if="!loadingCounts && (counts[g.key]?.total ?? 0) > (counts[g.key]?.pendente ?? 0)" class="gbadge gbadge--total">
+                <span class="badge-count">{{ counts[g.key]?.total ?? 0 }}</span>
+                <span class="badge-label">total</span>
               </span>
             </div>
 
@@ -607,14 +611,22 @@ function switchTab (tab) {
 
 async function loadCounts () {
   loadingCounts.value = true
+  const today = new Date().toISOString().split('T')[0]
   try {
     for (const g of grupos) {
-      const { count } = await supabase
+      const { count: todayCount } = await supabase
+        .from('services')
+        .select('id, teams!inner(processo)', { count: 'exact', head: true })
+        .eq('teams.processo', g.key)
+        .gte('created_at', today + 'T00:00:00')
+        .lte('created_at', today + 'T23:59:59')
+        .or('validation_status.eq.pendente,validation_status.is.null')
+      const { count: totalCount } = await supabase
         .from('services')
         .select('id, teams!inner(processo)', { count: 'exact', head: true })
         .eq('teams.processo', g.key)
         .or('validation_status.eq.pendente,validation_status.is.null')
-      counts.value[g.key] = { pendente: count || 0 }
+      counts.value[g.key] = { pendente: todayCount || 0, total: totalCount || 0 }
     }
   } catch (e) { console.warn('loadCounts:', e.message) }
   finally { loadingCounts.value = false }
@@ -972,6 +984,11 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
   padding: 5px 14px;
   border-radius: 999px;
   font-size: 0.78rem; font-weight: 600;
+}
+.gbadge--total {
+  background: rgba(100,116,139,.1);
+  border: 1px solid rgba(100,116,139,.25);
+  color: #94a3b8;
 }
 .gbadge--pending {
   background: #f59e0b0e;
