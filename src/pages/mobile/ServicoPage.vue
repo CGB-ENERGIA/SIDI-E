@@ -27,14 +27,14 @@
             Verificação de EPIs
           </div>
           <div class="text-caption text-grey-6 q-mb-md">
-            Tire <strong>2 fotos</strong> do eletricista com todos os equipamentos de proteção.
+            Tire <strong>no mínimo 2 fotos</strong> do eletricista com todos os equipamentos de proteção.
           </div>
 
           <div class="flex justify-between items-center q-mb-sm">
             <span class="text-caption">Fotos tiradas:</span>
             <q-badge
               :color="epiPhotos.length >= 2 ? 'positive' : 'orange'"
-              :label="`${epiPhotos.length} / 2`"
+              :label="epiPhotos.length >= 2 ? `${epiPhotos.length} foto(s) ✓` : `${epiPhotos.length} / 2`"
               text-color="white"
             />
           </div>
@@ -48,14 +48,6 @@
                 @click="removePhoto(epiPhotos, idx)"
               />
             </div>
-            <div
-              v-if="epiPhotos.length < 2"
-              class="flex items-center justify-center bg-grey-2 rounded-borders cursor-pointer"
-              style="aspect-ratio: 1; border: 2px dashed #ccc; border-radius: 8px;"
-              @click="openCamera('epi')"
-            >
-              <q-icon name="add_a_photo" size="28px" color="grey-5" />
-            </div>
           </div>
 
           <q-btn
@@ -67,7 +59,13 @@
           <q-btn
             v-else-if="epiPhotos.length < 2"
             outline rounded color="primary" icon="add_a_photo"
-            label="Segunda foto do EPI" class="full-width"
+            label="Segunda foto do EPI" class="full-width q-mb-sm"
+            @click="openCamera('epi')"
+          />
+          <q-btn
+            v-if="epiPhotos.length >= 2"
+            flat rounded color="primary" icon="add_a_photo"
+            label="Adicionar mais uma foto" class="full-width"
             @click="openCamera('epi')"
           />
         </q-card-section>
