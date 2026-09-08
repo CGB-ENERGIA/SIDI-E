@@ -437,13 +437,14 @@ async function loadTeamCollaborators (teamId) {
   if (!teamId) return
   try {
     if (onlineStore.isOnline) {
+      // Carrega TODOS os colaboradores ativos (catálogo global)
       const { data } = await supabase
-        .from('collaborators').select('id, nome').eq('team_id', teamId).order('nome')
+        .from('collaborators').select('id, nome').order('nome')
       const rows = data || []
       const unique = [...new Set(rows.map(c => c.nome.trim().toUpperCase()))]
       teamCollaborators.value = unique
       filteredCollabs.value = unique
-      // Espelha no IndexedDB para o PWA offline refletir trocas do admin
+      // Espelha no IndexedDB para uso offline
       await offlineDB.replaceTeamCollaborators(
         teamId,
         rows.map(c => ({ id: c.id, nome: c.nome, teamId }))
