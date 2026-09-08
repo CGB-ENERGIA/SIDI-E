@@ -459,7 +459,7 @@ const grupos = [
 const selectedGroup     = ref(null)
 const activeTab         = ref('validacao')
 
-const filterDate        = ref(new Date().toISOString().split('T')[0])
+const filterDate        = ref('')
 const filterStatus      = ref(null)
 const filterSupervisor  = ref(null)
 const filterResponsavel = ref(null)
