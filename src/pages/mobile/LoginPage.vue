@@ -168,6 +168,10 @@
               <q-select
                 :model-value="col.nome"
                 :options="filteredCollabs"
+                option-label="label"
+                option-value="value"
+                emit-value
+                map-options
                 :label="`Colaborador ${idx + 1}`"
                 outlined dense use-input fill-input hide-selected
                 new-value-mode="add-unique"
@@ -175,7 +179,7 @@
                 behavior="menu"
                 class="col input-upper"
                 @filter="filterCollab"
-                @update:model-value="v => onCollabSelected(col, v)"
+                @update:model-value="v => onCollabSelected(col, typeof v === 'object' ? v?.value : v)"
                 @blur="ev => onCollabBlur(col, ev)"
               >
                 <template #prepend><q-icon name="person" /></template>
@@ -312,7 +316,7 @@ const collabFilterInput = ref('')
 // Re-aplica o filtro atual quando os colaboradores carregam (resolve race condition)
 watch(teamCollaborators, (val) => {
   const needle = collabFilterInput.value.toUpperCase()
-  filteredCollabs.value = needle ? val.filter(n => n.includes(needle)) : val
+  filteredCollabs.value = needle ? val.filter(o => o.label.includes(needle) || o.chapa === needle) : val
 })
 
 // ── Computed ──────────────────────────────────────────────────────────
@@ -440,11 +444,19 @@ async function loadTeamCollaborators (teamId) {
     if (onlineStore.isOnline) {
       // Carrega TODOS os colaboradores ativos (catálogo global)
       const { data } = await supabase
-        .from('collaborators').select('id, nome').order('nome')
+        .from('collaborators').select('id, nome, funcao').order('nome')
       const rows = data || []
-      const unique = [...new Set(rows.map(c => c.nome.trim().toUpperCase()))]
-      teamCollaborators.value = unique
-      filteredCollabs.value = unique
+      const seen = new Set()
+      const options = []
+      for (const c of rows) {
+        const nome = c.nome.trim().toUpperCase()
+        if (seen.has(nome)) continue
+        seen.add(nome)
+        const chapa = (c.funcao || '').trim()
+        options.push({ label: chapa ? `${nome} (${chapa})` : nome, value: nome, chapa })
+      }
+      teamCollaborators.value = options
+      filteredCollabs.value = options
       // Espelha no IndexedDB para uso offline
       await offlineDB.replaceTeamCollaborators(
         teamId,
@@ -452,9 +464,16 @@ async function loadTeamCollaborators (teamId) {
       )
     } else {
       const local = await offlineDB.getCollaboratorsByTeam(teamId)
-      const unique = [...new Set(local.map(c => c.nome.trim().toUpperCase()))]
-      teamCollaborators.value = unique
-      filteredCollabs.value = unique
+      const seen = new Set()
+      const options = []
+      for (const c of local) {
+        const nome = c.nome.trim().toUpperCase()
+        if (seen.has(nome)) continue
+        seen.add(nome)
+        options.push({ label: nome, value: nome, chapa: '' })
+      }
+      teamCollaborators.value = options
+      filteredCollabs.value = options
     }
   } catch { /* silencioso */ }
 }
@@ -464,7 +483,7 @@ function filterCollab (val, update) {
   update(() => {
     const needle = collabFilterInput.value.toUpperCase()
     filteredCollabs.value = needle
-      ? teamCollaborators.value.filter(n => n.includes(needle))
+      ? teamCollaborators.value.filter(o => o.label.includes(needle) || o.chapa === needle)
       : teamCollaborators.value
   })
 }
