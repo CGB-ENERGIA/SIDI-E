@@ -265,11 +265,17 @@ function generatePassword () {
 async function loadUsers () {
   loading.value = true
   try {
-    const { data, error } = await adminClient.auth.admin.listUsers()
-    if (error) throw error
-    users.value = (data?.users || []).sort((a, b) =>
-      new Date(b.created_at) - new Date(a.created_at)
-    )
+    const allUsers = []
+    let page = 1
+    while (true) {
+      const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 })
+      if (error) throw error
+      const batch = data?.users || []
+      allUsers.push(...batch)
+      if (batch.length < 1000) break
+      page++
+    }
+    users.value = allUsers.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
   } catch (e) {
     $q.notify({ type: 'negative', message: 'Erro ao carregar usuários: ' + e.message })
   } finally {
