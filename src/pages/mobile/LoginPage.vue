@@ -459,7 +459,6 @@ async function buscarEquipePorDigitacao () {
 // ── Collaborators ─────────────────────────────────────────────────────
 async function loadTeamCollaborators (teamId) {
   teamCollaborators.value = []
-  filteredCollabs.value = []
   if (!teamId) return
   try {
     if (onlineStore.isOnline) {
