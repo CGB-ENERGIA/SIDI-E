@@ -133,65 +133,71 @@ html, body {
   letter-spacing: 0.8px;
 }
 
-// ── Alta visibilidade no tema escuro ──────────────────────────────────
+// ── Signal Panel — overrides Quasar dark fields ───────────────────────
 
-// Campos outlined: borda clara + fundo levemente diferenciado
+// Campos outlined: fundo card + borda token
 .q-field--outlined.q-field--dark .q-field__control {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--card) !important;
 }
 .q-field--outlined.q-field--dark .q-field__control:before {
-  border-color: rgba(255, 255, 255, 0.35) !important;
+  border-color: var(--border) !important;
 }
 .q-field--outlined.q-field--dark .q-field__control:hover:before {
-  border-color: rgba(255, 255, 255, 0.6) !important;
+  border-color: color-mix(in oklab, var(--primary) 40%, var(--border)) !important;
 }
 .q-field--outlined.q-field--dark.q-field--focused .q-field__control:after {
-  border-color: #1E88E5 !important;
+  border-color: var(--primary) !important;
 }
 
-// Labels flutuantes e hints mais legíveis
+// Labels e texto
 .q-field--dark .q-field__label {
-  color: rgba(255, 255, 255, 0.65) !important;
+  color: var(--muted-fg) !important;
+}
+.q-field--dark .q-field__native,
+.q-field--dark .q-field__input {
+  color: var(--fg) !important;
 }
 .q-field--dark .q-field__messages {
-  color: rgba(255, 255, 255, 0.55) !important;
+  color: var(--muted-fg) !important;
+  opacity: 0.75;
 }
 
-// Stepper: título das etapas e linha conectora com contraste real
-.q-stepper.q-stepper--dark .q-stepper__title {
-  color: rgba(255, 255, 255, 0.9) !important;
-  font-weight: 600 !important;
-}
-.q-stepper.q-stepper--dark .q-stepper__tab--active .q-stepper__title {
-  color: #ffffff !important;
-}
-.q-stepper.q-stepper--dark .q-stepper__tab--done .q-stepper__title {
-  color: rgba(255, 255, 255, 0.75) !important;
-}
-
-// Stepper: fundo do passo ativo/concluído visível
-.q-stepper.q-stepper--dark {
-  background: transparent !important;
-}
-
-// Cards com borda sutil para destacar do fundo de página
-.q-card.q-card--dark {
-  background: #1E2B3C !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-}
-
-// q-item caption (labels dentro de q-list)
-.q-dark .q-item__label--caption {
-  color: rgba(255, 255, 255, 0.55) !important;
+// Ícones de prepend/append
+.q-field--dark .q-field__prepend .q-icon,
+.q-field--dark .q-field__append .q-icon {
+  color: var(--muted-fg) !important;
 }
 
 // Dropdown das opções do q-select
 .q-menu.q-dark {
-  background: #1E2B3C !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+}
+.q-item.q-dark:hover,
+.q-item--active.q-dark {
+  background: color-mix(in oklab, var(--primary) 12%, transparent) !important;
+  color: var(--primary) !important;
 }
 
-// Ícone de prepend nos inputs
-.q-field--dark .q-field__prepend .q-icon {
-  color: rgba(255, 255, 255, 0.6) !important;
+// Stepper
+.q-stepper.q-stepper--dark .q-stepper__title {
+  color: var(--fg) !important;
+  font-weight: 600 !important;
 }
+.q-stepper.q-stepper--dark .q-stepper__tab--active .q-stepper__title {
+  color: var(--primary) !important;
+}
+.q-stepper.q-stepper--dark .q-stepper__tab--done .q-stepper__title {
+  color: var(--muted-fg) !important;
+}
+.q-stepper.q-stepper--dark { background: transparent !important; }
+
+// Cards dark
+.q-card.q-card--dark {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+}
+
+// q-item caption
+.q-dark .q-item__label--caption { color: var(--muted-fg) !important; opacity: 0.75; }
