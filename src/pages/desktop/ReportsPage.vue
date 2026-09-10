@@ -117,6 +117,31 @@
 
     </div>
 
+    <!-- ── Tendência diária ──────────────────────────────── -->
+    <div v-if="byDay.length > 1" class="trend-card q-mt-md">
+      <div class="chart-header">
+        <div class="chart-title">Tendência diária</div>
+        <div class="chart-badge">{{ byDay.length }} dias · pico {{ maxDay }} serviço{{ maxDay !== 1 ? 's' : '' }}</div>
+      </div>
+      <div class="trend-body">
+        <div
+          v-for="day in byDay" :key="day.date"
+          class="trend-col"
+          :class="{ 'trend-col--weekend': [0, 6].includes(day.dayOfWeek) }"
+        >
+          <span class="trend-count" :style="day.count === 0 ? 'opacity:0' : ''">{{ day.count }}</span>
+          <div class="trend-track">
+            <div
+              class="trend-fill"
+              :class="{ 'trend-fill--max': day.count > 0 && day.count === maxDay }"
+              :style="`height: ${day.count > 0 ? Math.max(3, (day.count / maxDay) * 100) : 0}%`"
+            />
+          </div>
+          <span class="trend-lbl">{{ day.label }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Dialog: detalhe da atividade ─────────────────── -->
     <q-dialog v-model="showActivityDetail" maximized transition-show="slide-up" transition-hide="slide-down">
       <q-card style="background:var(--background); color:var(--fg); display:flex; flex-direction:column;">
@@ -364,6 +389,30 @@ function formatDateTime (iso) {
 const maxTeam     = computed(() => Math.max(1, ...byTeam.value.map(t => t.count)))
 const maxActivity = computed(() => Math.max(1, ...byActivity.value.map(a => a.count)))
 
+const byDay = computed(() => {
+  const countMap = {}
+  for (const s of filteredServices.value) {
+    const d = s.created_at.split('T')[0]
+    countMap[d] = (countMap[d] || 0) + 1
+  }
+  if (!dateFrom.value || !dateTo.value) {
+    return Object.keys(countMap).sort().map(d => {
+      const dt = new Date(d + 'T12:00:00')
+      return { date: d, count: countMap[d], label: dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }), dayOfWeek: dt.getDay() }
+    })
+  }
+  const result = []
+  const cur = new Date(dateFrom.value + 'T12:00:00')
+  const end = new Date(dateTo.value + 'T12:00:00')
+  while (cur <= end) {
+    const key = cur.toISOString().split('T')[0]
+    result.push({ date: key, count: countMap[key] || 0, label: cur.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }), dayOfWeek: cur.getDay() })
+    cur.setDate(cur.getDate() + 1)
+  }
+  return result
+})
+const maxDay = computed(() => Math.max(1, ...byDay.value.map(d => d.count)))
+
 function strColor (str = '') {
   const colors = ['#3b82f6', '#22c55e', '#a855f7', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#84cc16']
   let h = 0
@@ -595,6 +644,78 @@ function exportCsv () {
   flex: 1; display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   color: var(--muted-fg); opacity: 0.5; font-size: 0.85rem; gap: 4px;
+}
+
+/* ── Daily trend chart ───────────────────────────────────── */
+.trend-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px 28px;
+}
+
+.trend-body {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  height: 180px;
+  overflow-x: auto;
+}
+
+.trend-col {
+  flex: 1;
+  min-width: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.trend-count {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1;
+  margin-bottom: 4px;
+  height: 14px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  transition: opacity 0.2s;
+}
+
+.trend-track {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  background: color-mix(in oklab, var(--border) 35%, transparent);
+  border-radius: 3px 3px 0 0;
+  overflow: hidden;
+}
+
+.trend-fill {
+  width: 100%;
+  background: color-mix(in oklab, var(--primary) 52%, transparent);
+  border-radius: 3px 3px 0 0;
+  transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.trend-fill--max {
+  background: var(--primary);
+  box-shadow: 0 0 10px color-mix(in oklab, var(--primary) 35%, transparent);
+}
+.trend-col--weekend .trend-track { background: color-mix(in oklab, var(--border) 20%, transparent); }
+.trend-col--weekend .trend-fill  { opacity: 0.4; }
+
+.trend-lbl {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 0.55rem;
+  color: var(--muted-fg);
+  opacity: 0.55;
+  margin-top: 5px;
+  height: 30px;
+  overflow: hidden;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Responsive ──────────────────────────────────────────── */
