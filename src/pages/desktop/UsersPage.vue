@@ -367,23 +367,23 @@ onMounted(loadUsers)
   justify-content: center; height: 60vh; text-align: center;
 }
 .denied-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 8px; }
-.denied-sub { color: #6b7280; }
+.denied-sub { color: var(--muted-fg); }
 
 .page-header {
   display: flex; justify-content: space-between; align-items: flex-start;
   margin-bottom: 24px;
 }
 .page-title { font-size: 1.5rem; font-weight: 700; }
-.page-sub { color: #6b7280; font-size: 0.875rem; margin-top: 2px; }
+.page-sub { color: var(--muted-fg); font-size: 0.875rem; margin-top: 2px; }
 
 .action-btn {
   display: flex; align-items: center; gap: 6px;
-  background: #1E88E5; color: #fff;
+  background: var(--primary); color: var(--primary-fg);
   border: none; border-radius: 8px;
   padding: 8px 16px; font-size: 0.875rem; font-weight: 600;
-  cursor: pointer; transition: background .15s;
+  cursor: pointer; transition: opacity .15s;
 }
-.action-btn:hover { background: #1565C0; }
+.action-btn:hover { opacity: 0.88; }
 
 .filters-bar {
   display: flex; align-items: center; gap: 12px;
@@ -391,18 +391,18 @@ onMounted(loadUsers)
 }
 .search-wrap {
   display: flex; align-items: center; gap: 8px;
-  background: var(--q-dark, #1E2B3C);
-  border: 1px solid rgba(255,255,255,0.12);
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: 8px; padding: 8px 12px; flex: 1; max-width: 380px;
 }
 .search-input {
   background: transparent; border: none; outline: none;
-  color: inherit; font-size: 0.875rem; width: 100%;
+  color: var(--fg); font-size: 0.875rem; width: 100%;
 }
 
 .table-wrap {
-  background: var(--q-dark, #1E2B3C);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: 12px; overflow: hidden;
 }
 .table-loading { display: flex; justify-content: center; padding: 60px; }
@@ -411,28 +411,29 @@ onMounted(loadUsers)
 .data-table th {
   text-align: left; padding: 12px 16px;
   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px;
-  color: #78909C;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  color: var(--muted-fg);
+  border-bottom: 1px solid var(--border);
 }
 .data-table td {
   padding: 14px 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
   font-size: 0.875rem;
+  color: var(--fg);
 }
 .data-table tbody tr:last-child td { border-bottom: none; }
-.data-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+.data-table tbody tr:hover { background: color-mix(in oklab, var(--primary) 6%, transparent); }
 
 .user-cell { display: flex; align-items: center; gap: 12px; }
 .user-avatar {
   width: 36px; height: 36px; border-radius: 50%;
-  background: #1565C0; color: #fff;
+  background: var(--primary); color: var(--primary-fg);
   display: flex; align-items: center; justify-content: center;
   font-size: 13px; font-weight: 700; flex-shrink: 0;
 }
 .user-email { font-weight: 600; }
-.user-meta { font-size: 0.78rem; color: #78909C; margin-top: 1px; }
+.user-meta { font-size: 0.78rem; color: var(--muted-fg); margin-top: 1px; }
 
-.date-cell { color: #78909C; font-size: 0.82rem; }
+.date-cell { color: var(--muted-fg); font-size: 0.82rem; }
 
 .badge {
   display: inline-block; padding: 2px 10px;
@@ -446,17 +447,17 @@ onMounted(loadUsers)
 .icon-btn {
   display: flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: transparent; color: inherit; cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent; color: var(--fg); cursor: pointer;
   transition: background .12s;
 }
-.icon-btn:hover { background: rgba(255,255,255,0.08); }
-.icon-btn.danger { color: #FF5252; border-color: rgba(255,82,82,.3); }
-.icon-btn.danger:hover { background: rgba(255,82,82,.12); }
+.icon-btn:hover { background: color-mix(in oklab, var(--border) 40%, transparent); }
+.icon-btn.danger { color: var(--destructive); border-color: color-mix(in oklab, var(--destructive) 30%, transparent); }
+.icon-btn.danger:hover { background: color-mix(in oklab, var(--destructive) 12%, transparent); }
 
 .role-select {
   appearance: none;
-  border: 1px solid rgba(255,255,255,0.15);
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 4px 28px 4px 10px;
   font-size: 12px;
@@ -475,6 +476,6 @@ onMounted(loadUsers)
 .role-admin   { background: rgba(234,179, 8,.15);  color: #fbbf24; }
 
 .role-viewer option, .role-editor option, .role-admin option {
-  background: #1e2b3c; color: #e2e8f0;
+  background: var(--card); color: var(--fg);
 }
 </style>
