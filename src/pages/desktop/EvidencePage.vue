@@ -526,7 +526,7 @@ function formatTime (iso) {
   transition: background 0.15s;
 }
 :deep(.clickable-rows tbody tr:hover) {
-  background: rgba(var(--q-primary-rgb, 25, 118, 210), 0.08) !important;
+  background: color-mix(in oklab, var(--primary) 8%, transparent) !important;
 }
 
 .svc-block {
@@ -534,7 +534,7 @@ function formatTime (iso) {
 }
 
 .svc-header {
-  border-left: 3px solid var(--q-primary, #1E88E5);
+  border-left: 3px solid var(--primary);
   padding-left: 12px;
 }
 
@@ -549,7 +549,7 @@ function formatTime (iso) {
   border-radius: 10px;
   overflow: hidden;
   aspect-ratio: 1;
-  background: #111;
+  background: var(--background);
 }
 
 .photo-thumb {
