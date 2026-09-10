@@ -509,30 +509,35 @@ onMounted(async () => {
 
 <style scoped>
 /* ── Page ─────────────────────────────────────────────── */
-.act-page { min-height: 100vh; }
+.act-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse 70% 35% at 50% 0%, color-mix(in oklab, var(--primary) 7%, transparent) 0%, transparent 60%),
+    var(--background);
+}
 
 /* ── Tab bar ─────────────────────────────────────────── */
 .act-tabs {
-  background: rgba(255,255,255,0.05);
+  background: var(--card);
   border-radius: 10px;
   padding: 4px;
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid var(--border);
 }
 
 :deep(.act-tabs .q-tab) {
   border-radius: 7px;
   min-height: 38px;
   padding: 0 20px;
-  color: rgba(255,255,255,0.5);
+  color: var(--muted-fg);
   font-weight: 600;
   letter-spacing: 0.04em;
   transition: color 0.2s, background 0.2s;
 }
 
 :deep(.act-tabs .q-tab--active) {
-  color: #fff !important;
-  background: var(--q-primary);
-  box-shadow: 0 2px 8px rgba(15,111,255,0.35);
+  color: var(--primary-fg) !important;
+  background: var(--primary);
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--primary) 35%, transparent);
 }
 
 :deep(.act-tabs .q-tab__indicator) {
@@ -560,16 +565,16 @@ onMounted(async () => {
   gap: 16px;
   padding: 20px 24px;
   border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.07);
-  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  background: var(--card);
 }
 
 .kpi-icon {
   width: 44px; height: 44px;
   border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(59,130,246,0.18);
-  color: #3b82f6;
+  background: color-mix(in oklab, var(--primary) 14%, transparent);
+  color: var(--primary);
   flex-shrink: 0;
 }
 .kpi-icon--teams  { background: rgba(139,92,246,0.18); color: #8b5cf6; }
@@ -581,10 +586,11 @@ onMounted(async () => {
   line-height: 1;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
+  color: var(--fg);
 }
 .kpi-label {
   font-size: 0.75rem;
-  color: rgba(255,255,255,0.45);
+  color: var(--muted-fg);
   margin-top: 4px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -595,14 +601,13 @@ onMounted(async () => {
 
 .team-card {
   border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.07);
-  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  background: var(--card);
   overflow: hidden;
   transition: border-color 0.2s;
 }
-.team-card:hover { border-color: rgba(59,130,246,0.35); }
+.team-card:hover { border-color: color-mix(in oklab, var(--primary) 35%, transparent); }
 
-/* Card header: clickable row */
 .team-card__header {
   display: flex;
   align-items: center;
@@ -621,7 +626,7 @@ onMounted(async () => {
 }
 
 .team-badge {
-  background: linear-gradient(135deg, #1d4ed8 0%, #0f3460 100%);
+  background: var(--primary);
   border-radius: 10px;
   padding: 8px 14px;
   flex-shrink: 0;
@@ -629,14 +634,14 @@ onMounted(async () => {
 .team-badge__prefix {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--primary-fg);
   white-space: nowrap;
   letter-spacing: 0.02em;
 }
 
 .team-card__nome {
   font-size: 0.8rem;
-  color: rgba(255,255,255,0.4);
+  color: var(--muted-fg);
   margin-bottom: 6px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -644,13 +649,12 @@ onMounted(async () => {
 .team-card__chips { display: flex; flex-wrap: wrap; gap: 6px; }
 
 .act-chip {
-  background: rgba(59,130,246,0.15) !important;
-  color: #93c5fd !important;
-  border: 1px solid rgba(59,130,246,0.3) !important;
+  background: color-mix(in oklab, var(--primary) 14%, transparent) !important;
+  color: var(--primary) !important;
+  border: 1px solid color-mix(in oklab, var(--primary) 30%, transparent) !important;
   font-size: 0.72rem !important;
 }
 
-/* Right section */
 .team-card__right {
   display: flex;
   align-items: center;
@@ -661,7 +665,7 @@ onMounted(async () => {
 /* Avatar stack */
 .avatar-stack { display: flex; align-items: center; }
 .avatar-stack__item {
-  border: 2px solid rgba(13,17,23,0.9);
+  border: 2px solid var(--background);
   margin-left: -8px;
   font-size: 0.6rem !important;
 }
@@ -669,11 +673,11 @@ onMounted(async () => {
 .avatar-more {
   width: 32px; height: 32px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.5);
+  background: color-mix(in oklab, var(--border) 50%, transparent);
+  color: var(--muted-fg);
   font-size: 0.65rem;
   display: flex; align-items: center; justify-content: center;
-  border: 2px solid rgba(13,17,23,0.9);
+  border: 2px solid var(--background);
   margin-left: -8px;
 }
 
@@ -691,15 +695,15 @@ onMounted(async () => {
 }
 .count-badge__label {
   font-size: 0.65rem;
-  color: rgba(255,255,255,0.3);
+  color: var(--muted-fg);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 /* Expanded detail rows */
 .team-card__detail {
-  border-top: 1px solid rgba(255,255,255,0.06);
-  background: rgba(0,0,0,0.2);
+  border-top: 1px solid var(--border);
+  background: color-mix(in oklab, var(--background) 60%, transparent);
   padding: 0 24px 12px;
 }
 
@@ -711,8 +715,8 @@ onMounted(async () => {
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgba(255,255,255,0.25);
-  border-bottom: 1px solid rgba(255,255,255,0.04);
+  color: var(--muted-fg);
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 40%, transparent);
   margin-bottom: 4px;
 }
 .detail-header--admin {
@@ -725,7 +729,7 @@ onMounted(async () => {
   gap: 16px;
   padding: 8px 0;
   font-size: 0.82rem;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 30%, transparent);
   align-items: center;
 }
 .detail-row--admin {
@@ -735,12 +739,12 @@ onMounted(async () => {
 .detail-actions { text-align: right; }
 
 .detail-time {
-  color: rgba(255,255,255,0.35);
+  color: var(--muted-fg);
   font-variant-numeric: tabular-nums;
   font-size: 0.75rem;
 }
-.detail-act  { color: rgba(255,255,255,0.85); font-weight: 500; }
-.detail-collabs { color: rgba(255,255,255,0.4); font-size: 0.75rem; }
+.detail-act  { color: var(--fg); font-weight: 500; }
+.detail-collabs { color: var(--muted-fg); font-size: 0.75rem; }
 
 /* Slide transition */
 .slide-enter-active, .slide-leave-active {
@@ -755,23 +759,6 @@ onMounted(async () => {
   text-align: center;
   padding: 64px 0;
 }
-
-/* Light theme overrides */
-:root[data-theme="light"] .kpi-tile,
-:root[data-theme="light"] .team-card {
-  background: rgba(0,0,0,0.03);
-  border-color: rgba(0,0,0,0.08);
-}
-:root[data-theme="light"] .team-badge {
-  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-}
-:root[data-theme="light"] .kpi-value { color: #111827; }
-:root[data-theme="light"] .kpi-label { color: #6b7280; }
-:root[data-theme="light"] .count-badge__number { color: #16a34a; }
-:root[data-theme="light"] .count-badge__label { color: #9ca3af; }
-:root[data-theme="light"] .detail-act { color: #111827; }
-:root[data-theme="light"] .detail-collabs { color: #6b7280; }
-:root[data-theme="light"] .team-card__detail { background: rgba(0,0,0,0.03); }
 
 /* Responsive */
 @media (max-width: 768px) {
