@@ -201,9 +201,13 @@ function strColor (str = '') {
 </script>
 
 <style scoped>
+/* ── Page ───────────────────────────────────────────────── */
 .dash-page {
   padding: 32px 36px;
-  max-width: 1400px;
+  max-width: 1500px;
+  background: var(--background);
+  min-height: 100vh;
+  font-family: 'Manrope', sans-serif;
 }
 
 /* ── Header ─────────────────────────────────────────────── */
@@ -214,15 +218,16 @@ function strColor (str = '') {
   margin-bottom: 28px;
 }
 .dash-title {
+  font-family: 'Sora', sans-serif;
   font-size: 1.6rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #f0f4ff;
+  color: var(--fg);
 }
 .dash-date {
   font-size: 0.8rem;
-  color: #4b5680;
-  margin-top: 2px;
+  color: var(--muted-fg);
+  margin-top: 3px;
   text-transform: capitalize;
 }
 
@@ -231,12 +236,12 @@ function strColor (str = '') {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.25);
-  border-radius: 12px;
+  background: color-mix(in oklab, oklch(0.769 0.188 70.08) 8%, transparent);
+  border: 1px solid color-mix(in oklab, oklch(0.769 0.188 70.08) 22%, transparent);
+  border-radius: 10px;
   padding: 10px 18px;
   font-size: 0.85rem;
-  color: #fcd34d;
+  color: oklch(0.828 0.189 84.429);
 }
 .alert-left {
   display: flex;
@@ -246,8 +251,8 @@ function strColor (str = '') {
 .alert-dot {
   width: 7px; height: 7px;
   border-radius: 50%;
-  background: #f59e0b;
-  box-shadow: 0 0 0 3px rgba(245,158,11,0.25);
+  background: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 25%, transparent);
   flex-shrink: 0;
 }
 
@@ -255,21 +260,21 @@ function strColor (str = '') {
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  gap: 14px;
 }
 
 .kpi-card {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 14px;
-  padding: 20px 22px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent, #e8651e);
+  border-radius: 10px;
+  padding: 20px 22px 18px;
   position: relative;
-  overflow: hidden;
-  transition: border-color 0.2s, background 0.2s;
+  transition: border-color 0.18s, box-shadow 0.18s;
 }
 .kpi-card:hover {
-  background: rgba(255,255,255,0.05);
-  border-color: rgba(255,255,255,0.12);
+  border-color: color-mix(in oklab, var(--primary) 50%, var(--border));
+  box-shadow: 0 4px 24px color-mix(in oklab, var(--primary) 10%, transparent);
 }
 
 .kpi-top {
@@ -279,53 +284,50 @@ function strColor (str = '') {
   margin-bottom: 14px;
 }
 .kpi-label {
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: 0.68rem;
+  font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #4b5680;
+  color: var(--muted-fg);
 }
 .kpi-icon-wrap {
   width: 32px; height: 32px;
   border-radius: 8px;
-  background: rgba(255,255,255,0.05);
+  background: color-mix(in oklab, var(--accent, #e8651e) 14%, transparent);
+  border: 1px solid color-mix(in oklab, var(--accent, #e8651e) 22%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent);
+  color: var(--accent, #e8651e);
 }
 .kpi-value {
+  font-family: 'Sora', sans-serif;
   font-size: 2.4rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.04em;
-  color: #f0f4ff;
+  color: var(--fg);
   line-height: 1;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
+  font-variant-numeric: tabular-nums;
 }
 .kpi-sub {
-  font-size: 0.75rem;
-  color: #4b5680;
+  font-size: 0.73rem;
+  color: var(--muted-fg);
 }
-.kpi-bar {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 2px;
-  background: var(--accent);
-  opacity: 0.5;
-}
+.kpi-bar { display: none; }
 
 /* ── Main grid ──────────────────────────────────────────── */
 .main-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 16px;
+  gap: 14px;
 }
 .span-2 { grid-column: span 2; }
 
 .card-block {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
   padding: 22px 24px;
 }
 .block-header {
@@ -335,9 +337,10 @@ function strColor (str = '') {
   margin-bottom: 20px;
 }
 .block-title {
+  font-family: 'Sora', sans-serif;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #c8d0f0;
+  color: var(--fg);
   letter-spacing: 0.01em;
 }
 
@@ -349,10 +352,10 @@ function strColor (str = '') {
   gap: 10px;
   padding: 32px 0;
   font-size: 0.82rem;
-  color: #4b5680;
+  color: var(--muted-fg);
   text-align: center;
 }
-.empty-icon { color: #2a2f4a; }
+.empty-icon { color: var(--border); }
 
 /* ── Evidências table ───────────────────────────────────── */
 .ev-table {
@@ -362,81 +365,94 @@ function strColor (str = '') {
 }
 .ev-table th {
   text-align: left;
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: #4b5680;
+  color: var(--muted-fg);
   padding: 0 10px 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid var(--border);
 }
 .ev-table th.center, .ev-table td.center { text-align: center; }
 .ev-table td {
-  padding: 11px 10px;
-  color: #c8d0f0;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
+  padding: 10px 10px;
+  color: var(--fg);
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 50%, transparent);
+  transition: background 0.12s;
 }
+.ev-table tr:hover td { background: color-mix(in oklab, var(--background) 60%, transparent); }
 .ev-table tr:last-child td { border-bottom: none; }
 
 .team-cell { display: flex; align-items: center; gap: 8px; }
 .team-dot {
   width: 24px; height: 24px;
   border-radius: 6px;
-  background: rgba(59,130,246,0.2);
-  color: #3b82f6;
+  background: color-mix(in oklab, var(--primary) 18%, transparent);
+  color: var(--primary);
   font-size: 0.7rem;
   font-weight: 700;
   display: flex; align-items: center; justify-content: center;
 }
-.muted { color: #4b5680; }
+.muted { color: var(--muted-fg); }
 
 .status-pill {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 100px;
-  font-size: 0.7rem;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
 }
 .status-pill.synced {
-  background: rgba(34,197,94,0.12);
+  background: color-mix(in oklab, #4ade80 12%, transparent);
   color: #4ade80;
+  border: 1px solid color-mix(in oklab, #4ade80 22%, transparent);
 }
 .status-pill.pending {
-  background: rgba(245,158,11,0.12);
-  color: #fbbf24;
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
+  color: var(--primary);
+  border: 1px solid color-mix(in oklab, var(--primary) 22%, transparent);
 }
 
 /* ── Team list ──────────────────────────────────────────── */
-.team-list { display: flex; flex-direction: column; gap: 4px; }
+.team-list { display: flex; flex-direction: column; gap: 2px; }
 .team-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 6px;
+  padding: 8px 8px;
   border-radius: 8px;
-  transition: background 0.15s;
+  transition: background 0.12s;
 }
-.team-row:hover { background: rgba(255,255,255,0.04); }
+.team-row:hover { background: color-mix(in oklab, var(--background) 60%, transparent); }
 
 .team-avatar {
   width: 34px; height: 34px;
-  border-radius: 9px;
+  border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
+  font-family: 'Sora', sans-serif;
   font-weight: 700; font-size: 0.8rem;
   color: #fff;
   flex-shrink: 0;
 }
 .team-info { flex: 1; min-width: 0; }
-.team-name { font-size: 0.82rem; font-weight: 600; color: #c8d0f0; }
-.team-sub { font-size: 0.72rem; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team-name { font-size: 0.82rem; font-weight: 600; color: var(--fg); }
+.team-sub {
+  font-size: 0.72rem;
+  color: var(--muted-fg);
+  margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 .team-badge {
   font-size: 0.68rem;
-  font-weight: 600;
-  color: #4b5680;
-  background: rgba(255,255,255,0.05);
-  padding: 2px 8px;
-  border-radius: 100px;
+  font-weight: 700;
+  color: var(--muted-fg);
+  background: color-mix(in oklab, var(--border) 40%, transparent);
+  padding: 2px 9px;
+  border-radius: 999px;
   white-space: nowrap;
 }
 </style>
