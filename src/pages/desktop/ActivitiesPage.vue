@@ -22,13 +22,18 @@
           <q-input v-model="atividadesDate" type="date" label="Todas as datas"
             outlined dense clearable bg-color="surface" style="min-width:190px;"
             @update:model-value="loadAtividades" />
-          <q-select v-model="atividadesTeam" :options="teamOptions" label="Todas as equipes"
+          <q-select v-model="atividadesTeam" :options="filteredTeamOptions" label="Todas as equipes"
             outlined dense clearable emit-value map-options bg-color="surface"
+            use-input input-debounce="0" @filter="filterTeams"
             style="min-width:260px;" @update:model-value="loadAtividades" />
-          <q-select v-model="filterSupervisor" :options="supervisoresList" label="Supervisor"
-            outlined dense clearable bg-color="surface" style="min-width:180px;" />
-          <q-select v-model="filterCoordenador" :options="coordenadoresList" label="Coordenador"
-            outlined dense clearable bg-color="surface" style="min-width:160px;" />
+          <q-select v-model="filterSupervisor" :options="filteredSupervisores" label="Supervisor"
+            outlined dense clearable bg-color="surface"
+            use-input input-debounce="0" @filter="filterSupervisores"
+            style="min-width:180px;" />
+          <q-select v-model="filterCoordenador" :options="filteredCoordenadores" label="Coordenador"
+            outlined dense clearable bg-color="surface"
+            use-input input-debounce="0" @filter="filterCoordenadores"
+            style="min-width:160px;" />
           <q-btn unelevated icon="refresh" label="Atualizar" color="primary"
             :loading="loadingAtividades" @click="loadAtividades"
             style="height:40px; border-radius:8px;" />
@@ -264,6 +269,40 @@ const coordenadoresList = computed(() => {
 const teamOptions = computed(() =>
   teamsStore.teams.map(t => ({ label: `${t.prefixo} — ${t.nome}`, value: t.id }))
 )
+
+// ── Filtered refs para use-input ────────────────────────────
+const filteredTeamOptions    = ref([])
+const filteredSupervisores   = ref([])
+const filteredCoordenadores  = ref([])
+
+watch(teamOptions,    v => { filteredTeamOptions.value   = v }, { immediate: true })
+watch(supervisoresList, v => { filteredSupervisores.value  = v }, { immediate: true })
+watch(coordenadoresList, v => { filteredCoordenadores.value = v }, { immediate: true })
+
+function filterTeams (val, update) {
+  update(() => {
+    const q = val.toLowerCase()
+    filteredTeamOptions.value = q
+      ? teamOptions.value.filter(o => o.label.toLowerCase().includes(q))
+      : teamOptions.value
+  })
+}
+function filterSupervisores (val, update) {
+  update(() => {
+    const q = val.toLowerCase()
+    filteredSupervisores.value = q
+      ? supervisoresList.value.filter(s => s.toLowerCase().includes(q))
+      : supervisoresList.value
+  })
+}
+function filterCoordenadores (val, update) {
+  update(() => {
+    const q = val.toLowerCase()
+    filteredCoordenadores.value = q
+      ? coordenadoresList.value.filter(s => s.toLowerCase().includes(q))
+      : coordenadoresList.value
+  })
+}
 
 const totalServicos = computed(() =>
   resumoEquipes.value.reduce((sum, e) => sum + e.total, 0)
