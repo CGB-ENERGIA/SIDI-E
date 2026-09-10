@@ -361,7 +361,7 @@
                   </div>
                 </div>
                 <div v-else class="no-fotos"><q-icon name="no_photography" size="18px" class="q-mr-xs" /> Sem fotos</div>
-                <div v-if="authStore.isAdmin" class="svc-actions q-mt-sm">
+                <div v-if="authStore.isSuperAdmin" class="svc-actions q-mt-sm">
                   <q-btn flat color="negative" icon="delete" label="Excluir" size="sm" no-caps
                     :loading="deletingId === item.id"
                     @click="deleteHistoryItem(item)" />
@@ -418,7 +418,7 @@
                 <div v-if="item.validation_obs" class="val-obs">
                   <q-icon name="info" size="14px" class="q-mr-xs" />{{ item.validation_obs }}
                 </div>
-                <div v-if="authStore.isAdmin" class="svc-actions q-mt-sm">
+                <div v-if="authStore.isSuperAdmin" class="svc-actions q-mt-sm">
                   <q-btn flat color="negative" icon="delete" label="Excluir" size="sm" no-caps
                     :loading="deletingId === item.id"
                     @click="deleteHistoryItem(item)" />
