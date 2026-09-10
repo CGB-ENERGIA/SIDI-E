@@ -361,6 +361,11 @@
                   </div>
                 </div>
                 <div v-else class="no-fotos"><q-icon name="no_photography" size="18px" class="q-mr-xs" /> Sem fotos</div>
+                <div v-if="authStore.isAdmin" class="svc-actions q-mt-sm">
+                  <q-btn flat color="negative" icon="delete" label="Excluir" size="sm" no-caps
+                    :loading="deletingId === item.id"
+                    @click="deleteHistoryItem(item)" />
+                </div>
               </div>
             </div>
           </div>
@@ -412,6 +417,11 @@
                 <div v-else class="no-fotos"><q-icon name="no_photography" size="18px" class="q-mr-xs" /> Sem fotos</div>
                 <div v-if="item.validation_obs" class="val-obs">
                   <q-icon name="info" size="14px" class="q-mr-xs" />{{ item.validation_obs }}
+                </div>
+                <div v-if="authStore.isAdmin" class="svc-actions q-mt-sm">
+                  <q-btn flat color="negative" icon="delete" label="Excluir" size="sm" no-caps
+                    :loading="deletingId === item.id"
+                    @click="deleteHistoryItem(item)" />
                 </div>
               </div>
             </div>
@@ -479,6 +489,8 @@ const historyServices   = ref([])
 
 const loadingCounts = ref(false)
 const counts        = ref({})
+
+const deletingId        = ref(null)
 
 const showPhoto         = ref(false)
 const currentPhotoUrl   = ref('')
@@ -722,6 +734,29 @@ async function reabrir (svc) {
     await loadCounts()
   } catch (e) { $q.notify({ type: 'negative', message: e.message }) }
   finally { savingId.value = null }
+}
+
+async function deleteHistoryItem (item) {
+  $q.dialog({
+    title: 'Excluir registro',
+    message: `Excluir o apontamento de <b>${item.teams?.prefixo || '—'}</b>? Esta ação não pode ser desfeita.`,
+    html: true,
+    cancel: { flat: true, label: 'Cancelar' },
+    ok: { unelevated: true, color: 'negative', label: 'Excluir' }
+  }).onOk(async () => {
+    deletingId.value = item.id
+    try {
+      const { error } = await supabase.from('services').delete().eq('id', item.id)
+      if (error) throw error
+      historyServices.value = historyServices.value.filter(s => s.id !== item.id)
+      $q.notify({ type: 'positive', message: 'Registro excluído.' })
+      await loadCounts()
+    } catch (e) {
+      $q.notify({ type: 'negative', message: 'Erro ao excluir: ' + e.message })
+    } finally {
+      deletingId.value = null
+    }
+  })
 }
 
 function photoUrl (filePath) {
