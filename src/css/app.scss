@@ -1,10 +1,61 @@
 // app global css in SCSS form
 
+// ── Signal Panel — tokens globais ────────────────────────────
 :root {
-  --gstc-primary: #1E88E5;
-  --gstc-secondary: #78909C;
-  --gstc-accent: #FF6D00;
-  --gstc-surface: #1E2B3C;
+  --radius: 0.5rem;
+
+  /* Superfícies — carvão */
+  --background:       oklch(0.21 0 0);
+  --fg:               oklch(0.94 0.005 70);
+  --card:             oklch(0.29 0 0);
+  --popover:          oklch(0.29 0 0);
+  --secondary:        oklch(0.27 0 0);
+  --muted:            oklch(0.31 0 0);
+  --muted-fg:         oklch(0.67 0.01 70);
+  --border:           oklch(0.38 0 0);
+  --input:            oklch(0.38 0 0);
+
+  /* Acento — laranja energético */
+  --primary:          oklch(0.64 0.18 35);
+  --primary-fg:       oklch(0.16 0 0);
+  --accent:           oklch(0.64 0.18 35);
+  --ring:             oklch(0.64 0.18 35);
+
+  --destructive:      oklch(0.577 0.245 27.325);
+  --shadow-energy:    0 0 16px color-mix(in oklab, var(--primary) 32%, transparent);
+
+  /* Sidebar */
+  --sidebar:          oklch(0.27 0 0);
+  --sidebar-border:   oklch(0.38 0 0);
+
+  /* Legado — manter compatibilidade com código existente */
+  --gstc-primary:  #E8651E;
+  --gstc-secondary:#3F3F3F;
+  --gstc-accent:   #E8651E;
+  --gstc-surface:  #444444;
+}
+
+// ── Animações Signal Panel ───────────────────────────────────
+@keyframes signal-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+@keyframes signal-scan {
+  from { transform: translateX(-120%); }
+  to   { transform: translateX(420%); }
+}
+.signal-pulse { animation: signal-pulse 2.4s ease-in-out infinite; }
+.signal-scan  { animation: signal-scan  4s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .signal-pulse, .signal-scan { animation: none; }
+}
+
+// ── Tipografia global ────────────────────────────────────────
+body {
+  font-family: 'Manrope', sans-serif;
+}
+.font-display, .sgp-header-title, .sgp-logo {
+  font-family: 'Sora', sans-serif;
 }
 
 * {

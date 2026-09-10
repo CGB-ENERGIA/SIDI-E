@@ -1,15 +1,15 @@
-// GSTC Quasar variables — tema escuro de alta visibilidade
+// Signal Panel — CGB Energia visual tokens
 
-// Azul vivo: visível e legível sobre qualquer superfície escura
-$primary   : #1E88E5;
-// Azul-cinza neutro: ícones/textos secundários legíveis
-$secondary : #78909C;
-// Laranja vivo: ações e destaques com máximo contraste
-$accent    : #FF6D00;
+// Laranja energético (primary / acento)
+$primary   : #E8651E;
+// Superfície secundária (sidebar)
+$secondary : #3F3F3F;
+// Laranja repetido como accent para chips, etc.
+$accent    : #E8651E;
 
-// Superfícies com separação clara entre fundo e cards
-$dark      : #1E2B3C;
-$dark-page : #111827;
+// Superfícies — carvão escuro
+$dark      : #444444;   // cards / popover
+$dark-page : #2E2E2E;   // fundo de página
 
 $positive  : #43A047;
 $negative  : #FF5252;
