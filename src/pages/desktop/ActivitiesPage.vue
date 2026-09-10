@@ -229,7 +229,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useActivitiesStore } from 'src/stores/activities'
 import { useTeamsStore } from 'src/stores/teams'
 import { useEvidenceStore } from 'src/stores/evidence'
