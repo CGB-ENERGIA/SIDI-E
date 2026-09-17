@@ -69,7 +69,7 @@
                   {{ ev.teams?.prefixo || '-' }}
                 </div>
               </td>
-              <td class="muted">{{ ev.activity_id || '-' }}</td>
+              <td class="muted">{{ ev.activity_name || '-' }}</td>
               <td class="center">{{ ev.evidence_photos?.length || 0 }}</td>
               <td class="center">
                 <span class="status-pill" :class="ev.sync_status === 'synced' ? 'synced' : 'pending'">
