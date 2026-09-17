@@ -1,7 +1,7 @@
 <template>
   <q-layout view="hHh lpR fFf">
 
-    <!-- PWA install banner -->
+    <!-- PWA install banner (lembrete leve em visitas seguintes) -->
     <transition name="slide-up">
       <div v-if="showInstallBanner" class="pwa-install-banner">
         <img src="/icons/icon-192x192.png" class="pwa-banner-icon" alt="SIDI-E" />
@@ -15,6 +15,55 @@
           class="q-ml-xs" @click="showInstallBanner = false" />
       </div>
     </transition>
+
+    <!-- Convite obrigatório de instalação na 1ª visita pelo link -->
+    <q-dialog v-model="showInstallModal" persistent>
+      <q-card style="max-width: 380px; border-radius: 16px;">
+        <q-card-section class="text-center q-pt-lg">
+          <img src="/icons/icon-192x192.png" style="width:64px;height:64px;border-radius:14px;" alt="SIDI-E" />
+          <div class="text-h6 text-weight-bold q-mt-md">Instale o SIDI-E</div>
+          <div class="text-caption text-grey-7 q-mt-xs">
+            Este app foi feito para uso em campo <strong>sem internet</strong>.
+            Instalando na tela inicial, o turno continua salvo mesmo se você
+            fechar o app ou ficar sem sinal.
+          </div>
+        </q-card-section>
+
+        <q-card-section class="q-pt-none">
+          <!-- iOS: sem prompt nativo, só instruções manuais -->
+          <div v-if="isIOS" class="ios-steps q-pa-md q-mt-sm">
+            <div class="flex items-center q-mb-sm">
+              <q-icon name="ios_share" size="20px" color="primary" class="q-mr-sm" />
+              <span>Toque em <strong>Compartilhar</strong> na barra do Safari</span>
+            </div>
+            <div class="flex items-center">
+              <q-icon name="add_box" size="20px" color="primary" class="q-mr-sm" />
+              <span>Depois em <strong>"Adicionar à Tela de Início"</strong></span>
+            </div>
+          </div>
+
+          <!-- Android/Chrome: prompt nativo já capturado -->
+          <q-btn
+            v-else-if="deferredPrompt"
+            unelevated rounded color="primary" icon="install_mobile"
+            label="Instalar agora" class="full-width q-mt-sm" size="lg"
+            @click="installFromModal"
+          />
+
+          <!-- Fallback genérico: navegador não expôs o evento a tempo -->
+          <div v-else class="ios-steps q-pa-md q-mt-sm">
+            <div class="flex items-center">
+              <q-icon name="more_vert" size="20px" color="primary" class="q-mr-sm" />
+              <span>Abra o menu do navegador e toque em <strong>"Instalar aplicativo"</strong></span>
+            </div>
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pa-md q-pt-none">
+          <q-btn flat label="Agora não" color="grey-7" @click="showInstallModal = false" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
     <!-- Header: only on authenticated screens (never on login) -->
     <q-header v-if="showHeader" elevated class="bg-primary">
@@ -138,30 +187,65 @@ async function triggerSync () {
 }
 
 // ── PWA install prompt ────────────────────────────────
+const INSTALL_ASKED_KEY = 'sidie_pwa_install_asked'
+
 const showInstallBanner = ref(false)
-let deferredPrompt = null
+const showInstallModal = ref(false)
+const deferredPrompt = ref(null)
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.MSStream
+
+function isStandalone () {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
+}
 
 function onBeforeInstallPrompt (e) {
   e.preventDefault()
-  deferredPrompt = e
-  // Só mostra se não estiver rodando como PWA instalada
-  if (window.matchMedia('(display-mode: standalone)').matches) return
+  deferredPrompt.value = e
+  if (isStandalone()) return
+  // 1ª visita: o modal (disparado no onMounted) já cobre o convite —
+  // evita mostrar banner + modal juntos na mesma entrada
+  if (!localStorage.getItem(INSTALL_ASKED_KEY)) return
   showInstallBanner.value = true
 }
 
-async function installPwa () {
-  if (!deferredPrompt) return
-  showInstallBanner.value = false
-  deferredPrompt.prompt()
-  const { outcome } = await deferredPrompt.userChoice
+async function runNativeInstallPrompt () {
+  if (!deferredPrompt.value) return
+  deferredPrompt.value.prompt()
+  const { outcome } = await deferredPrompt.value.userChoice
   if (outcome === 'accepted') {
     $q.notify({ type: 'positive', message: 'SIDI-E instalado com sucesso!' })
   }
-  deferredPrompt = null
+  deferredPrompt.value = null
+}
+
+async function installPwa () {
+  showInstallBanner.value = false
+  await runNativeInstallPrompt()
+}
+
+async function installFromModal () {
+  showInstallModal.value = false
+  await runNativeInstallPrompt()
+}
+
+/** Garante que todo usuário que entra pela 1ª vez pelo link veja o convite
+ *  de instalação — não depende só do beforeinstallprompt do navegador,
+ *  que nunca dispara no iOS Safari e pode demorar/nunca vir no Android. */
+function maybeShowFirstVisitInstallPrompt () {
+  if (isStandalone()) return
+  if (localStorage.getItem(INSTALL_ASKED_KEY)) return
+  // Dá um tempo para o Chrome/Edge disparar beforeinstallprompt antes de decidir
+  // qual variante mostrar (nativa vs. instruções genéricas)
+  setTimeout(() => {
+    if (isStandalone()) return
+    localStorage.setItem(INSTALL_ASKED_KEY, '1')
+    showInstallModal.value = true
+  }, 1500)
 }
 
 onMounted(() => {
   window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt)
+  maybeShowFirstVisitInstallPrompt()
 })
 onBeforeUnmount(() => {
   window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt)
@@ -221,6 +305,14 @@ function logoutConfirm () {
 </script>
 
 <style scoped>
+.ios-steps {
+  background: color-mix(in oklab, var(--primary) 8%, transparent);
+  border: 1px solid color-mix(in oklab, var(--primary) 25%, transparent);
+  border-radius: 10px;
+  font-size: 0.85rem;
+}
+.ios-steps > div:not(:last-child) { margin-bottom: 10px; }
+
 .pwa-install-banner {
   position: fixed;
   bottom: 16px;
