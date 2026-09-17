@@ -55,21 +55,21 @@
         <table v-else class="ev-table">
           <thead>
             <tr>
-              <th>Equipe</th>
-              <th>Atividade</th>
+              <th class="center">Equipe</th>
+              <th class="center">Atividade</th>
               <th class="center">Fotos</th>
               <th class="center">Status</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="ev in recentEvidences" :key="ev.id">
-              <td>
+              <td class="center">
                 <div class="team-cell">
                   <span class="team-dot">{{ (ev.teams?.prefixo || '?').charAt(0) }}</span>
                   {{ ev.teams?.prefixo || '-' }}
                 </div>
               </td>
-              <td class="muted">{{ ev.activity_name || '-' }}</td>
+              <td class="center muted">{{ ev.activity_name || '-' }}</td>
               <td class="center">{{ ev.evidence_photos?.length || 0 }}</td>
               <td class="center">
                 <span class="status-pill" :class="ev.sync_status === 'synced' ? 'synced' : 'pending'">
@@ -383,7 +383,7 @@ function strColor (str = '') {
 .ev-table tr:hover td { background: color-mix(in oklab, var(--background) 60%, transparent); }
 .ev-table tr:last-child td { border-bottom: none; }
 
-.team-cell { display: flex; align-items: center; gap: 8px; }
+.team-cell { display: inline-flex; align-items: center; gap: 8px; }
 .team-dot {
   width: 24px; height: 24px;
   border-radius: 6px;
