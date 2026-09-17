@@ -68,7 +68,13 @@ const routes = [
     path: '/m',
     component: () => import('src/layouts/MobileLayout.vue'),
     children: [
-      { path: '', redirect: '/m/login' },
+      {
+        path: '',
+        redirect: () => {
+          const authStore = useAuthStore()
+          return authStore.mobileSession ? '/m/home' : '/m/login'
+        }
+      },
       {
         path: 'login',
         name: 'MobileLogin',
@@ -152,6 +158,12 @@ export default defineRouter(function () {
     // Restrict super-admin-only pages (somente matrícula 12690)
     if (to.meta.superAdminOnly && !authStore.isSuperAdmin && !shotPreview) {
       return { path: '/dashboard' }
+    }
+
+    // PWA start_url aponta fixo para /m/login — se já existe turno ativo salvo
+    // localmente, pula a tela de login (fundamental para uso offline)
+    if (to.name === 'MobileLogin' && authStore.mobileSession) {
+      return { path: '/m/home' }
     }
 
     // Protect mobile routes
