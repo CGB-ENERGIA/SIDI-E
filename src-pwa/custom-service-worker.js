@@ -1,7 +1,6 @@
 import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching'
 import { registerRoute, NavigationRoute } from 'workbox-routing'
 import { NetworkFirst, CacheFirst, StaleWhileRevalidate } from 'workbox-strategies'
-import { BackgroundSyncPlugin } from 'workbox-background-sync'
 import { ExpirationPlugin } from 'workbox-expiration'
 
 // Injeta o precache gerado pelo Quasar
@@ -28,34 +27,14 @@ self.addEventListener('message', event => {
 
 self.clients.claim()
 
-// ── BackgroundSync: fila para POSTs/PATCHs ao Supabase ───────────────
-const syncPlugin = new BackgroundSyncPlugin('supabase-sync-queue', {
-  maxRetentionTime: 7 * 24 * 60 // 7 dias em minutos
-})
-
-// POST ao Supabase (inserção de serviços, fotos, colaboradores)
-registerRoute(
-  ({ url, request }) =>
-    url.hostname.endsWith('supabase.co') && request.method === 'POST',
-  new NetworkFirst({
-    cacheName: 'supabase-mutations',
-    networkTimeoutSeconds: 10,
-    plugins: [syncPlugin]
-  }),
-  'POST'
-)
-
-// PATCH ao Supabase (atualizações)
-registerRoute(
-  ({ url, request }) =>
-    url.hostname.endsWith('supabase.co') && request.method === 'PATCH',
-  new NetworkFirst({
-    cacheName: 'supabase-mutations',
-    networkTimeoutSeconds: 10,
-    plugins: [syncPlugin]
-  }),
-  'PATCH'
-)
+// ── Mutações (POST/PATCH) ao Supabase: NÃO interceptar ───────────────
+// A app já mantém sua própria fila offline (IndexedDB, ver src/services/localDB.js
+// e src/stores/evidence.js) com estado de retry visível ao usuário. Um Background
+// Sync do Service Worker aqui reenviaria a MESMA requisição de forma automática e
+// descoordenada com o retry da app, causando serviços e fotos duplicados no banco
+// sempre que uma gravação falhasse por timeout/queda de conexão. Deixando essas
+// rotas sem registro, o navegador usa o fetch normal — falha rápido e visível,
+// e a fila da própria app é a ÚNICA responsável por reenviar.
 
 // ── GETs ao Supabase: NetworkFirst com cache longo ───────────────────
 registerRoute(
@@ -88,17 +67,6 @@ registerRoute(
     request.destination === 'font',
   new StaleWhileRevalidate({ cacheName: 'static-assets' })
 )
-
-// ── Notifica clientes após BackgroundSync ────────────────────────────
-self.addEventListener('sync', event => {
-  if (event.tag === 'workbox-background-sync:supabase-sync-queue') {
-    event.waitUntil(
-      self.clients.matchAll({ includeUncontrolled: true }).then(clients => {
-        clients.forEach(c => c.postMessage({ type: 'BACKGROUND_SYNC_DONE' }))
-      })
-    )
-  }
-})
 
 // ── Periodic Background Sync ──────────────────────────────────────────
 self.addEventListener('periodicsync', event => {

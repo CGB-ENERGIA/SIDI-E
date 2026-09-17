@@ -189,12 +189,31 @@ function logoutConfirm () {
     persistent: true
   }).onOk(async () => {
     const session = authStore.mobileSession
-    if (session?.equipeId && onlineStore.isOnline) {
-      await supabase
-        .from('active_sessions')
-        .delete()
-        .eq('team_id', session.equipeId)
+
+    if (onlineStore.isOnline) {
+      $q.loading.show({ message: 'Sincronizando pendências...' })
+      try {
+        await evidenceStore.syncPending()
+      } finally {
+        $q.loading.hide()
+      }
+      if (session?.equipeId) {
+        await supabase
+          .from('active_sessions')
+          .delete()
+          .eq('team_id', session.equipeId)
+      }
     }
+
+    if (onlineStore.pendingCount > 0) {
+      $q.notify({
+        type: 'warning',
+        message: `${onlineStore.pendingCount} item(ns) ainda não sincronizado(s).`,
+        caption: 'Serão enviados automaticamente na próxima conexão neste aparelho.',
+        timeout: 6000
+      })
+    }
+
     authStore.mobileLogout()
     router.replace('/m/login')
   })

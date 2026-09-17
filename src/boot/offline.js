@@ -27,12 +27,17 @@ export default boot(({ app }) => {
   // Contagem inicial
   refreshPendingCount()
 
+  // ── Storage persistente ──────────────────────────────────────────────
+  // Sem isso, o navegador (Android sob pressão de espaço, iOS Safari) pode
+  // apagar a IndexedDB com serviços/fotos ainda não sincronizados. Pedir
+  // persistência reduz (não elimina) esse risco.
+  if (navigator.storage?.persist) {
+    navigator.storage.persist().catch(() => {})
+  }
+
   // ── Service Worker: mensagens do SW (BackgroundSync + Update) ────────
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', async event => {
-      if (event.data?.type === 'BACKGROUND_SYNC_DONE') {
-        await refreshPendingCount()
-      }
       if (event.data?.type === 'PERIODIC_SYNC') {
         // O sistema acordou o app em segundo plano — tenta sincronizar
         if (online.isOnline) {
