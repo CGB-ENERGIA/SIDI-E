@@ -143,6 +143,7 @@ const $q = useQuasar()
 const loading = ref(false)
 const recentEvidences = ref([])
 const pendingRequests = ref([])
+const pendentesValidacao = ref(0)
 const approveDialog = ref(false)
 const selectedRequest = ref(null)
 const approvingId = ref(null)
@@ -155,10 +156,20 @@ onMounted(load)
 
 async function load () {
   loading.value = true
-  await Promise.all([teamsStore.fetchTeams(), fetchPendingRequests()])
+  await Promise.all([teamsStore.fetchTeams(), fetchPendingRequests(), fetchPendentesValidacao()])
   try { recentEvidences.value = await evidenceStore.fetchEvidences({ date: today }) }
   catch { recentEvidences.value = [] }
   finally { loading.value = false }
+}
+
+async function fetchPendentesValidacao () {
+  try {
+    const { count } = await supabase
+      .from('services')
+      .select('id', { count: 'exact', head: true })
+      .or('validation_status.is.null,validation_status.eq.pendente')
+    pendentesValidacao.value = count || 0
+  } catch { pendentesValidacao.value = 0 }
 }
 
 async function fetchPendingRequests () {
@@ -188,7 +199,7 @@ const kpis = computed(() => [
   { label: 'Equipes', value: teamsStore.teams.length, icon: 'groups', color: '#3b82f6', sub: 'cadastradas' },
   { label: 'Serviços Hoje', value: recentEvidences.value.length, icon: 'task_alt', color: '#22c55e', sub: 'registrados hoje' },
   { label: 'Fotos Hoje', value: recentEvidences.value.reduce((s, e) => s + (e.evidence_photos?.length || 0), 0), icon: 'photo_camera', color: '#a855f7', sub: 'evidências coletadas' },
-  { label: 'Pendentes Sync', value: recentEvidences.value.filter(e => e.sync_status !== 'synced').length, icon: 'cloud_sync', color: '#f59e0b', sub: 'aguardando envio' },
+  { label: 'Pend. Validação', value: pendentesValidacao.value, icon: 'pending_actions', color: '#f59e0b', sub: 'aguardando revisão' },
 ])
 
 const activeTeams = computed(() => teamsStore.teams.slice(0, 8))
@@ -260,7 +271,7 @@ function strColor (str = '') {
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
+  gap: 10px;
 }
 
 .kpi-card {
@@ -268,31 +279,31 @@ function strColor (str = '') {
   border: 1px solid var(--border);
   border-left: 3px solid var(--accent, #e8651e);
   border-radius: 10px;
-  padding: 20px 22px 18px;
+  padding: 13px 16px 12px;
   position: relative;
   transition: border-color 0.18s, box-shadow 0.18s;
 }
 .kpi-card:hover {
   border-color: color-mix(in oklab, var(--primary) 50%, var(--border));
-  box-shadow: 0 4px 24px color-mix(in oklab, var(--primary) 10%, transparent);
+  box-shadow: 0 4px 20px color-mix(in oklab, var(--primary) 10%, transparent);
 }
 
 .kpi-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 8px;
 }
 .kpi-label {
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--muted-fg);
 }
 .kpi-icon-wrap {
-  width: 32px; height: 32px;
-  border-radius: 8px;
+  width: 26px; height: 26px;
+  border-radius: 7px;
   background: color-mix(in oklab, var(--accent, #e8651e) 14%, transparent);
   border: 1px solid color-mix(in oklab, var(--accent, #e8651e) 22%, transparent);
   display: flex;
@@ -302,16 +313,16 @@ function strColor (str = '') {
 }
 .kpi-value {
   font-family: 'Sora', sans-serif;
-  font-size: 2.4rem;
+  font-size: 1.85rem;
   font-weight: 700;
   letter-spacing: -0.04em;
   color: var(--fg);
   line-height: 1;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
   font-variant-numeric: tabular-nums;
 }
 .kpi-sub {
-  font-size: 0.73rem;
+  font-size: 0.7rem;
   color: var(--muted-fg);
 }
 .kpi-bar { display: none; }
