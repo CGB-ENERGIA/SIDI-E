@@ -59,6 +59,16 @@
           <option value="inativo">Inativo</option>
         </select>
 
+        <select v-model="filterCoordenador" class="filter-select">
+          <option value="">Todos coordenadores</option>
+          <option v-for="c in coordenadoresList" :key="c" :value="c">{{ c }}</option>
+        </select>
+
+        <select v-model="filterGerencia" class="filter-select">
+          <option value="">Todas gerências</option>
+          <option v-for="g in gerentesList" :key="g" :value="g">{{ g }}</option>
+        </select>
+
         <button v-if="hasFilters" class="clear-btn" @click="clearFilters">
           <q-icon name="close" size="14px" /> Limpar
         </button>
@@ -303,23 +313,36 @@ const isAdmin = computed(() => authStore.isAdmin)
 const isSuperAdmin = computed(() => authStore.isSuperAdmin)
 
 // ── Filtros ─────────────────────────────────────────────
-const search        = ref('')
-const filterBase    = ref('')
-const filterProcesso = ref('')
-const filterStatus  = ref('')
-const page          = ref(1)
+const search          = ref('')
+const filterBase      = ref('')
+const filterProcesso  = ref('')
+const filterStatus    = ref('')
+const filterCoordenador = ref('')
+const filterGerencia  = ref('')
+const page            = ref(1)
 const perPage       = 20
 const sortCol       = ref('prefixo')
 const sortAsc       = ref(true)
 
 const hasFilters = computed(() =>
-  search.value || filterBase.value || filterProcesso.value || filterStatus.value
+  search.value || filterBase.value || filterProcesso.value || filterStatus.value ||
+  filterCoordenador.value || filterGerencia.value
 )
 
 function clearFilters () {
-  search.value = filterBase.value = filterProcesso.value = filterStatus.value = ''
+  search.value = filterBase.value = filterProcesso.value = filterStatus.value =
+    filterCoordenador.value = filterGerencia.value = ''
   page.value = 1
 }
+
+const coordenadoresList = computed(() => {
+  const s = new Set(teamsStore.teams.map(t => t.coordenador).filter(Boolean))
+  return [...s].sort()
+})
+const gerentesList = computed(() => {
+  const s = new Set(teamsStore.teams.map(t => t.gerencia).filter(Boolean))
+  return [...s].sort()
+})
 
 function sortBy (col) {
   if (sortCol.value === col) sortAsc.value = !sortAsc.value
@@ -343,9 +366,11 @@ const filtered = computed(() => {
                 !t.responsavel?.toLowerCase().includes(q) &&
                 !t.coordenador?.toLowerCase().includes(q) &&
                 !t.gerencia?.toLowerCase().includes(q)) return false
-      if (filterBase.value    && t.base     !== filterBase.value)    return false
-      if (filterProcesso.value && t.processo !== filterProcesso.value) return false
-      if (filterStatus.value  && t.status   !== filterStatus.value)  return false
+      if (filterBase.value      && t.base       !== filterBase.value)      return false
+      if (filterProcesso.value  && t.processo   !== filterProcesso.value)  return false
+      if (filterStatus.value    && t.status     !== filterStatus.value)    return false
+      if (filterCoordenador.value && t.coordenador !== filterCoordenador.value) return false
+      if (filterGerencia.value  && t.gerencia   !== filterGerencia.value)  return false
       return true
     })
     .sort((a, b) => {

@@ -22,6 +22,8 @@
           outlined dense clearable style="min-width:170px; background: transparent;" />
         <q-select v-model="filterCoordenador" :options="coordenadoresList" label="Coordenador"
           outlined dense clearable style="min-width:155px; background: transparent;" />
+        <q-select v-model="filterGerencia" :options="gerentesList" label="Gerência"
+          outlined dense clearable style="min-width:145px; background: transparent;" />
         <button class="export-btn" :disabled="!filteredServices.length" @click="exportCsv">
           <q-icon name="download" size="16px" />
           Exportar CSV
@@ -252,7 +254,6 @@ import { ref, computed, onMounted } from 'vue'
 import { useEvidenceStore } from 'src/stores/evidence'
 import { useTeamsStore } from 'src/stores/teams'
 import { useQuasar } from 'quasar'
-import { COORDENADORES } from 'src/data/equipes-filtro'
 
 const evidenceStore = useEvidenceStore()
 const $q = useQuasar()
@@ -260,15 +261,19 @@ const $q = useQuasar()
 const services = ref([])
 const filterSupervisor = ref(null)
 const filterCoordenador = ref(null)
+const filterGerencia = ref(null)
 const teamsStore = useTeamsStore()
 const supervisoresList = computed(() => {
   const s = new Set(teamsStore.teams.map(t => t.supervisor).filter(Boolean))
   return [...s].sort()
 })
 const coordenadoresList = computed(() => {
-  const fromDB = new Set(teamsStore.teams.map(t => t.coordenador).filter(Boolean))
-  if (fromDB.size > 0) return [...fromDB].sort()
-  return COORDENADORES
+  const s = new Set(teamsStore.teams.map(t => t.coordenador).filter(Boolean))
+  return [...s].sort()
+})
+const gerentesList = computed(() => {
+  const s = new Set(teamsStore.teams.map(t => t.gerencia).filter(Boolean))
+  return [...s].sort()
 })
 
 const today = new Date()
@@ -283,6 +288,10 @@ const filteredServices = computed(() => {
     if (filterCoordenador.value) {
       const team = teamsStore.teams.find(t => t.id === s.team_id)
       if (team?.coordenador !== filterCoordenador.value) return false
+    }
+    if (filterGerencia.value) {
+      const team = teamsStore.teams.find(t => t.id === s.team_id)
+      if (team?.gerencia !== filterGerencia.value) return false
     }
     return true
   })
