@@ -292,17 +292,35 @@
 
       <!-- ══ ABA: HISTÓRICO ══ -->
       <template v-else-if="activeTab === 'historico'">
-        <!-- Barra de filtros -->
-        <div class="filter-bar q-mb-lg">
-          <div class="search-wrap">
+
+        <!-- Barra de busca -->
+        <div class="filter-bar q-mb-md">
+          <div class="search-wrap" style="flex:1">
             <q-icon name="search" size="18px" class="search-icon" />
             <input v-model="histSearch" class="search-input" placeholder="Buscar equipe, atividade, validador…" />
           </div>
-          <q-btn v-if="histSearch"
-            flat icon="close" label="Limpar" size="sm" no-caps color="grey"
+          <q-btn v-if="histSearch" flat icon="close" label="Limpar" size="sm" no-caps color="grey"
             @click="histSearch = ''" />
-          <div class="q-ml-auto hist-count">
-            {{ histAprovados.length + histReprovados.length }} registro{{ (histAprovados.length + histReprovados.length) !== 1 ? 's' : '' }}
+        </div>
+
+        <!-- Stats bar -->
+        <div class="hist-stats-bar q-mb-lg">
+          <div class="hist-stat hist-stat--aprov">
+            <q-icon name="check_circle" size="20px" />
+            <span class="hist-stat-num">{{ histAprovados.length }}</span>
+            <span class="hist-stat-label">Aprovados</span>
+          </div>
+          <div class="hist-stat-divider" />
+          <div class="hist-stat hist-stat--reprov">
+            <q-icon name="cancel" size="20px" />
+            <span class="hist-stat-num">{{ histReprovados.length }}</span>
+            <span class="hist-stat-label">Reprovados</span>
+          </div>
+          <div class="hist-stat-divider" />
+          <div class="hist-stat hist-stat--total">
+            <q-icon name="analytics" size="20px" />
+            <span class="hist-stat-num">{{ histFeed.length }}</span>
+            <span class="hist-stat-label">Total</span>
           </div>
         </div>
 
@@ -310,125 +328,74 @@
           <q-spinner-dots size="48px" color="primary" />
         </div>
 
-        <div v-else-if="histAprovados.length === 0 && histReprovados.length === 0" class="empty-state">
+        <div v-else-if="histFeed.length === 0" class="empty-state">
           <q-icon name="history" size="56px" class="empty-icon" style="color:#60a5fa" />
           <div class="empty-text">Nenhum registro encontrado</div>
           <div class="empty-hint">Ajuste as datas ou valide alguns serviços primeiro</div>
         </div>
 
-        <div v-else class="hist-two-col">
+        <!-- Feed unificado cronológico -->
+        <div v-else class="hist-feed">
+          <div v-for="(item, hi) in histFeed" :key="item.id"
+            class="hf-card"
+            :class="item.validation_status === 'aprovada' ? 'hf-card--aprov' : 'hf-card--reprov'"
+            :style="{ '--si': hi }">
 
-          <!-- Coluna APROVADOS -->
-          <div class="hist-col">
-            <div class="hist-col-header hist-col-header--aprovado">
-              <q-icon name="check_circle" size="18px" />
-              <span>Aprovados</span>
-              <span class="hist-col-count">{{ histAprovados.length }}</span>
+            <!-- Acento lateral colorido via classe -->
+            <!-- Linha 1: status pill + equipe + data envio -->
+            <div class="hf-top">
+              <span class="hf-status-pill" :class="item.validation_status === 'aprovada' ? 'hf-pill--aprov' : 'hf-pill--reprov'">
+                <q-icon :name="item.validation_status === 'aprovada' ? 'check' : 'close'" size="12px" />
+                {{ item.validation_status === 'aprovada' ? 'Aprovado' : 'Reprovado' }}
+              </span>
+              <span class="hf-prefix">{{ item.teams?.prefixo || '—' }}</span>
+              <span class="hf-team-nome">{{ item.teams?.nome || '' }}</span>
+              <span class="hf-spacer" />
+              <span class="hf-send-date">
+                <q-icon name="event" size="13px" />{{ formatDate(item.created_at) }}
+              </span>
+              <q-btn v-if="authStore.isSuperAdmin" flat round dense size="sm"
+                icon="delete_outline" color="negative" style="opacity:.6;margin-left:4px"
+                :loading="deletingId === item.id"
+                @click="deleteHistoryItem(item)" />
             </div>
-            <div v-if="histAprovados.length === 0" class="hist-col-empty">
-              Nenhum aprovado no período
+
+            <!-- Linha 2: atividade + colaboradores -->
+            <div class="hf-mid">
+              <span class="hf-activity">
+                <q-icon name="build" size="13px" style="opacity:.7" />
+                {{ item.activity_name || 'Sem atividade' }}
+              </span>
+              <span v-if="item.colaboradores?.length" class="hf-colab">
+                <q-icon name="people" size="13px" style="opacity:.6" />
+                {{ item.colaboradores.join(', ') }}
+              </span>
             </div>
-            <div v-else class="svc-list">
-              <div v-for="(item, hi) in histAprovados" :key="item.id"
-                class="svc-card hist-card svc-card--aprovada"
-                :style="{ '--si': hi }">
-                <div class="hist-meta-row">
-                  <q-icon name="person" size="13px" style="color:#60a5fa;flex-shrink:0" />
-                  <span class="hist-validator">{{ item.validated_by || 'Desconhecido' }}</span>
-                  <span class="hist-sep">·</span>
-                  <q-icon name="schedule" size="13px" style="color:#475569;flex-shrink:0" />
-                  <span class="hist-datetime">{{ formatDatetime(item.validated_at) }}</span>
-                </div>
-                <div class="hist-divider" />
-                <div class="svc-head">
-                  <div class="svc-team">
-                    <span class="svc-prefix">{{ item.teams?.prefixo || '—' }}</span>
-                    <span class="svc-nome">{{ item.teams?.nome || '' }}</span>
-                  </div>
-                  <span class="svc-date">{{ formatDate(item.created_at) }}</span>
-                </div>
-                <div class="svc-info">
-                  <q-chip dense color="blue-grey-8" text-color="white" size="sm" icon="build">
-                    {{ item.activity_name || 'Sem atividade' }}
-                  </q-chip>
-                  <span v-if="item.colaboradores?.length" class="svc-colab">
-                    <q-icon name="people" size="14px" /> {{ item.colaboradores.join(', ') }}
-                  </span>
-                </div>
-                <div v-if="item.evidence_photos?.length" class="fotos-row">
-                  <div v-for="foto in item.evidence_photos" :key="foto.id" class="foto-thumb"
-                    @click="openPhoto(foto, item.evidence_photos)">
-                    <img :src="photoUrl(foto.file_path)" :alt="foto.tipo" />
-                    <span class="foto-tipo">{{ foto.tipo }}</span>
-                  </div>
-                </div>
-                <div v-else class="no-fotos"><q-icon name="no_photography" size="18px" class="q-mr-xs" /> Sem fotos</div>
-                <div v-if="authStore.isSuperAdmin" class="svc-actions q-mt-sm">
-                  <q-btn flat color="negative" icon="delete" label="Excluir" size="sm" no-caps
-                    :loading="deletingId === item.id"
-                    @click="deleteHistoryItem(item)" />
-                </div>
+
+            <!-- Fotos -->
+            <div v-if="item.evidence_photos?.length" class="hf-fotos">
+              <div v-for="foto in item.evidence_photos" :key="foto.id" class="hf-thumb"
+                @click="openPhoto(foto, item.evidence_photos)">
+                <img :src="photoUrl(foto.file_path)" :alt="foto.tipo" />
+                <span class="hf-thumb-label">{{ foto.tipo?.toUpperCase() }}</span>
               </div>
             </div>
-          </div>
 
-          <!-- Coluna REPROVADOS -->
-          <div class="hist-col">
-            <div class="hist-col-header hist-col-header--reprovado">
-              <q-icon name="cancel" size="18px" />
-              <span>Reprovados</span>
-              <span class="hist-col-count">{{ histReprovados.length }}</span>
+            <!-- Obs reprovação -->
+            <div v-if="item.validation_obs" class="hf-obs">
+              <q-icon name="info_outline" size="14px" />
+              {{ item.validation_obs }}
             </div>
-            <div v-if="histReprovados.length === 0" class="hist-col-empty">
-              Nenhum reprovado no período
-            </div>
-            <div v-else class="svc-list">
-              <div v-for="(item, hi) in histReprovados" :key="item.id"
-                class="svc-card hist-card svc-card--reprovada"
-                :style="{ '--si': hi }">
-                <div class="hist-meta-row">
-                  <q-icon name="person" size="13px" style="color:#60a5fa;flex-shrink:0" />
-                  <span class="hist-validator">{{ item.validated_by || 'Desconhecido' }}</span>
-                  <span class="hist-sep">·</span>
-                  <q-icon name="schedule" size="13px" style="color:#475569;flex-shrink:0" />
-                  <span class="hist-datetime">{{ formatDatetime(item.validated_at) }}</span>
-                </div>
-                <div class="hist-divider" />
-                <div class="svc-head">
-                  <div class="svc-team">
-                    <span class="svc-prefix">{{ item.teams?.prefixo || '—' }}</span>
-                    <span class="svc-nome">{{ item.teams?.nome || '' }}</span>
-                  </div>
-                  <span class="svc-date">{{ formatDate(item.created_at) }}</span>
-                </div>
-                <div class="svc-info">
-                  <q-chip dense color="blue-grey-8" text-color="white" size="sm" icon="build">
-                    {{ item.activity_name || 'Sem atividade' }}
-                  </q-chip>
-                  <span v-if="item.colaboradores?.length" class="svc-colab">
-                    <q-icon name="people" size="14px" /> {{ item.colaboradores.join(', ') }}
-                  </span>
-                </div>
-                <div v-if="item.evidence_photos?.length" class="fotos-row">
-                  <div v-for="foto in item.evidence_photos" :key="foto.id" class="foto-thumb"
-                    @click="openPhoto(foto, item.evidence_photos)">
-                    <img :src="photoUrl(foto.file_path)" :alt="foto.tipo" />
-                    <span class="foto-tipo">{{ foto.tipo }}</span>
-                  </div>
-                </div>
-                <div v-else class="no-fotos"><q-icon name="no_photography" size="18px" class="q-mr-xs" /> Sem fotos</div>
-                <div v-if="item.validation_obs" class="val-obs">
-                  <q-icon name="info" size="14px" class="q-mr-xs" />{{ item.validation_obs }}
-                </div>
-                <div v-if="authStore.isSuperAdmin" class="svc-actions q-mt-sm">
-                  <q-btn flat color="negative" icon="delete" label="Excluir" size="sm" no-caps
-                    :loading="deletingId === item.id"
-                    @click="deleteHistoryItem(item)" />
-                </div>
-              </div>
-            </div>
-          </div>
 
+            <!-- Rodapé: validador + data validação -->
+            <div class="hf-footer">
+              <div class="hf-validator-avatar">{{ (item.validated_by || '?')[0].toUpperCase() }}</div>
+              <span class="hf-validator-name">{{ item.validated_by || 'Desconhecido' }}</span>
+              <q-icon name="schedule" size="12px" style="opacity:.5;margin-left:8px" />
+              <span class="hf-val-time">{{ formatDatetime(item.validated_at) }}</span>
+            </div>
+
+          </div>
         </div>
       </template>
     </template>
@@ -627,6 +594,19 @@ const histReprovados = computed(() => {
   return list
 })
 
+const histFeed = computed(() => {
+  const q = histSearch.value.trim().toLowerCase()
+  let list = historyServices.value.slice()
+  if (q) list = list.filter(s =>
+    (s.teams?.prefixo || '').toLowerCase().includes(q) ||
+    (s.teams?.nome || '').toLowerCase().includes(q) ||
+    (s.activity_name || '').toLowerCase().includes(q) ||
+    (s.validated_by || '').toLowerCase().includes(q) ||
+    (s.colaboradores || []).some(c => c.toLowerCase().includes(q))
+  )
+  return list.sort((a, b) => (b.validated_at || '').localeCompare(a.validated_at || ''))
+})
+
 async function selectGroup (g) {
   selectedGroup.value = g
   activeTab.value = 'validacao'
@@ -817,7 +797,7 @@ function formatDatetime (iso) {
 function statusLabel (s) { return { aprovada: 'Aprovada', reprovada: 'Reprovada', pendente: 'Pendente' }[s] || 'Pendente' }
 function statusColor (s) { return { aprovada: 'positive', reprovada: 'negative', pendente: 'warning' }[s] || 'warning' }
 
-onMounted(() => { loadCounts(); window.addEventListener('keydown', onKeydown) })
+onMounted(() => { loadCounts(); teamsStore.fetchTeams(); window.addEventListener('keydown', onKeydown) })
 onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
@@ -1135,31 +1115,106 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
   border: 1px solid var(--border); border-radius: 8px; padding: 4px 12px;
 }
 
-/* ─── Histórico duas colunas ────────────────────────────────── */
-.hist-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
-.hist-col { display: flex; flex-direction: column; gap: 12px; }
-
-.hist-col-header {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 16px; border-radius: 12px;
-  font-size: 0.82rem; font-weight: 700; letter-spacing: .03em; margin-bottom: 4px;
+/* ─── Histórico — stats bar ──────────────────────────────────── */
+.hist-stats-bar {
+  display: flex; align-items: center; gap: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 14px 24px; width: fit-content;
 }
-.hist-col-header--aprovado { background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.22); color: #86efac; }
-.hist-col-header--reprovado { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.22); color: #fca5a5; }
-.hist-col-count { margin-left: auto; font-size: 1rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.hist-stat { display: flex; align-items: center; gap: 8px; padding: 0 20px; }
+.hist-stat--aprov { color: #4ade80; }
+.hist-stat--reprov { color: #f87171; }
+.hist-stat--total { color: #60a5fa; }
+.hist-stat-num { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.hist-stat-label { font-size: 0.75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; opacity: .7; }
+.hist-stat-divider { width: 1px; height: 32px; background: var(--border); flex-shrink: 0; }
 
-.hist-col-empty {
-  color: var(--muted-fg); opacity: 0.6; font-size: 0.82rem;
-  text-align: center; padding: 32px 0;
-  border: 1px dashed var(--border); border-radius: 12px;
+/* ─── Histórico — feed cards ──────────────────────────────────── */
+.hist-feed { display: flex; flex-direction: column; gap: 10px; }
+
+.hf-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 18px;
+  border-left: 4px solid transparent;
+  animation: slideUp .25s ease both;
+  animation-delay: calc(var(--si, 0) * 30ms);
+  transition: box-shadow .15s;
 }
-.hist-card { padding-top: 16px; }
+.hf-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,.25); }
+.hf-card--aprov { border-left-color: #4ade80; }
+.hf-card--reprov { border-left-color: #f87171; }
 
-.hist-meta-row { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; flex-wrap: wrap; margin-bottom: 10px; }
-.hist-validator { color: var(--primary); font-weight: 600; }
-.hist-sep { color: var(--border); margin: 0 2px; }
-.hist-datetime { color: var(--muted-fg); }
-.hist-divider { height: 1px; background: var(--border); opacity: 0.5; margin-bottom: 12px; }
+.hf-top {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;
+}
+.hf-status-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 9px; border-radius: 20px; font-size: 0.72rem; font-weight: 700;
+  letter-spacing: .03em; flex-shrink: 0;
+}
+.hf-pill--aprov { background: rgba(74,222,128,.12); color: #86efac; border: 1px solid rgba(74,222,128,.25); }
+.hf-pill--reprov { background: rgba(248,113,113,.12); color: #fca5a5; border: 1px solid rgba(248,113,113,.25); }
+
+.hf-prefix {
+  background: var(--primary); color: #fff; font-size: 0.72rem;
+  font-weight: 700; padding: 2px 8px; border-radius: 6px; letter-spacing: .02em; flex-shrink: 0;
+}
+.hf-team-nome { font-size: 0.88rem; font-weight: 600; color: var(--fg); }
+.hf-spacer { flex: 1; }
+.hf-send-date {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 0.75rem; color: var(--muted-fg); white-space: nowrap;
+}
+
+.hf-mid {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
+  margin-bottom: 10px;
+}
+.hf-activity {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 0.8rem; font-weight: 600; color: var(--fg);
+  background: rgba(255,255,255,.05); border-radius: 6px; padding: 3px 8px;
+}
+.hf-colab {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 0.78rem; color: var(--muted-fg);
+}
+
+.hf-fotos {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.hf-thumb {
+  position: relative; width: 80px; height: 64px; border-radius: 8px; overflow: hidden;
+  cursor: pointer; flex-shrink: 0; border: 1px solid var(--border);
+}
+.hf-thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform .2s; }
+.hf-thumb:hover img { transform: scale(1.06); }
+.hf-thumb-label {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: rgba(0,0,0,.55); font-size: 0.6rem; font-weight: 700;
+  text-align: center; color: #fff; padding: 2px 0; letter-spacing: .05em;
+}
+
+.hf-obs {
+  display: flex; align-items: center; gap: 6px; font-size: 0.78rem;
+  color: #fca5a5; background: rgba(248,113,113,.08);
+  border-radius: 8px; padding: 6px 10px; margin-bottom: 8px;
+}
+
+.hf-footer {
+  display: flex; align-items: center; gap: 6px;
+  padding-top: 10px; border-top: 1px solid var(--border); margin-top: 4px;
+}
+.hf-validator-avatar {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--primary); color: #fff;
+  font-size: 0.72rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.hf-validator-name { font-size: 0.78rem; font-weight: 600; color: var(--primary); }
+.hf-val-time { font-size: 0.75rem; color: var(--muted-fg); }
 
 /* ─── Empty state ───────────────────────────────────────────── */
 .empty-state { text-align: center; padding: 70px 0; }
