@@ -240,7 +240,7 @@ import { useEvidenceStore } from 'src/stores/evidence'
 import { useAuthStore } from 'src/stores/auth'
 import { supabase } from 'src/services/supabase'
 import { useQuasar } from 'quasar'
-import { COORDENADORES, EQUIPES_FILTRO } from 'src/data/equipes-filtro'
+import { COORDENADORES } from 'src/data/equipes-filtro'
 
 const activitiesStore = useActivitiesStore()
 const teamsStore = useTeamsStore()
@@ -261,11 +261,11 @@ const servicesData = ref([])
 const expanded = ref([])
 
 const supervisoresList = computed(() => {
-  const s = new Set(Object.values(EQUIPES_FILTRO).map(e => e.supervisor).filter(Boolean))
+  const s = new Set(teamsStore.teams.map(t => t.supervisor).filter(Boolean))
   return [...s].sort()
 })
 const coordenadoresList = computed(() => {
-  const s = new Set(Object.values(EQUIPES_FILTRO).map(e => e.coordenador).filter(Boolean))
+  const s = new Set(teamsStore.teams.map(t => t.coordenador).filter(Boolean))
   return [...s].sort()
 })
 const gerentesList = computed(() => {
@@ -349,9 +349,15 @@ const resumoEquipes = computed(() => {
   }
   let result = Object.values(map).sort((a, b) => a.prefixo.localeCompare(b.prefixo))
   if (filterSupervisor.value)
-    result = result.filter(e => EQUIPES_FILTRO[e.prefixo]?.supervisor === filterSupervisor.value)
+    result = result.filter(e => {
+      const team = teamsStore.teams.find(t => t.id === e.teamId)
+      return team?.supervisor === filterSupervisor.value
+    })
   if (filterCoordenador.value)
-    result = result.filter(e => EQUIPES_FILTRO[e.prefixo]?.coordenador === filterCoordenador.value)
+    result = result.filter(e => {
+      const team = teamsStore.teams.find(t => t.id === e.teamId)
+      return team?.coordenador === filterCoordenador.value
+    })
   if (filterGerencia.value)
     result = result.filter(e => {
       const team = teamsStore.teams.find(t => t.id === e.teamId)
