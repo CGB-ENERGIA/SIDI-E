@@ -381,19 +381,32 @@ function toggleExpand (teamId) {
 async function loadAtividades () {
   loadingAtividades.value = true
   try {
-    let query = supabase
-      .from('services')
-      .select('id, team_id, activity_name, colaboradores, created_at, teams(prefixo, nome, supervisor)')
-      .order('created_at', { ascending: false })
-    if (atividadesDate.value) {
-      query = query
-        .gte('created_at', atividadesDate.value + 'T00:00:00')
-        .lte('created_at', atividadesDate.value + 'T23:59:59')
+    const PAGE = 1000
+    let all = []
+    let from = 0
+
+    while (true) {
+      let query = supabase
+        .from('services')
+        .select('id, team_id, activity_name, colaboradores, created_at, teams(prefixo, nome, supervisor)')
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE - 1)
+
+      if (atividadesDate.value) {
+        query = query
+          .gte('created_at', atividadesDate.value + 'T00:00:00')
+          .lte('created_at', atividadesDate.value + 'T23:59:59')
+      }
+      if (atividadesTeam.value) query = query.eq('team_id', atividadesTeam.value)
+
+      const { data, error } = await query
+      if (error) throw error
+      all = all.concat(data || [])
+      if (!data || data.length < PAGE) break
+      from += PAGE
     }
-    if (atividadesTeam.value) query = query.eq('team_id', atividadesTeam.value)
-    const { data, error } = await query
-    if (error) throw error
-    servicesData.value = data || []
+
+    servicesData.value = all
   } catch (e) {
     $q.notify({ type: 'negative', message: 'Erro ao carregar atividades: ' + e.message })
   } finally {
