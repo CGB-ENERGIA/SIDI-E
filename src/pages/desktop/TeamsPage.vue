@@ -73,10 +73,10 @@
         <table v-else class="teams-table">
           <thead>
             <tr>
-              <th @click="sortBy('prefixo')" class="sortable">Prefixo
+              <th @click="sortBy('prefixo')" class="sortable" style="text-align:left">Prefixo
                 <q-icon :name="sortCol === 'prefixo' ? (sortAsc ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'" size="14px" />
               </th>
-              <th @click="sortBy('nome')" class="sortable">Nome
+              <th @click="sortBy('nome')" class="sortable" style="text-align:left">Nome
                 <q-icon :name="sortCol === 'nome' ? (sortAsc ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'" size="14px" />
               </th>
               <th>Coordenador</th>
@@ -88,7 +88,7 @@
           </thead>
           <tbody>
             <tr v-for="team in paginated" :key="team.id" class="team-row">
-              <td>
+              <td style="text-align:left">
                 <span class="prefix-chip">{{ team.prefixo }}</span>
               </td>
               <td class="cell-nome">{{ team.nome }}</td>
@@ -655,7 +655,7 @@ async function applyImport () {
 }
 
 .teams-table th {
-  padding: 13px 16px; text-align: left;
+  padding: 13px 16px; text-align: center;
   font-size: 0.67rem; letter-spacing: 0.09em;
   text-transform: uppercase; color: var(--muted-fg); font-weight: 700;
   white-space: nowrap;
@@ -667,7 +667,7 @@ async function applyImport () {
 .team-row:hover { background: color-mix(in oklab, var(--background) 60%, transparent); }
 .team-row:last-child { border-bottom: none; }
 
-.teams-table td { padding: 12px 16px; color: var(--fg); vertical-align: middle; }
+.teams-table td { padding: 12px 16px; color: var(--fg); vertical-align: middle; text-align: center; }
 
 .prefix-chip {
   background: color-mix(in oklab, var(--primary) 14%, transparent);
@@ -677,7 +677,7 @@ async function applyImport () {
   font-size: 0.77rem; font-weight: 700; white-space: nowrap; font-family: monospace;
 }
 
-.cell-nome { font-weight: 600; max-width: 200px; }
+.cell-nome { font-weight: 600; max-width: 200px; text-align: left; }
 .cell-resp { color: var(--muted-fg); font-size: 0.82rem; max-width: 180px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
