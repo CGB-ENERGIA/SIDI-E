@@ -72,13 +72,13 @@
 
         <table v-else class="teams-table">
           <colgroup>
-            <col style="width:160px" />
-            <col style="width:auto" />
-            <col style="width:130px" />
-            <col style="width:140px" />
-            <col style="width:90px" />
-            <col style="width:100px" />
-            <col style="width:90px" />
+            <col style="width:155px" />
+            <col style="width:22%" />
+            <col style="width:120px" />
+            <col style="width:120px" />
+            <col style="width:80px" />
+            <col style="width:95px" />
+            <col style="width:80px" />
           </colgroup>
           <thead>
             <tr>
@@ -677,6 +677,7 @@ async function applyImport () {
 .team-row:last-child { border-bottom: none; }
 
 .teams-table td { padding: 12px 16px; color: var(--fg); vertical-align: middle; text-align: center; }
+.teams-table td.cell-nome { text-align: left; }
 
 .prefix-chip {
   background: color-mix(in oklab, var(--primary) 14%, transparent);
