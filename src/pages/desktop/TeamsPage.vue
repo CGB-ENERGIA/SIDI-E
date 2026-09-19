@@ -15,7 +15,7 @@
           <div class="teams-title">Equipes</div>
           <div class="teams-sub">{{ filtered.length }} de {{ teamsStore.teams.length }} equipes</div>
         </div>
-        <div class="header-actions">
+        <div class="header-actions" v-if="isSuperAdmin">
           <button class="action-btn action-btn--ghost" @click="triggerImport" :disabled="importing">
             <q-spinner-dots v-if="importing" size="14px" />
             <q-icon v-else name="upload_file" size="16px" />
@@ -300,6 +300,7 @@ const authStore  = useAuthStore()
 const $q = useQuasar()
 
 const isAdmin = computed(() => authStore.isAdmin)
+const isSuperAdmin = computed(() => authStore.isSuperAdmin)
 
 // ── Filtros ─────────────────────────────────────────────
 const search        = ref('')
@@ -339,7 +340,9 @@ const filtered = computed(() => {
     .filter(t => {
       if (q && !t.prefixo?.toLowerCase().includes(q) &&
                 !t.nome?.toLowerCase().includes(q) &&
-                !t.responsavel?.toLowerCase().includes(q)) return false
+                !t.responsavel?.toLowerCase().includes(q) &&
+                !t.coordenador?.toLowerCase().includes(q) &&
+                !t.gerencia?.toLowerCase().includes(q)) return false
       if (filterBase.value    && t.base     !== filterBase.value)    return false
       if (filterProcesso.value && t.processo !== filterProcesso.value) return false
       if (filterStatus.value  && t.status   !== filterStatus.value)  return false
