@@ -22,12 +22,6 @@
         @update:model-value="load"
       />
       <q-select
-        v-model="filters.status"
-        :options="statusOptions"
-        label="Status sync" outlined dense clearable emit-value map-options
-        style="min-width: 160px;"
-      />
-      <q-select
         v-model="filters.supervisor"
         :options="supervisoresList"
         label="Supervisor" outlined dense clearable
@@ -37,6 +31,12 @@
         v-model="filters.coordenador"
         :options="coordenadoresList"
         label="Coordenador" outlined dense clearable
+        style="min-width: 160px;"
+      />
+      <q-select
+        v-model="filters.gerencia"
+        :options="gerentesList"
+        label="Gerência" outlined dense clearable
         style="min-width: 160px;"
       />
     </div>
@@ -308,7 +308,6 @@ import { useEvidenceStore } from 'src/stores/evidence'
 import { useTeamsStore } from 'src/stores/teams'
 import { useAuthStore } from 'src/stores/auth'
 import { storage } from 'src/services/supabase'
-import { COORDENADORES } from 'src/data/equipes-filtro'
 
 const evidenceStore = useEvidenceStore()
 const teamsStore = useTeamsStore()
@@ -326,9 +325,9 @@ const lightboxUrl = ref('')
 const filters = ref({
   teamId: null,
   date: null,
-  status: null,
   supervisor: null,
-  coordenador: null
+  coordenador: null,
+  gerencia: null
 })
 
 const supervisoresList = computed(() => {
@@ -336,15 +335,13 @@ const supervisoresList = computed(() => {
   return [...s].sort()
 })
 const coordenadoresList = computed(() => {
-  const fromDB = new Set(teamsStore.teams.map(t => t.coordenador).filter(Boolean))
-  if (fromDB.size > 0) return [...fromDB].sort()
-  return COORDENADORES
+  const s = new Set(teamsStore.teams.map(t => t.coordenador).filter(Boolean))
+  return [...s].sort()
 })
-
-const statusOptions = [
-  { label: 'Sincronizado', value: 'synced' },
-  { label: 'Pendente', value: 'pending' }
-]
+const gerentesList = computed(() => {
+  const s = new Set(teamsStore.teams.map(t => t.gerencia).filter(Boolean))
+  return [...s].sort()
+})
 
 const teamOptions = computed(() =>
   teamsStore.teams.map(t => ({ label: `${t.prefixo} — ${t.nome}`, value: t.id }))
@@ -353,12 +350,14 @@ const teamOptions = computed(() =>
 // Filtra linhas individualmente antes de agrupar
 const filteredRows = computed(() => {
   return rows.value.filter(r => {
-    if (filters.value.status && r.sync_status !== filters.value.status) return false
-    const prefixo = r.teams?.prefixo
     if (filters.value.supervisor && r.teams?.supervisor !== filters.value.supervisor) return false
     if (filters.value.coordenador) {
       const team = teamsStore.teams.find(t => t.id === r.team_id)
       if (team?.coordenador !== filters.value.coordenador) return false
+    }
+    if (filters.value.gerencia) {
+      const team = teamsStore.teams.find(t => t.id === r.team_id)
+      if (team?.gerencia !== filters.value.gerencia) return false
     }
     return true
   })

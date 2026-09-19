@@ -113,11 +113,13 @@
           </div>
           <q-select v-model="filterSupervisor" :options="supervisoresList" label="Supervisor"
             outlined dense clearable bg-color="surface" style="min-width:180px;" class="filter-select" />
-          <q-select v-model="filterResponsavel" :options="responsaveisList" label="Responsável"
-            outlined dense clearable bg-color="surface" style="min-width:180px;" class="filter-select" />
-          <q-btn v-if="search || filterSupervisor || filterResponsavel"
+          <q-select v-model="filterCoordenador" :options="coordenadoresList" label="Coordenador"
+            outlined dense clearable bg-color="surface" style="min-width:160px;" class="filter-select" />
+          <q-select v-model="filterGerencia" :options="gerentesList" label="Gerência"
+            outlined dense clearable bg-color="surface" style="min-width:160px;" class="filter-select" />
+          <q-btn v-if="search || filterSupervisor || filterCoordenador || filterGerencia"
             flat icon="close" label="Limpar" size="sm" no-caps color="grey"
-            @click="search = ''; filterSupervisor = null; filterResponsavel = null" />
+            @click="search = ''; filterSupervisor = null; filterCoordenador = null; filterGerencia = null" />
         </div>
 
         <!-- KPIs -->
@@ -455,10 +457,12 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { supabase, storage } from 'src/services/supabase'
 import { useAuthStore } from 'src/stores/auth'
+import { useTeamsStore } from 'src/stores/teams'
 import { useQuasar } from 'quasar'
 
 const $q = useQuasar()
 const authStore = useAuthStore()
+const teamsStore = useTeamsStore()
 
 const grupos = [
   { key: 'GSTC', icon: 'electrical_services', desc: 'Gestão de Serviços Técnicos Comerciais' },
@@ -472,7 +476,8 @@ const activeTab         = ref('validacao')
 const filterDate        = ref('')
 const filterStatus      = ref(null)
 const filterSupervisor  = ref(null)
-const filterResponsavel = ref(null)
+const filterCoordenador = ref(null)
+const filterGerencia    = ref(null)
 const search            = ref('')
 const loading           = ref(false)
 const savingId          = ref(null)
@@ -509,11 +514,15 @@ const kpis = computed(() => [
 ])
 
 const supervisoresList = computed(() => {
-  const s = new Set(services.value.map(s => s.teams?.supervisor).filter(Boolean))
+  const s = new Set(teamsStore.teams.map(t => t.supervisor).filter(Boolean))
   return [...s].sort()
 })
-const responsaveisList = computed(() => {
-  const s = new Set(services.value.map(s => s.teams?.responsavel).filter(Boolean))
+const coordenadoresList = computed(() => {
+  const s = new Set(teamsStore.teams.map(t => t.coordenador).filter(Boolean))
+  return [...s].sort()
+})
+const gerentesList = computed(() => {
+  const s = new Set(teamsStore.teams.map(t => t.gerencia).filter(Boolean))
   return [...s].sort()
 })
 
@@ -524,7 +533,18 @@ const filteredServices = computed(() => {
   else if (v === 'analisadas') list = list.filter(s => s.validation_status === 'aprovada' || s.validation_status === 'reprovada')
   else if (v)             list = list.filter(s => s.validation_status === v)
   if (filterSupervisor.value)  list = list.filter(s => s.teams?.supervisor === filterSupervisor.value)
-  if (filterResponsavel.value) list = list.filter(s => s.teams?.responsavel === filterResponsavel.value)
+  if (filterCoordenador.value) {
+    list = list.filter(s => {
+      const team = teamsStore.teams.find(t => t.id === s.team_id)
+      return team?.coordenador === filterCoordenador.value
+    })
+  }
+  if (filterGerencia.value) {
+    list = list.filter(s => {
+      const team = teamsStore.teams.find(t => t.id === s.team_id)
+      return team?.gerencia === filterGerencia.value
+    })
+  }
   const q = search.value.trim().toLowerCase()
   if (q) list = list.filter(s =>
     (s.teams?.prefixo || '').toLowerCase().includes(q) ||
