@@ -79,10 +79,10 @@
               <th @click="sortBy('nome')" class="sortable">Nome
                 <q-icon :name="sortCol === 'nome' ? (sortAsc ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'" size="14px" />
               </th>
-              <th>Responsável</th>
+              <th>Coordenador</th>
+              <th>Gerência</th>
               <th>Base</th>
               <th>Processo</th>
-              <th>Status</th>
               <th class="col-actions">Ações</th>
             </tr>
           </thead>
@@ -92,7 +92,8 @@
                 <span class="prefix-chip">{{ team.prefixo }}</span>
               </td>
               <td class="cell-nome">{{ team.nome }}</td>
-              <td class="cell-resp">{{ team.responsavel || '—' }}</td>
+              <td>{{ team.coordenador || '—' }}</td>
+              <td>{{ team.gerencia || '—' }}</td>
               <td>
                 <span class="base-tag">{{ team.base || '—' }}</span>
               </td>
@@ -100,10 +101,6 @@
                 <span class="proc-tag" :class="`proc-${(team.processo||'').toLowerCase()}`">
                   {{ team.processo || '—' }}
                 </span>
-              </td>
-              <td>
-                <span class="status-dot" :class="team.status === 'ativo' ? 'dot-on' : 'dot-off'" />
-                {{ team.status === 'ativo' ? 'Ativo' : 'Inativo' }}
               </td>
               <td class="cell-actions">
                 <button class="icon-btn edit-btn" title="Editar" @click="openEdit(team)">
@@ -115,7 +112,7 @@
               </td>
             </tr>
             <tr v-if="!paginated.length">
-              <td colspan="7" class="empty-row">Nenhuma equipe encontrada</td>
+              <td colspan="6" class="empty-row">Nenhuma equipe encontrada</td>
             </tr>
           </tbody>
         </table>
