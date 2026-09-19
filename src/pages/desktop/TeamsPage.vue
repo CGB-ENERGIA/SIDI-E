@@ -250,6 +250,10 @@
               <label class="field-lbl">Coordenador</label>
               <input v-model="form.coordenador" class="field-inp" />
             </div>
+            <div class="field-col">
+              <label class="field-lbl">Gerência</label>
+              <input v-model="form.gerencia" class="field-inp" />
+            </div>
           </div>
           <div class="field-row">
             <div class="field-col">
@@ -354,7 +358,7 @@ const saving     = ref(false)
 const isEditing  = ref(false)
 const editingId  = ref(null)
 
-const emptyForm = () => ({ prefixo: '', nome: '', responsavel: '', supervisor: '', coordenador: '', base: '', processo: '', status: 'ativo' })
+const emptyForm = () => ({ prefixo: '', nome: '', responsavel: '', supervisor: '', coordenador: '', gerencia: '', base: '', processo: '', status: 'ativo' })
 const form = ref(emptyForm())
 
 function openCreate () {
@@ -375,6 +379,7 @@ function openEdit (team) {
     responsavel: team.responsavel || '',
     supervisor:  team.supervisor  || '',
     coordenador: team.coordenador || '',
+    gerencia:    team.gerencia    || '',
     base:        team.base        || '',
     processo:    team.processo    || '',
     status:      team.status      || 'ativo'
@@ -433,11 +438,11 @@ onMounted(() => { if (isAdmin.value) teamsStore.fetchTeams() })
 
 // ── Export Excel ─────────────────────────────────────────
 function exportExcel () {
-  const cols = ['prefixo', 'nome', 'responsavel', 'supervisor', 'coordenador', 'base', 'processo', 'status']
-  const header = ['Prefixo', 'Nome', 'Responsável', 'Supervisor', 'Coordenador', 'Base', 'Processo', 'Status']
+  const cols = ['prefixo', 'nome', 'responsavel', 'supervisor', 'coordenador', 'gerencia', 'base', 'processo', 'status']
+  const header = ['Prefixo', 'Nome', 'Responsável', 'Supervisor', 'Coordenador', 'Gerência', 'Base', 'Processo', 'Status']
   const data = [header, ...filtered.value.map(t => cols.map(c => t[c] || ''))]
   const ws = XLSX.utils.aoa_to_sheet(data)
-  ws['!cols'] = [14, 28, 28, 20, 16, 14, 10, 10].map(w => ({ wch: w }))
+  ws['!cols'] = [14, 28, 28, 20, 16, 18, 14, 10, 10].map(w => ({ wch: w }))
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Equipes')
   XLSX.writeFile(wb, `equipes-${new Date().toISOString().split('T')[0]}.xlsx`)
@@ -485,7 +490,7 @@ async function handleImport (evt) {
       .normalize('NFD').replace(/[̀-ͯ]/g, ''))
     const col = k => hdr.findIndex(h => h.includes(k))
     const iP = col('prefixo'), iN = col('nome'), iR = col('respons')
-    const iS = col('superv'), iC = col('coord')
+    const iS = col('superv'), iC = col('coord'), iG = col('gerenc')
     const iB = col('base'), iO = col('process'), iT = col('status')
 
     const existingPrefixos = new Set(teamsStore.teams.map(t => t.prefixo))
@@ -500,6 +505,7 @@ async function handleImport (evt) {
           responsavel: String(r[iR] ?? '').trim(),
           supervisor:  iS >= 0 ? String(r[iS] ?? '').trim() : '',
           coordenador: iC >= 0 ? String(r[iC] ?? '').trim() : '',
+          gerencia:    iG >= 0 ? String(r[iG] ?? '').trim() : '',
           base:        iB >= 0 ? String(r[iB] ?? '').trim() : '',
           processo:    iO >= 0 ? String(r[iO] ?? '').trim() : '',
           status:      iT >= 0 ? String(r[iT] ?? '').trim().toLowerCase() || 'ativo' : 'ativo',

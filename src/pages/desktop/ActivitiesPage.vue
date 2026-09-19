@@ -34,6 +34,10 @@
             outlined dense clearable bg-color="surface"
             use-input input-debounce="0" @filter="filterCoordenadores"
             style="min-width:160px;" />
+          <q-select v-model="filterGerencia" :options="filteredGerentes" label="Gerência"
+            outlined dense clearable bg-color="surface"
+            use-input input-debounce="0" @filter="filterGerentes"
+            style="min-width:160px;" />
           <q-btn unelevated icon="refresh" label="Atualizar" color="primary"
             :loading="loadingAtividades" @click="loadAtividades"
             style="height:40px; border-radius:8px;" />
@@ -251,6 +255,7 @@ const atividadesDate = ref(null)
 const atividadesTeam = ref(null)
 const filterSupervisor = ref(null)
 const filterCoordenador = ref(null)
+const filterGerencia = ref(null)
 const loadingAtividades = ref(false)
 const servicesData = ref([])
 const expanded = ref([])
@@ -263,6 +268,10 @@ const coordenadoresList = computed(() => {
   const s = new Set(Object.values(EQUIPES_FILTRO).map(e => e.coordenador).filter(Boolean))
   return [...s].sort()
 })
+const gerentesList = computed(() => {
+  const s = new Set(teamsStore.teams.map(t => t.gerencia).filter(Boolean))
+  return [...s].sort()
+})
 
 const teamOptions = computed(() =>
   teamsStore.teams.map(t => ({ label: `${t.prefixo} — ${t.nome}`, value: t.id }))
@@ -272,10 +281,12 @@ const teamOptions = computed(() =>
 const filteredTeamOptions    = ref([])
 const filteredSupervisores   = ref([])
 const filteredCoordenadores  = ref([])
+const filteredGerentes       = ref([])
 
 watch(teamOptions,    v => { filteredTeamOptions.value   = v }, { immediate: true })
 watch(supervisoresList, v => { filteredSupervisores.value  = v }, { immediate: true })
 watch(coordenadoresList, v => { filteredCoordenadores.value = v }, { immediate: true })
+watch(gerentesList, v => { filteredGerentes.value = v }, { immediate: true })
 
 function filterTeams (val, update) {
   update(() => {
@@ -299,6 +310,14 @@ function filterCoordenadores (val, update) {
     filteredCoordenadores.value = q
       ? coordenadoresList.value.filter(s => s.toLowerCase().includes(q))
       : coordenadoresList.value
+  })
+}
+function filterGerentes (val, update) {
+  update(() => {
+    const q = val.toLowerCase()
+    filteredGerentes.value = q
+      ? gerentesList.value.filter(s => s.toLowerCase().includes(q))
+      : gerentesList.value
   })
 }
 
@@ -333,6 +352,11 @@ const resumoEquipes = computed(() => {
     result = result.filter(e => EQUIPES_FILTRO[e.prefixo]?.supervisor === filterSupervisor.value)
   if (filterCoordenador.value)
     result = result.filter(e => EQUIPES_FILTRO[e.prefixo]?.coordenador === filterCoordenador.value)
+  if (filterGerencia.value)
+    result = result.filter(e => {
+      const team = teamsStore.teams.find(t => t.id === e.teamId)
+      return team?.gerencia === filterGerencia.value
+    })
   return result
 })
 
