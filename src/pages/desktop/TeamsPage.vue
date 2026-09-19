@@ -71,6 +71,15 @@
         </div>
 
         <table v-else class="teams-table">
+          <colgroup>
+            <col style="width:160px" />
+            <col style="width:auto" />
+            <col style="width:130px" />
+            <col style="width:140px" />
+            <col style="width:90px" />
+            <col style="width:100px" />
+            <col style="width:90px" />
+          </colgroup>
           <thead>
             <tr>
               <th @click="sortBy('prefixo')" class="sortable" style="text-align:left">Prefixo
