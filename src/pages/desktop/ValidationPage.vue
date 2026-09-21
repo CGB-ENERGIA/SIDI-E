@@ -303,23 +303,32 @@
             @click="histSearch = ''" />
         </div>
 
-        <!-- Stats bar -->
+        <!-- Stats bar / filtros de status -->
         <div class="hist-stats-bar q-mb-lg">
-          <div class="hist-stat hist-stat--aprov">
+          <div class="hist-stat hist-stat--aprov"
+            :class="{ 'hist-stat--active': histFilterStatus === 'aprovada' }"
+            @click="histFilterStatus = histFilterStatus === 'aprovada' ? null : 'aprovada'"
+            style="cursor:pointer">
             <q-icon name="check_circle" size="20px" />
             <span class="hist-stat-num">{{ histAprovados.length }}</span>
             <span class="hist-stat-label">Aprovados</span>
           </div>
           <div class="hist-stat-divider" />
-          <div class="hist-stat hist-stat--reprov">
+          <div class="hist-stat hist-stat--reprov"
+            :class="{ 'hist-stat--active': histFilterStatus === 'reprovada' }"
+            @click="histFilterStatus = histFilterStatus === 'reprovada' ? null : 'reprovada'"
+            style="cursor:pointer">
             <q-icon name="cancel" size="20px" />
             <span class="hist-stat-num">{{ histReprovados.length }}</span>
             <span class="hist-stat-label">Reprovados</span>
           </div>
           <div class="hist-stat-divider" />
-          <div class="hist-stat hist-stat--total">
+          <div class="hist-stat hist-stat--total"
+            :class="{ 'hist-stat--active': histFilterStatus === null }"
+            @click="histFilterStatus = null"
+            style="cursor:pointer">
             <q-icon name="analytics" size="20px" />
-            <span class="hist-stat-num">{{ histFeed.length }}</span>
+            <span class="hist-stat-num">{{ historyServices.length }}</span>
             <span class="hist-stat-label">Total</span>
           </div>
         </div>
@@ -597,6 +606,7 @@ const histReprovados = computed(() => {
 const histFeed = computed(() => {
   const q = histSearch.value.trim().toLowerCase()
   let list = historyServices.value.slice()
+  if (histFilterStatus.value) list = list.filter(s => s.validation_status === histFilterStatus.value)
   if (q) list = list.filter(s =>
     (s.teams?.prefixo || '').toLowerCase().includes(q) ||
     (s.teams?.nome || '').toLowerCase().includes(q) ||
@@ -1128,6 +1138,10 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 .hist-stat-num { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .hist-stat-label { font-size: 0.75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; opacity: .7; }
 .hist-stat-divider { width: 1px; height: 32px; background: var(--border); flex-shrink: 0; }
+.hist-stat { border-radius: 8px; transition: background .15s; }
+.hist-stat:hover { background: rgba(255,255,255,.05); }
+.hist-stat--active { background: rgba(255,255,255,.08) !important; outline: 1px solid currentColor; outline-offset: -2px; opacity: 1; }
+.hist-stat--active .hist-stat-label { opacity: 1; }
 
 /* ─── Histórico — feed cards ──────────────────────────────────── */
 .hist-feed { display: flex; flex-direction: column; gap: 10px; }
