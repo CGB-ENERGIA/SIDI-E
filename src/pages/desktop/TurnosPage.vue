@@ -60,6 +60,15 @@
         </div>
       </div>
 
+      <!-- Taxa de abertura -->
+      <div class="kpi-card" style="cursor:default;">
+        <div class="kpi-icon kpi-icon--amber"><q-icon name="percent" size="22px" /></div>
+        <div class="kpi-body">
+          <div class="kpi-value" style="color:#f59e0b;">{{ taxaAbertura }}%</div>
+          <div class="kpi-label">Taxa de abertura</div>
+        </div>
+      </div>
+
       <!-- Não abriram -->
       <div class="kpi-card" :class="{ 'kpi-card--active': statusFilter === 'sem_turno' }"
         @click="statusFilter = statusFilter === 'sem_turno' ? null : 'sem_turno'">
@@ -448,6 +457,7 @@ const countEmTurno   = computed(() => filteredTeams.value.filter(t => t.status =
 const countEncerrado = computed(() => filteredTeams.value.filter(t => t.status === 'encerrado').length)
 const countSemTurno  = computed(() => filteredTeams.value.filter(t => t.status === 'sem_turno').length)
 const countAbriu     = computed(() => countEmTurno.value + countEncerrado.value)
+const taxaAbertura   = computed(() => totalEquipes.value ? Math.round(countAbriu.value / totalEquipes.value * 100) : 0)
 
 // ── Agrupamento Gerência → Coordenador ───────────────
 const groupedTeams = computed(() => {
