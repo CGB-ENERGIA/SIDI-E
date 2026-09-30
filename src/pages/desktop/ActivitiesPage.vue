@@ -8,9 +8,9 @@
 
     <q-tabs v-model="tab" dense align="left" class="q-mb-lg act-tabs"
       active-color="white" indicator-color="primary" active-bg-color="primary">
-      <q-tab name="atividades"  icon="bar_chart"    label="Atividades"  />
-      <q-tab name="servicos"    icon="build"         label="Serviços"    />
       <q-tab name="evidencias"  icon="photo_library" label="Evidências"  />
+      <q-tab name="atividades"  icon="bar_chart"     label="Atividades"  />
+      <q-tab name="servicos"    icon="build"          label="Serviços"    />
     </q-tabs>
 
     <q-tab-panels v-model="tab" animated keep-alive class="bg-transparent">
@@ -516,7 +516,7 @@ const evidenceStore = useEvidenceStore()
 const authStore = useAuthStore()
 const $q = useQuasar()
 
-const tab = ref('atividades')
+const tab = ref('evidencias')
 
 // ── ATIVIDADES ──────────────────────────────────────────
 const atividadesDate = ref(null)
