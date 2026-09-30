@@ -20,8 +20,18 @@
 
     <!-- Filtros -->
     <div class="filter-bar q-mb-lg">
-      <q-input v-model="filterDate" type="date" label="Data" outlined dense clearable
-        bg-color="surface" style="min-width:180px;" @update:model-value="onDateChange" />
+      <template v-if="!acumuladoMode">
+        <q-input v-model="filterDate" type="date" label="Data" outlined dense clearable
+          bg-color="surface" style="min-width:180px;" @update:model-value="onDateChange" />
+      </template>
+      <template v-else>
+        <q-input v-model="acumFrom" type="date" label="De" outlined dense clearable
+          bg-color="surface" style="min-width:155px;" @update:model-value="onAcumRangeChange" />
+        <q-input v-model="acumTo" type="date" label="Até" outlined dense clearable
+          bg-color="surface" style="min-width:155px;" @update:model-value="onAcumRangeChange" />
+        <q-btn flat dense icon="today" color="primary" label="Hoje"
+          @click="filterDate = todayStr(); acumuladoMode = false; acumuladoSet = new Set(); load()" />
+      </template>
       <q-select v-model="filterBase" :options="basesList" label="Base"
         outlined dense clearable bg-color="surface" style="min-width:140px;" />
       <q-select v-model="filterProcesso" :options="processosList" label="Processo"
@@ -365,6 +375,8 @@ const activeSessions = ref([])
 const servicesDay    = ref([])
 const acumuladoMode  = ref(false)
 const acumuladoSet   = ref(new Set())
+const acumFrom       = ref(null)
+const acumTo         = ref(null)
 const filterDate     = ref(todayStr())
 const filterBase         = ref(null)
 const filterProcesso     = ref(null)
@@ -961,26 +973,39 @@ function roundRect (ctx, x, y, w, h, r) {
 }
 
 // ── Carregamento ──────────────────────────────────────
+async function loadAcumulado (from = null, to = null) {
+  loading.value = true
+  try {
+    const { data, error } = await supabase.rpc('get_teams_with_services', {
+      date_from: from ? from + 'T00:00:00' : null,
+      date_to:   to   ? to   + 'T23:59:59' : null
+    })
+    if (error) throw error
+    acumuladoSet.value   = new Set((data || []).map(r => r.team_id))
+    acumuladoMode.value  = true
+    activeSessions.value = []
+    servicesDay.value    = []
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro ao carregar acumulado: ' + e.message })
+  } finally {
+    loading.value = false
+  }
+}
+
 async function onDateChange (val) {
   if (!val) {
-    loading.value = true
-    try {
-      const { data, error } = await supabase.rpc('get_teams_with_services', { date_from: null, date_to: null })
-      if (error) throw error
-      acumuladoSet.value  = new Set((data || []).map(r => r.team_id))
-      acumuladoMode.value = true
-      activeSessions.value = []
-      servicesDay.value    = []
-    } catch (e) {
-      $q.notify({ type: 'negative', message: 'Erro ao carregar acumulado: ' + e.message })
-    } finally {
-      loading.value = false
-    }
+    acumFrom.value = null
+    acumTo.value   = null
+    await loadAcumulado()
     return
   }
   acumuladoMode.value = false
   acumuladoSet.value  = new Set()
   load()
+}
+
+async function onAcumRangeChange () {
+  await loadAcumulado(acumFrom.value || null, acumTo.value || null)
 }
 
 async function load () {
