@@ -134,16 +134,16 @@ const dateStr = computed(() => {
 
 const allMenuItems = [
   { icon: 'dashboard',       label: 'Dashboard',   short: 'Dash',  to: '/dashboard' },
-  { icon: 'groups',          label: 'Equipes',      short: 'Equi',  to: '/equipes',      adminOnly: true },
+  { icon: 'groups',          label: 'Equipes',      short: 'Equi',  to: '/equipes',      superAdminOnly: true },
   { icon: 'verified',        label: 'Validação',    short: 'Valid', to: '/validacao' },
   { icon: 'task',            label: 'Atividades',   short: 'Ativ',  to: '/atividades' },
   { icon: 'assessment',      label: 'Relatórios',   short: 'Rela',  to: '/relatorios' },
-  { icon: 'pending_actions', label: 'Solicitações', short: 'Soli',  to: '/solicitacoes', badgeDynamic: true },
-  { icon: 'manage_accounts', label: 'Usuários',     short: 'User',  to: '/usuarios',     adminOnly: true }
+  { icon: 'pending_actions', label: 'Solicitações', short: 'Soli',  to: '/solicitacoes', superAdminOnly: true, badgeDynamic: true },
+  { icon: 'manage_accounts', label: 'Usuários',     short: 'User',  to: '/usuarios',     superAdminOnly: true }
 ]
 
 const menuItems = computed(() =>
-  allMenuItems.filter(item => !item.adminOnly || isAdmin.value)
+  allMenuItems.filter(item => !item.superAdminOnly || authStore.isSuperAdmin)
 )
 
 async function triggerSync () { await evidenceStore.syncPending() }

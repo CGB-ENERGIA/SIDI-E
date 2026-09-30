@@ -27,7 +27,7 @@ const routes = [
         path: 'equipes',
         name: 'Equipes',
         component: () => import('src/pages/desktop/TeamsPage.vue'),
-        meta: { adminOnly: true }
+        meta: { superAdminOnly: true }
       },
       {
         path: 'atividades',
@@ -48,7 +48,8 @@ const routes = [
       {
         path: 'solicitacoes',
         name: 'Solicitacoes',
-        component: () => import('src/pages/desktop/SolicitacoesPage.vue')
+        component: () => import('src/pages/desktop/SolicitacoesPage.vue'),
+        meta: { superAdminOnly: true }
       },
       {
         path: 'usuarios',
