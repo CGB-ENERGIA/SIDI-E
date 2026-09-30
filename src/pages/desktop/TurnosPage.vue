@@ -214,10 +214,14 @@
         <q-separator />
 
         <q-card-section>
-          <!-- Data do compartilhamento -->
-          <div class="text-caption text-grey-5 q-mb-sm text-weight-bold" style="letter-spacing:.06em; text-transform:uppercase;">Data</div>
-          <q-input v-model="shareDate" type="date" outlined dense bg-color="surface"
-            class="q-mb-lg" style="max-width:200px;" :loading="shareLoadingData" />
+          <!-- Período do compartilhamento -->
+          <div class="text-caption text-grey-5 q-mb-sm text-weight-bold" style="letter-spacing:.06em; text-transform:uppercase;">Período</div>
+          <div class="row q-gutter-sm q-mb-lg">
+            <q-input v-model="shareFrom" type="date" label="De" outlined dense bg-color="surface"
+              style="flex:1;" :loading="shareLoadingData" />
+            <q-input v-model="shareTo" type="date" label="Até" outlined dense bg-color="surface"
+              style="flex:1;" :loading="shareLoadingData" />
+          </div>
 
           <!-- Agrupar por -->
           <div class="text-caption text-grey-5 q-mb-sm text-weight-bold" style="letter-spacing:.06em; text-transform:uppercase;">Agrupar por</div>
@@ -240,7 +244,7 @@
                 <span class="sp-logo">SIDI-E</span>
                 <span class="sp-company">CGB ENERGIA</span>
               </div>
-              <div class="sp-date">{{ formatDateBR(shareDate) }}</div>
+              <div class="sp-date">{{ shareDate }}</div>
             </div>
 
             <div class="sp-title">CONTROLE DE TURNOS</div>
@@ -392,38 +396,60 @@ const search         = ref('')
 const statusFilter   = ref(null)
 
 // ── Compartilhar ──────────────────────────────────────
-const showShare          = ref(false)
-const shareGroupBy       = ref('coordenador')
-const generating         = ref(false)
-const sharePreviewRef    = ref(null)
-const shareDate          = ref(todayStr())
-const shareLoadingData   = ref(false)
+const showShare           = ref(false)
+const shareGroupBy        = ref('coordenador')
+const generating          = ref(false)
+const sharePreviewRef     = ref(null)
+const shareFrom           = ref(todayStr())
+const shareTo             = ref(todayStr())
+const shareLoadingData    = ref(false)
 const shareActiveSessions = ref([])
-const shareServicesDay   = ref([])
+const shareServicesDay    = ref([])
+const shareIsRange        = computed(() => shareFrom.value && shareTo.value && shareFrom.value !== shareTo.value)
+const shareDate           = computed(() => shareIsRange.value ? `${formatDateBR(shareFrom.value)} a ${formatDateBR(shareTo.value)}` : formatDateBR(shareFrom.value || todayStr()))
 
-async function loadShareData (date) {
-  if (!date) return
+async function loadShareData () {
+  const from = shareFrom.value || todayStr()
+  const to   = shareTo.value   || from
   shareLoadingData.value = true
   try {
-    const start = date + 'T00:00:00'
-    const end   = date + 'T23:59:59'
-    const [sessRes, svcRes] = await Promise.all([
-      supabase.from('active_sessions').select('id, team_id, prefixo, colaborador, data').order('prefixo'),
-      supabase.from('services')
-        .select('team_id, activity_name, colaboradores, created_at')
-        .gte('created_at', start).lte('created_at', end).limit(10000)
-    ])
-    shareActiveSessions.value = sessRes.data || []
-    shareServicesDay.value    = svcRes.data  || []
+    if (shareIsRange.value) {
+      // Range: use RPC to get distinct team_ids with services in period
+      const { data, error } = await supabase.rpc('get_teams_with_services', {
+        date_from: from + 'T00:00:00',
+        date_to:   to   + 'T23:59:59'
+      })
+      if (error) throw error
+      shareActiveSessions.value = []
+      shareServicesDay.value    = (data || []).map(r => ({ team_id: r.team_id }))
+    } else {
+      // Single day: fetch full service rows
+      const start = from + 'T00:00:00'
+      const end   = from + 'T23:59:59'
+      const [sessRes, svcRes] = await Promise.all([
+        supabase.from('active_sessions').select('id, team_id, prefixo, colaborador, data').order('prefixo'),
+        supabase.from('services')
+          .select('team_id, activity_name, colaboradores, created_at')
+          .gte('created_at', start).lte('created_at', end).limit(10000)
+      ])
+      shareActiveSessions.value = sessRes.data || []
+      shareServicesDay.value    = svcRes.data  || []
+    }
   } catch (e) {
-    $q.notify({ type: 'negative', message: 'Erro ao carregar data: ' + e.message })
+    $q.notify({ type: 'negative', message: 'Erro ao carregar: ' + e.message })
   } finally {
     shareLoadingData.value = false
   }
 }
 
-watch(shareDate, val => { if (val) loadShareData(val) })
-watch(showShare, val => { if (val) { shareDate.value = filterDate.value || todayStr(); loadShareData(shareDate.value) } })
+watch([shareFrom, shareTo], () => { if (shareFrom.value) loadShareData() })
+watch(showShare, val => {
+  if (val) {
+    shareFrom.value = filterDate.value || todayStr()
+    shareTo.value   = filterDate.value || todayStr()
+    loadShareData()
+  }
+})
 
 // ── Gráfico por Processo ───────────────────────────────
 const showDonutPeriod = ref(false)
@@ -647,7 +673,7 @@ async function downloadImage () {
   generating.value = true
   try {
     const groups = shareGroups.value
-    const date   = formatDateBR(shareDate.value || todayStr())
+    const date   = shareDate.value
     const W      = 1080
     const PAD    = 32
     const SEC_H  = 52
@@ -829,7 +855,7 @@ async function downloadImage () {
       // Download this group's image
       const safeLabel = grp.label.replace(/[^a-zA-Z0-9_-]/g, '_')
       const link = document.createElement('a')
-      link.download = `turnos-${shareDate.value || todayStr()}-${shareGroupBy.value}-${safeLabel}.png`
+      link.download = `turnos-${shareFrom.value || todayStr()}${shareIsRange.value ? '_a_' + shareTo.value : ''}-${shareGroupBy.value}-${safeLabel}.png`
       link.href = canvas.toDataURL('image/png')
       link.click()
 
