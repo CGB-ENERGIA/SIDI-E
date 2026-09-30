@@ -713,26 +713,43 @@ async function downloadImage () {
       const showAbriu = abriramTeams.length > 0
       const showNao   = naoTeams.length   > 0
 
-      // Stats cards: only show relevant ones
+      // Stats cards: 3 when ambos visíveis, 1 quando só um tipo
       const statsCards = []
       if (showAbriu && showNao) {
         statsCards.push(['#94a3b8', grp.teams.length, 'Total'],
                         ['#22c55e', grp.abriu, 'Abriram Turno'],
                         ['#ef4444', grp.nao,   'Não Abriram'])
       } else if (showAbriu) {
-        statsCards.push(['#94a3b8', grp.teams.length, 'Total'],
-                        ['#22c55e', grp.abriu, 'Abriram Turno'])
+        statsCards.push(['#22c55e', grp.abriu, 'Abriram Turno'])
       } else {
-        statsCards.push(['#94a3b8', grp.teams.length, 'Total'],
-                        ['#ef4444', grp.nao,   'Não Abriram'])
+        statsCards.push(['#ef4444', grp.nao, 'Não Abriram'])
       }
+
+      // Sub-agrupa por processo quando o agrupamento principal não é processo
+      const PROC_H    = 30
+      const byProcesso = shareGroupBy.value !== 'processo'
+      const procGroups = (teams) => {
+        if (!byProcesso) return null
+        const PROCS = ['GERE', 'GOMAN', 'GSTC']
+        const map = {}
+        for (const t of teams) {
+          const p = t.processo || 'Outros'
+          if (!map[p]) map[p] = []
+          map[p].push(t)
+        }
+        return PROCS.filter(p => map[p]?.length).map(p => ({ proc: p, teams: map[p] }))
+          .concat(map['Outros']?.length ? [{ proc: 'Outros', teams: map['Outros'] }] : [])
+      }
+      const abriramGroups = procGroups(abriramTeams)
+      const naoGroups     = procGroups(naoTeams)
+      const procHeadersCount = (groups) => groups ? groups.length : 0
 
       // Calculate canvas height dynamically
       const statsH   = 90
-      const secRows  = (n) => SEC_H + (n > 0 ? n * ROW_H : ROW_H) + 16
+      const secRows  = (n, nProc) => SEC_H + (n > 0 ? n * ROW_H + nProc * PROC_H : ROW_H) + 16
       const H = 240 + statsH + 16
-        + (showAbriu ? secRows(abriramTeams.length) : 0)
-        + (showNao   ? secRows(naoTeams.length)     : 0)
+        + (showAbriu ? secRows(abriramTeams.length, procHeadersCount(abriramGroups)) : 0)
+        + (showNao   ? secRows(naoTeams.length,     procHeadersCount(naoGroups))     : 0)
         + 60
 
       const canvas = document.createElement('canvas')
@@ -798,8 +815,36 @@ async function downloadImage () {
 
       let y = statsY + statsH + 16
 
+      const drawTeamRow = (t) => {
+        const opened = t.status !== 'sem_turno'
+        ctx.fillStyle = opened ? 'rgba(34,197,94,0.07)' : 'rgba(239,68,68,0.06)'
+        roundRect(ctx, PAD + 8, y, W - PAD * 2 - 16, ROW_H - 4, 8)
+        ctx.fill()
+        ctx.beginPath()
+        ctx.arc(PAD + 30, y + (ROW_H - 4) / 2, 5, 0, Math.PI * 2)
+        ctx.fillStyle = opened ? '#22c55e' : '#ef4444'
+        ctx.fill()
+        ctx.font = 'bold 13px Arial'
+        ctx.fillStyle = '#e2e8f0'
+        ctx.fillText(t.prefixo || '', PAD + 46, y + 25)
+        const maxW = W - PAD * 2 - 180
+        ctx.font = '12px Arial'
+        ctx.fillStyle = '#94a3b8'
+        let nome = t.nome || ''
+        while (nome.length > 0 && ctx.measureText(nome).width > maxW) nome = nome.slice(0, -1)
+        if (nome !== (t.nome || '')) nome += '…'
+        ctx.fillText(nome, PAD + 160, y + 25)
+        const lbl = opened ? (t.status === 'em_turno' ? 'Em Campo' : 'Encerrado') : 'Não Abriu'
+        ctx.font = 'bold 12px Arial'
+        ctx.fillStyle = opened ? '#22c55e' : '#ef4444'
+        ctx.textAlign = 'right'
+        ctx.fillText(lbl, W - PAD - 20, y + 25)
+        ctx.textAlign = 'left'
+        y += ROW_H
+      }
+
       // Section drawer (modifies y via closure)
-      const drawSection = (title, teams, accentColor, accentBg) => {
+      const drawSection = (title, teams, accentColor, accentBg, groups) => {
         // Section header
         ctx.fillStyle = accentBg
         roundRect(ctx, PAD, y, W - PAD * 2, SEC_H, 12)
@@ -816,41 +861,20 @@ async function downloadImage () {
           ctx.fillText('Nenhuma equipe', W / 2, y + 20)
           ctx.textAlign = 'left'
           y += ROW_H
-        } else {
-          for (const t of teams) {
-            const opened = t.status !== 'sem_turno'
-            ctx.fillStyle = opened ? 'rgba(34,197,94,0.07)' : 'rgba(239,68,68,0.06)'
-            roundRect(ctx, PAD + 8, y, W - PAD * 2 - 16, ROW_H - 4, 8)
-            ctx.fill()
-
-            ctx.beginPath()
-            ctx.arc(PAD + 30, y + (ROW_H - 4) / 2, 5, 0, Math.PI * 2)
-            ctx.fillStyle = opened ? '#22c55e' : '#ef4444'
-            ctx.fill()
-
-            ctx.font = 'bold 13px Arial'
-            ctx.fillStyle = '#e2e8f0'
-            ctx.fillText(t.prefixo || '', PAD + 46, y + 25)
-
-            // Truncate name to fit
-            const maxW = W - PAD * 2 - 180
-            ctx.font = '12px Arial'
-            ctx.fillStyle = '#94a3b8'
-            let nome = t.nome || ''
-            while (nome.length > 0 && ctx.measureText(nome).width > maxW) {
-              nome = nome.slice(0, -1)
-            }
-            if (nome !== (t.nome || '')) nome += '…'
-            ctx.fillText(nome, PAD + 160, y + 25)
-
-            const lbl = opened ? (t.status === 'em_turno' ? 'Em Campo' : 'Encerrado') : 'Não Abriu'
-            ctx.font = 'bold 12px Arial'
-            ctx.fillStyle = opened ? '#22c55e' : '#ef4444'
-            ctx.textAlign = 'right'
-            ctx.fillText(lbl, W - PAD - 20, y + 25)
-            ctx.textAlign = 'left'
-            y += ROW_H
+        } else if (groups) {
+          // Sub-agrupado por processo
+          for (const g of groups) {
+            // Processo sub-header
+            ctx.font = 'bold 11px Arial'
+            ctx.fillStyle = '#f97316'
+            ctx.fillText(`▸  ${g.proc}  (${g.teams.length})`, PAD + 16, y + 20)
+            ctx.fillStyle = '#334155'
+            ctx.fillRect(PAD + 16 + ctx.measureText(`▸  ${g.proc}  (${g.teams.length})`).width + 8, y + 14, W - PAD * 2 - 160, 1)
+            y += PROC_H
+            for (const t of g.teams) drawTeamRow(t)
           }
+        } else {
+          for (const t of teams) drawTeamRow(t)
         }
         y += 16
       }
@@ -858,13 +882,13 @@ async function downloadImage () {
       if (showAbriu) {
         drawSection(
           `✓  ABRIRAM TURNO  (${abriramTeams.length})`,
-          abriramTeams, '#22c55e', 'rgba(34,197,94,0.13)'
+          abriramTeams, '#22c55e', 'rgba(34,197,94,0.13)', abriramGroups
         )
       }
       if (showNao) {
         drawSection(
           `✗  NÃO ABRIRAM  (${naoTeams.length})`,
-          naoTeams, '#ef4444', 'rgba(239,68,68,0.11)'
+          naoTeams, '#ef4444', 'rgba(239,68,68,0.11)', naoGroups
         )
       }
 
