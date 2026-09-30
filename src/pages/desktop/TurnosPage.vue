@@ -289,9 +289,61 @@
         <q-card-actions align="right" class="q-pa-md q-gutter-sm">
           <q-btn flat label="Fechar" v-close-popup />
           <q-btn outline color="teal" icon="donut_large" label="Gráfico por Processo"
-            :loading="generating" @click="downloadDonutChart" />
+            :loading="generating" @click="showDonutPeriod = true" />
           <q-btn unelevated color="primary" icon="download" label="Baixar Imagem"
             :loading="generating" @click="downloadImage" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- ── Dialog: Período do Gráfico por Processo ───────── -->
+    <q-dialog v-model="showDonutPeriod">
+      <q-card style="min-width:420px; border-radius:18px;">
+        <q-card-section class="q-pb-sm">
+          <div class="text-h6 text-weight-bold flex items-center q-gutter-sm">
+            <q-icon name="donut_large" color="teal" />
+            <span>Gráfico por Processo</span>
+          </div>
+          <div class="text-caption text-grey-5 q-mt-xs">Selecione o período para o gráfico</div>
+        </q-card-section>
+        <q-separator />
+
+        <q-card-section class="q-gutter-md">
+          <!-- Tipo de período -->
+          <div class="donut-period-opts">
+            <button
+              v-for="opt in donutPeriodOpts" :key="opt.value"
+              class="share-group-btn"
+              :class="{ 'share-group-btn--active': donutPeriod === opt.value }"
+              @click="donutPeriod = opt.value"
+            >
+              <q-icon :name="opt.icon" size="16px" class="q-mr-xs" />
+              {{ opt.label }}
+            </button>
+          </div>
+
+          <!-- Intervalo personalizado -->
+          <div v-if="donutPeriod === 'range'" class="row q-gutter-sm q-mt-xs">
+            <q-input v-model="donutDateFrom" type="date" label="De" outlined dense
+              bg-color="surface" style="flex:1;" />
+            <q-input v-model="donutDateTo" type="date" label="Até" outlined dense
+              bg-color="surface" style="flex:1;" />
+          </div>
+
+          <!-- Info do período selecionado -->
+          <div class="text-caption text-grey-5 q-mt-xs">
+            <q-icon name="info" size="13px" class="q-mr-xs" />
+            <span v-if="donutPeriod === 'date'">Usa os dados do dia selecionado nos filtros ({{ formatDateBR(filterDate || todayStr()) }})</span>
+            <span v-else-if="donutPeriod === 'range'">Equipes que registraram ao menos um serviço no intervalo</span>
+            <span v-else>Todas as equipes que já registraram serviço na base</span>
+          </div>
+        </q-card-section>
+
+        <q-separator />
+        <q-card-actions align="right" class="q-pa-md q-gutter-sm">
+          <q-btn flat label="Cancelar" v-close-popup />
+          <q-btn unelevated color="teal" icon="download" label="Gerar Imagem"
+            :loading="generating" @click="downloadDonutChart" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -321,10 +373,21 @@ const search         = ref('')
 const statusFilter   = ref(null)
 
 // ── Compartilhar ──────────────────────────────────────
-const showShare      = ref(false)
-const shareGroupBy   = ref('coordenador')
-const generating     = ref(false)
+const showShare       = ref(false)
+const shareGroupBy    = ref('coordenador')
+const generating      = ref(false)
 const sharePreviewRef = ref(null)
+
+// ── Gráfico por Processo ───────────────────────────────
+const showDonutPeriod = ref(false)
+const donutPeriod     = ref('date')
+const donutDateFrom   = ref(todayStr())
+const donutDateTo     = ref(todayStr())
+const donutPeriodOpts = [
+  { value: 'date',  label: 'Data atual',        icon: 'today' },
+  { value: 'range', label: 'Intervalo',          icon: 'date_range' },
+  { value: 'all',   label: 'Acumulado geral',    icon: 'all_inclusive' }
+]
 
 const shareGroupOpts = [
   { value: 'coordenador', label: 'Coordenador', icon: 'person_pin' },
@@ -675,23 +738,50 @@ async function downloadImage () {
 
 async function downloadDonutChart () {
   generating.value = true
+  showDonutPeriod.value = false
   try {
-    const date = formatDateBR(filterDate.value || todayStr())
-    const W    = 1080
-    const PAD  = 40
+    const W   = 1080
+    const PAD = 40
 
-    // Compute status for ALL teams regardless of current filters
-    const sessionSet  = new Set(activeSessions.value.map(s => s.team_id))
-    const activitySet = new Set(servicesDay.value.map(s => s.team_id))
+    // Resolve period → set of team_ids that opened shift
+    let abriuSet
+    let periodLabel
+
+    if (donutPeriod.value === 'date') {
+      const sessionSet  = new Set(activeSessions.value.map(s => s.team_id))
+      const activitySet = new Set(servicesDay.value.map(s => s.team_id))
+      abriuSet    = new Set([...sessionSet, ...activitySet])
+      periodLabel = formatDateBR(filterDate.value || todayStr())
+    } else if (donutPeriod.value === 'range') {
+      const from = donutDateFrom.value || todayStr()
+      const to   = donutDateTo.value   || todayStr()
+      const { data, error } = await supabase
+        .from('services')
+        .select('team_id')
+        .gte('created_at', from + 'T00:00:00')
+        .lte('created_at', to + 'T23:59:59')
+      if (error) throw error
+      abriuSet    = new Set((data || []).map(s => s.team_id))
+      periodLabel = `${formatDateBR(from)} a ${formatDateBR(to)}`
+    } else {
+      const { data, error } = await supabase
+        .from('services')
+        .select('team_id')
+      if (error) throw error
+      abriuSet    = new Set((data || []).map(s => s.team_id))
+      periodLabel = 'Acumulado Geral'
+    }
 
     const PROCESSOS = ['GERE', 'GOMAN', 'GSTC']
     const procData = PROCESSOS.map(proc => {
       const ts   = teamsStore.teams.filter(t => t.processo === proc)
-      const abriu = ts.filter(t => sessionSet.has(t.id) || activitySet.has(t.id)).length
+      const abriu = ts.filter(t => abriuSet.has(t.id)).length
       const nao   = ts.length - abriu
       const pct   = ts.length ? Math.round(abriu / ts.length * 100) : 0
       return { label: proc, total: ts.length, abriu, nao, pct }
     })
+
+    const date = periodLabel
 
     const DONUT_R  = 110   // outer radius
     const RING_W   = 28    // stroke width
@@ -733,7 +823,7 @@ async function downloadDonutChart () {
     ctx.fillText('CONTROLE DE TURNOS', W / 2, 138)
     ctx.font = '16px Arial'
     ctx.fillStyle = '#94a3b8'
-    ctx.fillText('Visão por Processo', W / 2, 164)
+    ctx.fillText(`Visão por Processo · ${periodLabel}`, W / 2, 164)
     ctx.textAlign = 'left'
 
     let blockY = 204
@@ -1123,7 +1213,13 @@ onUnmounted(() => {
   padding: 64px 0;
 }
 
-/* ── Share dialog ───────────────────────────────────── */
+/* ── Share / Donut period dialog ────────────────────── */
+.donut-period-opts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .share-group-btns {
   display: flex;
   gap: 8px;
