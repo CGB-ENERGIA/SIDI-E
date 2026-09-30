@@ -281,6 +281,65 @@
       </div>
     </div>
 
+    <!-- Orientação inicial -->
+    <q-dialog v-model="showTip" position="bottom" seamless>
+      <q-card style="border-radius: 20px 20px 0 0; max-width: 600px; width: 100%;">
+        <q-card-section class="q-pt-lg q-pb-xs text-center">
+          <q-icon name="info" color="primary" size="36px" />
+          <div class="text-h6 text-weight-bold q-mt-sm">Como registrar o serviço</div>
+          <div class="text-caption text-grey-6">Siga os passos abaixo para um registro correto</div>
+        </q-card-section>
+
+        <q-card-section class="q-pt-sm q-pb-md">
+          <q-list>
+            <q-item class="q-mb-sm tip-item">
+              <q-item-section avatar>
+                <q-avatar color="primary" text-color="white" size="42px">
+                  <q-icon name="safety_check" />
+                </q-avatar>
+              </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-weight-bold">Verificação de EPI</q-item-label>
+                <q-item-label caption>
+                  Tire <strong>no mínimo 2 fotos</strong> mostrando o eletricista com todos os equipamentos de proteção individual (capacete, luvas, óculos etc.).
+                </q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-separator inset="item" class="q-my-xs" />
+
+            <q-item class="q-mt-sm tip-item">
+              <q-item-section avatar>
+                <q-avatar color="warning" text-color="white" size="42px">
+                  <q-icon name="stairs" />
+                </q-avatar>
+              </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-weight-bold">
+                  Amarração de escada
+                  <q-badge color="grey-5" label="opcional" class="q-ml-xs" />
+                </q-item-label>
+                <q-item-label caption>
+                  Se o serviço envolver uso de escada, fotografe a amarração antes de subir. Caso não haja escada, pode pular esta etapa.
+                </q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+
+        <q-card-section class="q-pt-none q-pb-lg q-px-lg">
+          <q-btn
+            unelevated rounded color="primary"
+            label="Entendido, vamos lá!"
+            icon-right="arrow_forward"
+            class="full-width"
+            size="md"
+            v-close-popup
+          />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
     <!-- Camera modal -->
     <CameraCapture
       v-if="showCamera"
@@ -314,6 +373,7 @@ const step = ref(1)
 const saving = ref(false)
 const showCamera = ref(false)
 const cameraTipo = ref('epi')
+const showTip = ref(false)
 const activities = ref([])
 
 // Wake Lock — mantém tela ligada durante o registro no campo
@@ -363,6 +423,7 @@ function createActivity (val, done) {
 }
 
 onMounted(async () => {
+  showTip.value = true
   acquireWakeLock()
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') acquireWakeLock()
