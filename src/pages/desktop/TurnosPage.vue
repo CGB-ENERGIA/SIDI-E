@@ -20,7 +20,7 @@
 
     <!-- Filtros -->
     <div class="filter-bar q-mb-lg">
-      <q-input v-model="filterDate" type="date" label="Data" outlined dense clearable
+      <q-input v-model="filterDate" type="date" label="Data" outlined dense
         bg-color="surface" style="min-width:180px;" @update:model-value="onDateChange" />
       <q-select v-model="filterBase" :options="basesList" label="Base"
         outlined dense clearable bg-color="surface" style="min-width:140px;" />
