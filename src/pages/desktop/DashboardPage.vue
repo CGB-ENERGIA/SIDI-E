@@ -313,7 +313,8 @@ function strColor (str = '') {
 /* ── Page ───────────────────────────────────────────────── */
 .dash-page {
   padding: 32px 36px;
-  max-width: 1500px;
+  max-width: 1400px;
+  margin: 0 auto;
   background: var(--background);
   min-height: 100vh;
   font-family: 'Manrope', sans-serif;

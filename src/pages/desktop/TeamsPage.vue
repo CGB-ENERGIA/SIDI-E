@@ -592,6 +592,8 @@ async function applyImport () {
 /* ── Page ─────────────────────────────────────────────── */
 .teams-page {
   padding: 32px 36px;
+  max-width: 1400px;
+  margin: 0 auto;
   background: var(--background);
   min-height: 100vh;
   color: var(--fg);

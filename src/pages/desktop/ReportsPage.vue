@@ -458,6 +458,8 @@ function exportCsv () {
 /* ── Page ───────────────────────────────────────────────── */
 .rp-page {
   padding: 32px 36px;
+  max-width: 1400px;
+  margin: 0 auto;
   min-height: 100vh;
   background: var(--background);
   color: var(--fg);

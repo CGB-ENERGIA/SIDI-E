@@ -960,6 +960,8 @@ onMounted(async () => {
 <style scoped>
 /* ── Page ─────────────────────────────────────────────── */
 .act-page {
+  max-width: 1400px;
+  margin: 0 auto;
   min-height: 100vh;
   background:
     radial-gradient(ellipse 70% 35% at 50% 0%, color-mix(in oklab, var(--primary) 7%, transparent) 0%, transparent 60%),

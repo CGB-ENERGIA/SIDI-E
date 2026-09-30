@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-lg">
+  <q-page class="soli-page q-pa-lg">
     <div class="flex items-center justify-between q-mb-lg">
       <div>
         <div class="text-h5 text-weight-bold">Colaboradores Cadastrados</div>
@@ -346,3 +346,10 @@ function formatDate (iso) {
   })
 }
 </script>
+
+<style scoped>
+.soli-page {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+</style>

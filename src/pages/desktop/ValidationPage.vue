@@ -836,6 +836,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 /* ─── Page ──────────────────────────────────────────────────── */
 .val-page {
+  max-width: 1400px;
+  margin: 0 auto;
   background:
     radial-gradient(ellipse 70% 45% at 50% 0%, color-mix(in oklab, var(--primary) 8%, transparent) 0%, transparent 65%),
     var(--background);

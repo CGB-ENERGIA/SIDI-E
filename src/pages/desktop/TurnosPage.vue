@@ -296,6 +296,8 @@
         <q-separator />
         <q-card-actions align="right" class="q-pa-md q-gutter-sm">
           <q-btn flat label="Fechar" v-close-popup />
+          <q-btn outline color="teal" icon="donut_large" label="Gráfico por Processo"
+            :loading="generating" @click="downloadDonutChart" />
           <q-btn unelevated color="primary" icon="download" label="Baixar Imagem"
             :loading="generating" @click="downloadImage" />
         </q-card-actions>
@@ -503,178 +505,346 @@ const shareGroups = computed(() => {
 async function downloadImage () {
   generating.value = true
   try {
-    const teams  = filteredTeams.value
     const groups = shareGroups.value
     const date   = formatDateBR(filterDate.value || todayStr())
-    const pct    = teams.length ? Math.round(countAbriu.value / teams.length * 100) : 0
+    const W      = 1080
+    const PAD    = 32
+    const SEC_H  = 52
+    const ROW_H  = 38
 
-    const W = 1080
-    const ROW_H = 36
-    const GROUP_H = 52
-    const TEAM_LIMIT = 15
-    let H = 320 // header + stats + progress
-    for (const g of groups) H += GROUP_H + Math.min(g.teams.length, TEAM_LIMIT) * ROW_H + 16
-    H += 60 // footer
+    for (let gi = 0; gi < groups.length; gi++) {
+      const grp         = groups[gi]
+      const abriramTeams = grp.teams.filter(t => t.status !== 'sem_turno')
+      const naoTeams     = grp.teams.filter(t => t.status === 'sem_turno')
+
+      // Calculate canvas height dynamically
+      const statsH   = 90
+      const secRows  = (n) => SEC_H + (n > 0 ? n * ROW_H : ROW_H) + 16
+      const H = 240 + statsH + 16 + secRows(abriramTeams.length) + secRows(naoTeams.length) + 60
+
+      const canvas = document.createElement('canvas')
+      canvas.width  = W
+      canvas.height = H
+      const ctx = canvas.getContext('2d')
+
+      // Background
+      const bg = ctx.createLinearGradient(0, 0, 0, H)
+      bg.addColorStop(0, '#0f172a')
+      bg.addColorStop(1, '#111827')
+      ctx.fillStyle = bg
+      ctx.fillRect(0, 0, W, H)
+
+      // Header bar
+      ctx.fillStyle = '#1e293b'
+      roundRect(ctx, PAD, 28, W - PAD * 2, 68, 14)
+      ctx.fill()
+      ctx.font = 'bold 22px Arial'
+      ctx.fillStyle = '#f97316'
+      ctx.fillText('SIDI-E', PAD + 28, 72)
+      ctx.font = 'bold 16px Arial'
+      ctx.fillStyle = '#94a3b8'
+      ctx.fillText('CGB ENERGIA', PAD + 96, 72)
+      ctx.font = '14px Arial'
+      ctx.fillStyle = '#64748b'
+      ctx.textAlign = 'right'
+      ctx.fillText(date, W - PAD - 28, 72)
+      ctx.textAlign = 'left'
+
+      // Title
+      ctx.font = 'bold 30px Arial'
+      ctx.fillStyle = '#f1f5f9'
+      ctx.textAlign = 'center'
+      ctx.fillText('CONTROLE DE TURNOS', W / 2, 138)
+
+      // Group label
+      ctx.font = 'bold 20px Arial'
+      ctx.fillStyle = '#f97316'
+      ctx.fillText(grp.label, W / 2, 165)
+      ctx.textAlign = 'left'
+
+      // Stats row
+      const statsY = 184
+      const statW  = 210
+      const statX  = [W / 2 - statW * 1.5, W / 2 - statW / 2, W / 2 + statW / 2]
+      ;[['#94a3b8', grp.teams.length, 'Total'],
+        ['#22c55e', grp.abriu, 'Abriram Turno'],
+        ['#ef4444', grp.nao,   'Não Abriram']
+      ].forEach(([color, val, lbl], i) => {
+        ctx.fillStyle = '#1e293b'
+        roundRect(ctx, statX[i], statsY, statW - 10, 68, 10)
+        ctx.fill()
+        ctx.font = 'bold 34px Arial'
+        ctx.fillStyle = color
+        ctx.textAlign = 'center'
+        ctx.fillText(val, statX[i] + (statW - 10) / 2, statsY + 40)
+        ctx.font = '12px Arial'
+        ctx.fillStyle = '#64748b'
+        ctx.fillText(lbl, statX[i] + (statW - 10) / 2, statsY + 58)
+      })
+      ctx.textAlign = 'left'
+
+      let y = statsY + statsH + 16
+
+      // Section drawer (modifies y via closure)
+      const drawSection = (title, teams, accentColor, accentBg) => {
+        // Section header
+        ctx.fillStyle = accentBg
+        roundRect(ctx, PAD, y, W - PAD * 2, SEC_H, 12)
+        ctx.fill()
+        ctx.font = 'bold 17px Arial'
+        ctx.fillStyle = accentColor
+        ctx.fillText(title, PAD + 20, y + SEC_H / 2 + 7)
+        y += SEC_H + 6
+
+        if (teams.length === 0) {
+          ctx.font = '14px Arial'
+          ctx.fillStyle = '#475569'
+          ctx.textAlign = 'center'
+          ctx.fillText('Nenhuma equipe', W / 2, y + 20)
+          ctx.textAlign = 'left'
+          y += ROW_H
+        } else {
+          for (const t of teams) {
+            const opened = t.status !== 'sem_turno'
+            ctx.fillStyle = opened ? 'rgba(34,197,94,0.07)' : 'rgba(239,68,68,0.06)'
+            roundRect(ctx, PAD + 8, y, W - PAD * 2 - 16, ROW_H - 4, 8)
+            ctx.fill()
+
+            ctx.beginPath()
+            ctx.arc(PAD + 30, y + (ROW_H - 4) / 2, 5, 0, Math.PI * 2)
+            ctx.fillStyle = opened ? '#22c55e' : '#ef4444'
+            ctx.fill()
+
+            ctx.font = 'bold 13px Arial'
+            ctx.fillStyle = '#e2e8f0'
+            ctx.fillText(t.prefixo || '', PAD + 46, y + 25)
+
+            // Truncate name to fit
+            const maxW = W - PAD * 2 - 180
+            ctx.font = '12px Arial'
+            ctx.fillStyle = '#94a3b8'
+            let nome = t.nome || ''
+            while (nome.length > 0 && ctx.measureText(nome).width > maxW) {
+              nome = nome.slice(0, -1)
+            }
+            if (nome !== (t.nome || '')) nome += '…'
+            ctx.fillText(nome, PAD + 160, y + 25)
+
+            const lbl = opened ? (t.status === 'em_turno' ? 'Em Campo' : 'Encerrado') : 'Não Abriu'
+            ctx.font = 'bold 12px Arial'
+            ctx.fillStyle = opened ? '#22c55e' : '#ef4444'
+            ctx.textAlign = 'right'
+            ctx.fillText(lbl, W - PAD - 20, y + 25)
+            ctx.textAlign = 'left'
+            y += ROW_H
+          }
+        }
+        y += 16
+      }
+
+      drawSection(
+        `✓  ABRIRAM TURNO  (${abriramTeams.length})`,
+        abriramTeams, '#22c55e', 'rgba(34,197,94,0.13)'
+      )
+      drawSection(
+        `✗  NÃO ABRIRAM  (${naoTeams.length})`,
+        naoTeams, '#ef4444', 'rgba(239,68,68,0.11)'
+      )
+
+      // Footer
+      ctx.fillStyle = '#334155'
+      ctx.fillRect(PAD, H - 46, W - PAD * 2, 1)
+      ctx.font = '13px Arial'
+      ctx.fillStyle = '#475569'
+      ctx.textAlign = 'center'
+      ctx.fillText('Gerado por SIDI-E · CGB ENERGIA', W / 2, H - 16)
+      ctx.textAlign = 'left'
+
+      // Download this group's image
+      const safeLabel = grp.label.replace(/[^a-zA-Z0-9_-]/g, '_')
+      const link = document.createElement('a')
+      link.download = `turnos-${filterDate.value || todayStr()}-${shareGroupBy.value}-${safeLabel}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+
+      if (gi < groups.length - 1) {
+        await new Promise(res => setTimeout(res, 400))
+      }
+    }
+
+    $q.notify({ type: 'positive', message: `${groups.length} imagem(ns) gerada(s) com sucesso!` })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro ao gerar imagem: ' + e.message })
+  } finally {
+    generating.value = false
+  }
+}
+
+async function downloadDonutChart () {
+  generating.value = true
+  try {
+    const date = formatDateBR(filterDate.value || todayStr())
+    const W    = 1080
+    const PAD  = 40
+
+    // Compute status for ALL teams regardless of current filters
+    const sessionSet  = new Set(activeSessions.value.map(s => s.team_id))
+    const activitySet = new Set(servicesDay.value.map(s => s.team_id))
+
+    const PROCESSOS = ['GERE', 'GOMAN', 'GSTC']
+    const procData = PROCESSOS.map(proc => {
+      const ts   = teamsStore.teams.filter(t => t.processo === proc)
+      const abriu = ts.filter(t => sessionSet.has(t.id) || activitySet.has(t.id)).length
+      const nao   = ts.length - abriu
+      const pct   = ts.length ? Math.round(abriu / ts.length * 100) : 0
+      return { label: proc, total: ts.length, abriu, nao, pct }
+    })
+
+    const DONUT_R  = 110   // outer radius
+    const RING_W   = 28    // stroke width
+    const BLOCK_H  = 400   // height per process block
+    const H = 220 + PROCESSOS.length * BLOCK_H + 60
 
     const canvas = document.createElement('canvas')
     canvas.width  = W
     canvas.height = H
     const ctx = canvas.getContext('2d')
 
-    // ── Background ──────────────────────────────────────
+    // Background
     const bg = ctx.createLinearGradient(0, 0, 0, H)
     bg.addColorStop(0, '#0f172a')
     bg.addColorStop(1, '#111827')
     ctx.fillStyle = bg
     ctx.fillRect(0, 0, W, H)
 
-    // ── Header bar ──────────────────────────────────────
+    // Header bar
     ctx.fillStyle = '#1e293b'
-    roundRect(ctx, 32, 32, W - 64, 72, 14)
+    roundRect(ctx, PAD, 28, W - PAD * 2, 68, 14)
     ctx.fill()
     ctx.font = 'bold 22px Arial'
     ctx.fillStyle = '#f97316'
-    ctx.fillText('SIDI-E', 62, 77)
+    ctx.fillText('SIDI-E', PAD + 28, 72)
     ctx.font = 'bold 16px Arial'
     ctx.fillStyle = '#94a3b8'
-    ctx.fillText('CGB ENERGIA', 130, 77)
+    ctx.fillText('CGB ENERGIA', PAD + 96, 72)
     ctx.font = '14px Arial'
     ctx.fillStyle = '#64748b'
     ctx.textAlign = 'right'
-    ctx.fillText(date, W - 62, 77)
+    ctx.fillText(date, W - PAD - 28, 72)
     ctx.textAlign = 'left'
 
-    // ── Title ───────────────────────────────────────────
-    ctx.font = 'bold 32px Arial'
+    // Title
+    ctx.font = 'bold 30px Arial'
     ctx.fillStyle = '#f1f5f9'
     ctx.textAlign = 'center'
-    ctx.fillText('CONTROLE DE TURNOS', W / 2, 148)
-
-    let ctx_lbl = []
-    if (filterBase.value) ctx_lbl.push(`Base: ${filterBase.value}`)
-    if (filterProcesso.value) ctx_lbl.push(`Processo: ${filterProcesso.value}`)
-    if (!ctx_lbl.length) ctx_lbl.push('Todas as equipes')
+    ctx.fillText('CONTROLE DE TURNOS', W / 2, 138)
     ctx.font = '16px Arial'
     ctx.fillStyle = '#94a3b8'
-    ctx.fillText(ctx_lbl.join(' · '), W / 2, 172)
+    ctx.fillText('Visão por Processo', W / 2, 164)
     ctx.textAlign = 'left'
 
-    // ── KPI stats ───────────────────────────────────────
-    const statsY = 196
-    const statW = 220
-    const statX = [W / 2 - statW * 1.5, W / 2 - statW / 2, W / 2 + statW / 2]
-    const statColors = ['#94a3b8', '#22c55e', '#ef4444']
-    const statVals   = [teams.length, countAbriu.value, countSemTurno.value]
-    const statLbls   = ['Total', 'Abriram Turno', 'Não Abriram']
-    for (let i = 0; i < 3; i++) {
-      ctx.fillStyle = '#1e293b'
-      roundRect(ctx, statX[i], statsY, statW - 12, 76, 12)
-      ctx.fill()
-      ctx.font = `bold 38px Arial`
-      ctx.fillStyle = statColors[i]
+    let blockY = 204
+
+    for (let pi = 0; pi < procData.length; pi++) {
+      const p  = procData[pi]
+      const cx = W / 2
+      const cy = blockY + 38 + DONUT_R
+
+      // Process label
+      ctx.font = 'bold 26px Arial'
+      ctx.fillStyle = '#f97316'
       ctx.textAlign = 'center'
-      ctx.fillText(statVals[i], statX[i] + (statW - 12) / 2, statsY + 46)
-      ctx.font = '13px Arial'
-      ctx.fillStyle = '#64748b'
-      ctx.fillText(statLbls[i], statX[i] + (statW - 12) / 2, statsY + 66)
-    }
-    ctx.textAlign = 'left'
-
-    // ── Progress bar ────────────────────────────────────
-    const progY = statsY + 92
-    ctx.fillStyle = '#1e293b'
-    roundRect(ctx, 32, progY, W - 64, 28, 8)
-    ctx.fill()
-    if (pct > 0) {
-      const fillW = Math.max(16, Math.round((W - 64) * pct / 100))
-      const grad = ctx.createLinearGradient(32, 0, 32 + fillW, 0)
-      grad.addColorStop(0, '#22c55e')
-      grad.addColorStop(1, '#16a34a')
-      ctx.fillStyle = grad
-      roundRect(ctx, 32, progY, fillW, 28, 8)
-      ctx.fill()
-    }
-    ctx.font = 'bold 13px Arial'
-    ctx.fillStyle = '#f1f5f9'
-    ctx.textAlign = 'center'
-    ctx.fillText(`${pct}% das equipes abriram turno`, W / 2, progY + 18)
-    ctx.textAlign = 'left'
-
-    // ── Groups ──────────────────────────────────────────
-    let y = progY + 50
-    for (const grp of groups) {
-      // Group header
-      ctx.fillStyle = '#1e293b'
-      roundRect(ctx, 32, y, W - 64, 40, 10)
-      ctx.fill()
-
-      ctx.font = 'bold 15px Arial'
-      ctx.fillStyle = '#e2e8f0'
-      ctx.fillText(grp.label, 56, y + 25)
-
-      const grpStats = `✓ ${grp.abriu} abriram    ✗ ${grp.nao} não abriram`
-      ctx.font = '13px Arial'
-      ctx.fillStyle = '#64748b'
-      ctx.textAlign = 'right'
-      ctx.fillText(grpStats, W - 56, y + 25)
+      ctx.fillText(p.label, cx, blockY + 28)
       ctx.textAlign = 'left'
-      y += 48
 
-      // Team rows
-      const visible = grp.teams.slice(0, TEAM_LIMIT)
-      for (const t of visible) {
-        const opened = t.status !== 'sem_turno'
-        ctx.fillStyle = opened ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.04)'
-        roundRect(ctx, 40, y, W - 80, ROW_H - 4, 7)
-        ctx.fill()
-        // Status dot
+      // Background ring
+      ctx.beginPath()
+      ctx.arc(cx, cy, DONUT_R - RING_W / 2, 0, Math.PI * 2)
+      ctx.strokeStyle = '#1e293b'
+      ctx.lineWidth = RING_W
+      ctx.lineCap = 'butt'
+      ctx.stroke()
+
+      // Red track (not opened)
+      ctx.beginPath()
+      ctx.arc(cx, cy, DONUT_R - RING_W / 2, 0, Math.PI * 2)
+      ctx.strokeStyle = 'rgba(239,68,68,0.22)'
+      ctx.lineWidth = RING_W
+      ctx.lineCap = 'butt'
+      ctx.stroke()
+
+      // Green arc (opened)
+      if (p.abriu > 0 && p.total > 0) {
+        const endAngle = -Math.PI / 2 + 2 * Math.PI * (p.abriu / p.total)
         ctx.beginPath()
-        ctx.arc(64, y + (ROW_H - 4) / 2, 5, 0, Math.PI * 2)
-        ctx.fillStyle = opened ? '#22c55e' : '#ef4444'
-        ctx.fill()
-        // Prefix
-        ctx.font = 'bold 13px Arial'
-        ctx.fillStyle = '#e2e8f0'
-        ctx.fillText(t.prefixo, 78, y + 22)
-        // Team name
-        ctx.font = '12px Arial'
-        ctx.fillStyle = '#94a3b8'
-        ctx.fillText(t.nome || '', 240, y + 22)
-        // Status label
-        const lbl = opened ? (t.status === 'em_turno' ? 'Em Campo' : 'Encerrado') : 'Não Abriu'
-        ctx.font = 'bold 12px Arial'
-        ctx.fillStyle = opened ? '#22c55e' : '#ef4444'
-        ctx.textAlign = 'right'
-        ctx.fillText(lbl, W - 56, y + 22)
-        ctx.textAlign = 'left'
-        y += ROW_H
+        ctx.arc(cx, cy, DONUT_R - RING_W / 2, -Math.PI / 2, endAngle)
+        ctx.strokeStyle = '#22c55e'
+        ctx.lineWidth = RING_W
+        ctx.lineCap = 'round'
+        ctx.shadowColor = '#22c55e'
+        ctx.shadowBlur = 18
+        ctx.stroke()
+        ctx.shadowBlur = 0
       }
-      if (grp.teams.length > TEAM_LIMIT) {
+
+      // Center text: percentage
+      ctx.textAlign = 'center'
+      ctx.font = `bold 54px Arial`
+      ctx.fillStyle = '#f1f5f9'
+      ctx.fillText(`${p.pct}%`, cx, cy + 16)
+      ctx.font = '14px Arial'
+      ctx.fillStyle = '#64748b'
+      ctx.fillText('abriram turno', cx, cy + 36)
+      ctx.textAlign = 'left'
+
+      // Stat cards row below donut
+      const cardsY = cy + DONUT_R + 22
+      const cardW  = (W - PAD * 2 - 24) / 3
+      ;[
+        { val: p.total, lbl: 'Total de Equipes', color: '#94a3b8' },
+        { val: p.abriu, lbl: 'Abriram Turno',    color: '#22c55e' },
+        { val: p.nao,   lbl: 'Não Abriram',       color: '#ef4444' }
+      ].forEach((s, i) => {
+        const cx2 = PAD + i * (cardW + 12)
+        ctx.fillStyle = '#1e293b'
+        roundRect(ctx, cx2, cardsY, cardW, 74, 12)
+        ctx.fill()
+        ctx.font = 'bold 36px Arial'
+        ctx.fillStyle = s.color
+        ctx.textAlign = 'center'
+        ctx.fillText(s.val, cx2 + cardW / 2, cardsY + 44)
         ctx.font = '12px Arial'
         ctx.fillStyle = '#64748b'
-        ctx.fillText(`  + ${grp.teams.length - TEAM_LIMIT} equipes`, 56, y + 18)
-        y += 24
+        ctx.fillText(s.lbl, cx2 + cardW / 2, cardsY + 62)
+        ctx.textAlign = 'left'
+      })
+
+      // Separator (not after last)
+      if (pi < procData.length - 1) {
+        const sepY = cardsY + 74 + 20
+        ctx.fillStyle = '#1e293b'
+        ctx.fillRect(PAD, sepY, W - PAD * 2, 1)
       }
-      y += 16
+
+      blockY += BLOCK_H
     }
 
-    // ── Footer ──────────────────────────────────────────
+    // Footer
     ctx.fillStyle = '#334155'
-    ctx.fillRect(32, H - 50, W - 64, 1)
+    ctx.fillRect(PAD, H - 46, W - PAD * 2, 1)
     ctx.font = '13px Arial'
     ctx.fillStyle = '#475569'
     ctx.textAlign = 'center'
-    ctx.fillText('Gerado por SIDI-E · CGB ENERGIA', W / 2, H - 20)
+    ctx.fillText('Gerado por SIDI-E · CGB ENERGIA', W / 2, H - 16)
     ctx.textAlign = 'left'
 
-    // ── Download ─────────────────────────────────────────
     const link = document.createElement('a')
-    link.download = `turnos-${filterDate.value || todayStr()}-${shareGroupBy.value}.png`
+    link.download = `turnos-${filterDate.value || todayStr()}-grafico-processos.png`
     link.href = canvas.toDataURL('image/png')
     link.click()
-    $q.notify({ type: 'positive', message: 'Imagem gerada com sucesso!' })
+    $q.notify({ type: 'positive', message: 'Gráfico gerado com sucesso!' })
   } catch (e) {
-    $q.notify({ type: 'negative', message: 'Erro ao gerar imagem: ' + e.message })
+    $q.notify({ type: 'negative', message: 'Erro ao gerar gráfico: ' + e.message })
   } finally {
     generating.value = false
   }
@@ -742,6 +912,8 @@ onUnmounted(() => {
 
 <style scoped>
 .turnos-page {
+  max-width: 1400px;
+  margin: 0 auto;
   min-height: 100vh;
   background:
     radial-gradient(ellipse 70% 35% at 50% 0%, color-mix(in oklab, var(--primary) 7%, transparent) 0%, transparent 60%),
