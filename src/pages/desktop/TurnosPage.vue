@@ -599,10 +599,31 @@ async function downloadImage () {
       const abriramTeams = grp.teams.filter(t => t.status !== 'sem_turno')
       const naoTeams     = grp.teams.filter(t => t.status === 'sem_turno')
 
+      // Which sections to draw (skip empty ones)
+      const showAbriu = abriramTeams.length > 0
+      const showNao   = naoTeams.length   > 0
+
+      // Stats cards: only show relevant ones
+      const statsCards = []
+      if (showAbriu && showNao) {
+        statsCards.push(['#94a3b8', grp.teams.length, 'Total'],
+                        ['#22c55e', grp.abriu, 'Abriram Turno'],
+                        ['#ef4444', grp.nao,   'Não Abriram'])
+      } else if (showAbriu) {
+        statsCards.push(['#94a3b8', grp.teams.length, 'Total'],
+                        ['#22c55e', grp.abriu, 'Abriram Turno'])
+      } else {
+        statsCards.push(['#94a3b8', grp.teams.length, 'Total'],
+                        ['#ef4444', grp.nao,   'Não Abriram'])
+      }
+
       // Calculate canvas height dynamically
       const statsH   = 90
       const secRows  = (n) => SEC_H + (n > 0 ? n * ROW_H : ROW_H) + 16
-      const H = 240 + statsH + 16 + secRows(abriramTeams.length) + secRows(naoTeams.length) + 60
+      const H = 240 + statsH + 16
+        + (showAbriu ? secRows(abriramTeams.length) : 0)
+        + (showNao   ? secRows(naoTeams.length)     : 0)
+        + 60
 
       const canvas = document.createElement('canvas')
       canvas.width  = W
@@ -644,24 +665,24 @@ async function downloadImage () {
       ctx.fillText(grp.label, W / 2, 165)
       ctx.textAlign = 'left'
 
-      // Stats row
-      const statsY = 184
-      const statW  = 210
-      const statX  = [W / 2 - statW * 1.5, W / 2 - statW / 2, W / 2 + statW / 2]
-      ;[['#94a3b8', grp.teams.length, 'Total'],
-        ['#22c55e', grp.abriu, 'Abriram Turno'],
-        ['#ef4444', grp.nao,   'Não Abriram']
-      ].forEach(([color, val, lbl], i) => {
+      // Stats row (dynamic: 2 or 3 cards)
+      const statsY  = 184
+      const nCards  = statsCards.length
+      const statW   = nCards === 2 ? 260 : 210
+      const totalW  = nCards * statW - (nCards > 1 ? 10 : 0)
+      const startX  = (W - totalW) / 2
+      statsCards.forEach(([color, val, lbl], i) => {
+        const sx = startX + i * statW
         ctx.fillStyle = '#1e293b'
-        roundRect(ctx, statX[i], statsY, statW - 10, 68, 10)
+        roundRect(ctx, sx, statsY, statW - 10, 68, 10)
         ctx.fill()
         ctx.font = 'bold 34px Arial'
         ctx.fillStyle = color
         ctx.textAlign = 'center'
-        ctx.fillText(val, statX[i] + (statW - 10) / 2, statsY + 40)
+        ctx.fillText(val, sx + (statW - 10) / 2, statsY + 40)
         ctx.font = '12px Arial'
         ctx.fillStyle = '#64748b'
-        ctx.fillText(lbl, statX[i] + (statW - 10) / 2, statsY + 58)
+        ctx.fillText(lbl, sx + (statW - 10) / 2, statsY + 58)
       })
       ctx.textAlign = 'left'
 
@@ -724,14 +745,18 @@ async function downloadImage () {
         y += 16
       }
 
-      drawSection(
-        `✓  ABRIRAM TURNO  (${abriramTeams.length})`,
-        abriramTeams, '#22c55e', 'rgba(34,197,94,0.13)'
-      )
-      drawSection(
-        `✗  NÃO ABRIRAM  (${naoTeams.length})`,
-        naoTeams, '#ef4444', 'rgba(239,68,68,0.11)'
-      )
+      if (showAbriu) {
+        drawSection(
+          `✓  ABRIRAM TURNO  (${abriramTeams.length})`,
+          abriramTeams, '#22c55e', 'rgba(34,197,94,0.13)'
+        )
+      }
+      if (showNao) {
+        drawSection(
+          `✗  NÃO ABRIRAM  (${naoTeams.length})`,
+          naoTeams, '#ef4444', 'rgba(239,68,68,0.11)'
+        )
+      }
 
       // Footer
       ctx.fillStyle = '#334155'
