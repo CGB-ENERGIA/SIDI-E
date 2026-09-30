@@ -34,7 +34,8 @@
 
     <!-- KPI cards (clicáveis para filtrar) -->
     <div class="kpi-row q-mb-xl">
-      <div class="kpi-card kpi-card--neutral" :class="{ 'kpi-card--active': statusFilter === null }"
+      <!-- Total -->
+      <div class="kpi-card" :class="{ 'kpi-card--active': statusFilter === null }"
         @click="statusFilter = null">
         <div class="kpi-icon kpi-icon--neutral"><q-icon name="groups" size="22px" /></div>
         <div class="kpi-body">
@@ -42,28 +43,38 @@
           <div class="kpi-label">Total de equipes</div>
         </div>
       </div>
-      <div class="kpi-card kpi-card--active-turn" :class="{ 'kpi-card--active': statusFilter === 'em_turno' }"
-        @click="statusFilter = statusFilter === 'em_turno' ? null : 'em_turno'">
+
+      <!-- Abriram turno (em_turno + encerrado) -->
+      <div class="kpi-card" :class="{ 'kpi-card--active': statusFilter === 'abriu' }"
+        @click="statusFilter = statusFilter === 'abriu' ? null : 'abriu'">
         <div class="kpi-icon kpi-icon--green"><q-icon name="login" size="22px" /></div>
         <div class="kpi-body">
-          <div class="kpi-value" style="color:#22c55e;">{{ countEmTurno }}</div>
-          <div class="kpi-label">Em turno ativo</div>
+          <div class="kpi-value" style="color:#22c55e;">{{ countAbriu }}</div>
+          <div class="kpi-label">Abriram turno</div>
+          <div class="kpi-sub">
+            <span class="kpi-sub--em">● {{ countEmTurno }} em campo</span>
+            <span class="kpi-sub--enc q-ml-sm">● {{ countEncerrado }} encerrado</span>
+          </div>
         </div>
       </div>
-      <div class="kpi-card" :class="{ 'kpi-card--active': statusFilter === 'encerrado' }"
-        @click="statusFilter = statusFilter === 'encerrado' ? null : 'encerrado'">
-        <div class="kpi-icon kpi-icon--amber"><q-icon name="task_alt" size="22px" /></div>
+
+      <!-- Em campo agora -->
+      <div class="kpi-card" :class="{ 'kpi-card--active': statusFilter === 'em_turno' }"
+        @click="statusFilter = statusFilter === 'em_turno' ? null : 'em_turno'">
+        <div class="kpi-icon kpi-icon--teal"><q-icon name="wifi_tethering" size="22px" /></div>
         <div class="kpi-body">
-          <div class="kpi-value" style="color:#f59e0b;">{{ countEncerrado }}</div>
-          <div class="kpi-label">Turno encerrado</div>
+          <div class="kpi-value" style="color:#14b8a6;">{{ countEmTurno }}</div>
+          <div class="kpi-label">Em campo agora</div>
         </div>
       </div>
+
+      <!-- Não abriram -->
       <div class="kpi-card" :class="{ 'kpi-card--active': statusFilter === 'sem_turno' }"
         @click="statusFilter = statusFilter === 'sem_turno' ? null : 'sem_turno'">
         <div class="kpi-icon kpi-icon--red"><q-icon name="block" size="22px" /></div>
         <div class="kpi-body">
           <div class="kpi-value" style="color:#ef4444;">{{ countSemTurno }}</div>
-          <div class="kpi-label">Não iniciou</div>
+          <div class="kpi-label">Não abriram turno</div>
         </div>
       </div>
     </div>
@@ -96,13 +107,13 @@
           <!-- mini stats da gerência -->
           <div class="group-mini-stats">
             <span class="mini-stat mini-stat--green">
-              <q-icon name="login" size="12px" /> {{ gerGroup.emTurno }}
+              <q-icon name="login" size="12px" /> {{ gerGroup.emTurno + gerGroup.encerrado }} abriram
             </span>
-            <span class="mini-stat mini-stat--amber">
-              <q-icon name="task_alt" size="12px" /> {{ gerGroup.encerrado }}
+            <span class="mini-stat mini-stat--teal q-ml-sm">
+              <q-icon name="wifi_tethering" size="12px" /> {{ gerGroup.emTurno }} em campo
             </span>
-            <span class="mini-stat mini-stat--red">
-              <q-icon name="block" size="12px" /> {{ gerGroup.semTurno }}
+            <span class="mini-stat mini-stat--red q-ml-sm">
+              <q-icon name="block" size="12px" /> {{ gerGroup.semTurno }} não abriram
             </span>
           </div>
         </div>
@@ -297,7 +308,8 @@ const allTeamsEnriched = computed(() =>
 const filteredTeams = computed(() => {
   const q = search.value.trim().toLowerCase()
   return allTeamsEnriched.value.filter(t => {
-    if (statusFilter.value && t.status !== statusFilter.value) return false
+    if (statusFilter.value === 'abriu' && t.status === 'sem_turno') return false
+    else if (statusFilter.value && statusFilter.value !== 'abriu' && t.status !== statusFilter.value) return false
     if (filterSupervisor.value && t.supervisor !== filterSupervisor.value) return false
     if (filterCoordenador.value && t.coordenador !== filterCoordenador.value) return false
     if (filterGerencia.value && t.gerencia !== filterGerencia.value) return false
@@ -311,6 +323,7 @@ const totalEquipes   = computed(() => filteredTeams.value.length)
 const countEmTurno   = computed(() => filteredTeams.value.filter(t => t.status === 'em_turno').length)
 const countEncerrado = computed(() => filteredTeams.value.filter(t => t.status === 'encerrado').length)
 const countSemTurno  = computed(() => filteredTeams.value.filter(t => t.status === 'sem_turno').length)
+const countAbriu     = computed(() => countEmTurno.value + countEncerrado.value)
 
 // ── Agrupamento Gerência → Coordenador ───────────────
 const groupedTeams = computed(() => {
@@ -431,6 +444,7 @@ onUnmounted(() => {
 }
 .kpi-icon--neutral { background: rgba(255,255,255,0.08); color: var(--muted-fg); }
 .kpi-icon--green   { background: rgba(34,197,94,0.18);  color: #22c55e; }
+.kpi-icon--teal    { background: rgba(20,184,166,0.18); color: #14b8a6; }
 .kpi-icon--amber   { background: rgba(245,158,11,0.18); color: #f59e0b; }
 .kpi-icon--red     { background: rgba(239,68,68,0.18);  color: #ef4444; }
 
@@ -449,6 +463,15 @@ onUnmounted(() => {
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+.kpi-sub {
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-sub--em  { color: #14b8a6; }
+.kpi-sub--enc { color: #f59e0b; }
 
 /* ── Grouping headers ───────────────────────────────── */
 .group-header {
@@ -485,6 +508,7 @@ onUnmounted(() => {
   font-variant-numeric: tabular-nums;
 }
 .mini-stat--green { color: #22c55e; }
+.mini-stat--teal  { color: #14b8a6; }
 .mini-stat--amber { color: #f59e0b; }
 .mini-stat--red   { color: #ef4444; }
 
