@@ -11,7 +11,9 @@
         <q-chip v-if="isToday" color="positive" text-color="white" icon="wifi_tethering" dense>
           Tempo real
         </q-chip>
-        <q-btn outline dense icon="refresh" label="Atualizar" color="primary"
+        <q-btn unelevated icon="share" label="Compartilhar" color="primary"
+          @click="showShare = true" style="border-radius:8px;" />
+        <q-btn outline dense icon="refresh" label="Atualizar" color="grey-7"
           :loading="loading" @click="load" style="border-radius:8px;" />
       </div>
     </div>
@@ -20,6 +22,10 @@
     <div class="filter-bar q-mb-lg">
       <q-input v-model="filterDate" type="date" label="Data" outlined dense clearable
         bg-color="surface" style="min-width:180px;" @update:model-value="load" />
+      <q-select v-model="filterBase" :options="basesList" label="Base"
+        outlined dense clearable bg-color="surface" style="min-width:140px;" />
+      <q-select v-model="filterProcesso" :options="processosList" label="Processo"
+        outlined dense clearable bg-color="surface" style="min-width:130px;" />
       <q-select v-model="filterSupervisor" :options="supervisoresList" label="Supervisor"
         outlined dense clearable bg-color="surface" style="min-width:180px;" />
       <q-select v-model="filterCoordenador" :options="coordenadoresList" label="Coordenador"
@@ -27,7 +33,7 @@
       <q-select v-model="filterGerencia" :options="gerentesList" label="Gerência"
         outlined dense clearable bg-color="surface" style="min-width:160px;" />
       <q-input v-model="search" outlined dense placeholder="Buscar prefixo ou equipe..."
-        clearable bg-color="surface" style="min-width:220px;">
+        clearable bg-color="surface" style="min-width:200px;">
         <template #prepend><q-icon name="search" /></template>
       </q-input>
     </div>
@@ -191,6 +197,111 @@
       </div>
     </div>
 
+    <!-- ── Dialog: Compartilhar no WhatsApp ─────────────── -->
+    <q-dialog v-model="showShare" persistent>
+      <q-card style="min-width:480px; max-width:560px; border-radius:18px;">
+        <q-card-section class="q-pb-sm">
+          <div class="text-h6 text-weight-bold flex items-center q-gutter-sm">
+            <q-icon name="share" color="primary" />
+            <span>Compartilhar no WhatsApp</span>
+          </div>
+          <div class="text-caption text-grey-5 q-mt-xs">
+            Gera uma imagem pronta para enviar no WhatsApp
+          </div>
+        </q-card-section>
+        <q-separator />
+
+        <q-card-section>
+          <!-- Agrupar por -->
+          <div class="text-caption text-grey-5 q-mb-sm text-weight-bold" style="letter-spacing:.06em; text-transform:uppercase;">Agrupar por</div>
+          <div class="share-group-btns q-mb-lg">
+            <button
+              v-for="opt in shareGroupOpts" :key="opt.value"
+              class="share-group-btn"
+              :class="{ 'share-group-btn--active': shareGroupBy === opt.value }"
+              @click="shareGroupBy = opt.value"
+            >
+              <q-icon :name="opt.icon" size="18px" class="q-mr-xs" />
+              {{ opt.label }}
+            </button>
+          </div>
+
+          <!-- Preview do card -->
+          <div class="share-preview" ref="sharePreviewRef">
+            <div class="sp-header">
+              <div class="sp-brand">
+                <span class="sp-logo">SIDI-E</span>
+                <span class="sp-company">CGB ENERGIA</span>
+              </div>
+              <div class="sp-date">{{ formatDateBR(filterDate || todayStr()) }}</div>
+            </div>
+
+            <div class="sp-title">CONTROLE DE TURNOS</div>
+            <div class="sp-context">
+              <span v-if="filterBase">Base: {{ filterBase }}</span>
+              <span v-if="filterBase && filterProcesso"> · </span>
+              <span v-if="filterProcesso">Processo: {{ filterProcesso }}</span>
+              <span v-if="!filterBase && !filterProcesso">Todas as equipes</span>
+            </div>
+
+            <!-- Stats globais -->
+            <div class="sp-stats">
+              <div class="sp-stat">
+                <div class="sp-stat__val">{{ totalEquipes }}</div>
+                <div class="sp-stat__lbl">Total</div>
+              </div>
+              <div class="sp-stat sp-stat--green">
+                <div class="sp-stat__val">{{ countAbriu }}</div>
+                <div class="sp-stat__lbl">Abriram</div>
+              </div>
+              <div class="sp-stat sp-stat--red">
+                <div class="sp-stat__val">{{ countSemTurno }}</div>
+                <div class="sp-stat__lbl">Não Abriram</div>
+              </div>
+            </div>
+
+            <!-- Barra de progresso -->
+            <div class="sp-progress-wrap">
+              <div class="sp-progress-bar">
+                <div class="sp-progress-fill" :style="`width:${totalEquipes ? Math.round(countAbriu / totalEquipes * 100) : 0}%`" />
+              </div>
+              <span class="sp-progress-pct">{{ totalEquipes ? Math.round(countAbriu / totalEquipes * 100) : 0 }}% abriram turno</span>
+            </div>
+
+            <!-- Grupos -->
+            <div class="sp-groups">
+              <div v-for="grp in shareGroups" :key="grp.label" class="sp-group">
+                <div class="sp-group__header">
+                  <span class="sp-group__name">{{ grp.label }}</span>
+                  <div class="sp-group__stats">
+                    <span class="sp-gs--green">✓ {{ grp.abriu }}</span>
+                    <span class="sp-gs--red">✗ {{ grp.nao }}</span>
+                  </div>
+                </div>
+                <div v-for="t in grp.teams.slice(0, 12)" :key="t.id" class="sp-team">
+                  <span class="sp-team__dot" :class="`sp-dot--${t.status === 'sem_turno' ? 'red' : 'green'}`" />
+                  <span class="sp-team__prefix">{{ t.prefixo }}</span>
+                  <span class="sp-team__status">{{ t.status === 'sem_turno' ? 'Não abriu' : t.status === 'em_turno' ? 'Em campo' : 'Encerrado' }}</span>
+                </div>
+                <div v-if="grp.teams.length > 12" class="sp-team sp-team--more">
+                  + {{ grp.teams.length - 12 }} equipes
+                </div>
+              </div>
+            </div>
+
+            <div class="sp-footer">Gerado por SIDI-E · CGB ENERGIA</div>
+          </div>
+        </q-card-section>
+
+        <q-separator />
+        <q-card-actions align="right" class="q-pa-md q-gutter-sm">
+          <q-btn flat label="Fechar" v-close-popup />
+          <q-btn unelevated color="primary" icon="download" label="Baixar Imagem"
+            :loading="generating" @click="downloadImage" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
   </q-page>
 </template>
 
@@ -203,15 +314,29 @@ import { useQuasar } from 'quasar'
 const teamsStore = useTeamsStore()
 const $q = useQuasar()
 
-const loading       = ref(false)
-const activeSessions = ref([])   // { id, team_id, prefixo, colaborador, data }
-const servicesDay   = ref([])    // services for selected date
-const filterDate    = ref(todayStr())
-const filterSupervisor  = ref(null)
-const filterCoordenador = ref(null)
-const filterGerencia    = ref(null)
-const search        = ref('')
-const statusFilter  = ref(null)
+const loading        = ref(false)
+const activeSessions = ref([])
+const servicesDay    = ref([])
+const filterDate     = ref(todayStr())
+const filterBase         = ref(null)
+const filterProcesso     = ref(null)
+const filterSupervisor   = ref(null)
+const filterCoordenador  = ref(null)
+const filterGerencia     = ref(null)
+const search         = ref('')
+const statusFilter   = ref(null)
+
+// ── Compartilhar ──────────────────────────────────────
+const showShare      = ref(false)
+const shareGroupBy   = ref('coordenador')
+const generating     = ref(false)
+const sharePreviewRef = ref(null)
+
+const shareGroupOpts = [
+  { value: 'coordenador', label: 'Coordenador', icon: 'person_pin' },
+  { value: 'base',        label: 'Base',         icon: 'location_on' },
+  { value: 'processo',    label: 'Processo',     icon: 'category' }
+]
 
 let refreshInterval = null
 
@@ -219,9 +344,21 @@ function todayStr () {
   return new Date().toISOString().split('T')[0]
 }
 
+function formatDateBR (iso) {
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-')
+  return `${d}/${m}/${y}`
+}
+
 const isToday = computed(() => filterDate.value === todayStr() || !filterDate.value)
 
 // ── Listas de filtros ─────────────────────────────────
+const basesList = computed(() => {
+  const s = new Set(teamsStore.teams.map(t => t.base).filter(Boolean))
+  return [...s].sort()
+})
+const processosList = ['GERE', 'GOMAN', 'GSTC']
+
 const supervisoresList = computed(() => {
   const s = new Set(teamsStore.teams.map(t => t.supervisor).filter(Boolean))
   return [...s].sort()
@@ -310,6 +447,8 @@ const filteredTeams = computed(() => {
   return allTeamsEnriched.value.filter(t => {
     if (statusFilter.value === 'abriu' && t.status === 'sem_turno') return false
     else if (statusFilter.value && statusFilter.value !== 'abriu' && t.status !== statusFilter.value) return false
+    if (filterBase.value && t.base !== filterBase.value) return false
+    if (filterProcesso.value && t.processo !== filterProcesso.value) return false
     if (filterSupervisor.value && t.supervisor !== filterSupervisor.value) return false
     if (filterCoordenador.value && t.coordenador !== filterCoordenador.value) return false
     if (filterGerencia.value && t.gerencia !== filterGerencia.value) return false
@@ -346,6 +485,214 @@ const groupedTeams = computed(() => {
       coordenadores: Object.values(g.coordenadores).sort((a, b) => a.coordenador.localeCompare(b.coordenador))
     }))
 })
+
+// ── Compartilhar: agrupamento para preview ─────────────
+const shareGroups = computed(() => {
+  const key = shareGroupBy.value // 'coordenador' | 'base' | 'processo'
+  const map = {}
+  for (const t of filteredTeams.value) {
+    const grpKey = t[key] || `Sem ${key}`
+    if (!map[grpKey]) map[grpKey] = { label: grpKey, teams: [], abriu: 0, nao: 0 }
+    map[grpKey].teams.push(t)
+    if (t.status !== 'sem_turno') map[grpKey].abriu++
+    else map[grpKey].nao++
+  }
+  return Object.values(map).sort((a, b) => a.label.localeCompare(b.label))
+})
+
+async function downloadImage () {
+  generating.value = true
+  try {
+    const teams  = filteredTeams.value
+    const groups = shareGroups.value
+    const date   = formatDateBR(filterDate.value || todayStr())
+    const pct    = teams.length ? Math.round(countAbriu.value / teams.length * 100) : 0
+
+    const W = 1080
+    const ROW_H = 36
+    const GROUP_H = 52
+    const TEAM_LIMIT = 15
+    let H = 320 // header + stats + progress
+    for (const g of groups) H += GROUP_H + Math.min(g.teams.length, TEAM_LIMIT) * ROW_H + 16
+    H += 60 // footer
+
+    const canvas = document.createElement('canvas')
+    canvas.width  = W
+    canvas.height = H
+    const ctx = canvas.getContext('2d')
+
+    // ── Background ──────────────────────────────────────
+    const bg = ctx.createLinearGradient(0, 0, 0, H)
+    bg.addColorStop(0, '#0f172a')
+    bg.addColorStop(1, '#111827')
+    ctx.fillStyle = bg
+    ctx.fillRect(0, 0, W, H)
+
+    // ── Header bar ──────────────────────────────────────
+    ctx.fillStyle = '#1e293b'
+    roundRect(ctx, 32, 32, W - 64, 72, 14)
+    ctx.fill()
+    ctx.font = 'bold 22px Arial'
+    ctx.fillStyle = '#f97316'
+    ctx.fillText('SIDI-E', 62, 77)
+    ctx.font = 'bold 16px Arial'
+    ctx.fillStyle = '#94a3b8'
+    ctx.fillText('CGB ENERGIA', 130, 77)
+    ctx.font = '14px Arial'
+    ctx.fillStyle = '#64748b'
+    ctx.textAlign = 'right'
+    ctx.fillText(date, W - 62, 77)
+    ctx.textAlign = 'left'
+
+    // ── Title ───────────────────────────────────────────
+    ctx.font = 'bold 32px Arial'
+    ctx.fillStyle = '#f1f5f9'
+    ctx.textAlign = 'center'
+    ctx.fillText('CONTROLE DE TURNOS', W / 2, 148)
+
+    let ctx_lbl = []
+    if (filterBase.value) ctx_lbl.push(`Base: ${filterBase.value}`)
+    if (filterProcesso.value) ctx_lbl.push(`Processo: ${filterProcesso.value}`)
+    if (!ctx_lbl.length) ctx_lbl.push('Todas as equipes')
+    ctx.font = '16px Arial'
+    ctx.fillStyle = '#94a3b8'
+    ctx.fillText(ctx_lbl.join(' · '), W / 2, 172)
+    ctx.textAlign = 'left'
+
+    // ── KPI stats ───────────────────────────────────────
+    const statsY = 196
+    const statW = 220
+    const statX = [W / 2 - statW * 1.5, W / 2 - statW / 2, W / 2 + statW / 2]
+    const statColors = ['#94a3b8', '#22c55e', '#ef4444']
+    const statVals   = [teams.length, countAbriu.value, countSemTurno.value]
+    const statLbls   = ['Total', 'Abriram Turno', 'Não Abriram']
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = '#1e293b'
+      roundRect(ctx, statX[i], statsY, statW - 12, 76, 12)
+      ctx.fill()
+      ctx.font = `bold 38px Arial`
+      ctx.fillStyle = statColors[i]
+      ctx.textAlign = 'center'
+      ctx.fillText(statVals[i], statX[i] + (statW - 12) / 2, statsY + 46)
+      ctx.font = '13px Arial'
+      ctx.fillStyle = '#64748b'
+      ctx.fillText(statLbls[i], statX[i] + (statW - 12) / 2, statsY + 66)
+    }
+    ctx.textAlign = 'left'
+
+    // ── Progress bar ────────────────────────────────────
+    const progY = statsY + 92
+    ctx.fillStyle = '#1e293b'
+    roundRect(ctx, 32, progY, W - 64, 28, 8)
+    ctx.fill()
+    if (pct > 0) {
+      const fillW = Math.max(16, Math.round((W - 64) * pct / 100))
+      const grad = ctx.createLinearGradient(32, 0, 32 + fillW, 0)
+      grad.addColorStop(0, '#22c55e')
+      grad.addColorStop(1, '#16a34a')
+      ctx.fillStyle = grad
+      roundRect(ctx, 32, progY, fillW, 28, 8)
+      ctx.fill()
+    }
+    ctx.font = 'bold 13px Arial'
+    ctx.fillStyle = '#f1f5f9'
+    ctx.textAlign = 'center'
+    ctx.fillText(`${pct}% das equipes abriram turno`, W / 2, progY + 18)
+    ctx.textAlign = 'left'
+
+    // ── Groups ──────────────────────────────────────────
+    let y = progY + 50
+    for (const grp of groups) {
+      // Group header
+      ctx.fillStyle = '#1e293b'
+      roundRect(ctx, 32, y, W - 64, 40, 10)
+      ctx.fill()
+
+      ctx.font = 'bold 15px Arial'
+      ctx.fillStyle = '#e2e8f0'
+      ctx.fillText(grp.label, 56, y + 25)
+
+      const grpStats = `✓ ${grp.abriu} abriram    ✗ ${grp.nao} não abriram`
+      ctx.font = '13px Arial'
+      ctx.fillStyle = '#64748b'
+      ctx.textAlign = 'right'
+      ctx.fillText(grpStats, W - 56, y + 25)
+      ctx.textAlign = 'left'
+      y += 48
+
+      // Team rows
+      const visible = grp.teams.slice(0, TEAM_LIMIT)
+      for (const t of visible) {
+        const opened = t.status !== 'sem_turno'
+        ctx.fillStyle = opened ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.04)'
+        roundRect(ctx, 40, y, W - 80, ROW_H - 4, 7)
+        ctx.fill()
+        // Status dot
+        ctx.beginPath()
+        ctx.arc(64, y + (ROW_H - 4) / 2, 5, 0, Math.PI * 2)
+        ctx.fillStyle = opened ? '#22c55e' : '#ef4444'
+        ctx.fill()
+        // Prefix
+        ctx.font = 'bold 13px Arial'
+        ctx.fillStyle = '#e2e8f0'
+        ctx.fillText(t.prefixo, 78, y + 22)
+        // Team name
+        ctx.font = '12px Arial'
+        ctx.fillStyle = '#94a3b8'
+        ctx.fillText(t.nome || '', 240, y + 22)
+        // Status label
+        const lbl = opened ? (t.status === 'em_turno' ? 'Em Campo' : 'Encerrado') : 'Não Abriu'
+        ctx.font = 'bold 12px Arial'
+        ctx.fillStyle = opened ? '#22c55e' : '#ef4444'
+        ctx.textAlign = 'right'
+        ctx.fillText(lbl, W - 56, y + 22)
+        ctx.textAlign = 'left'
+        y += ROW_H
+      }
+      if (grp.teams.length > TEAM_LIMIT) {
+        ctx.font = '12px Arial'
+        ctx.fillStyle = '#64748b'
+        ctx.fillText(`  + ${grp.teams.length - TEAM_LIMIT} equipes`, 56, y + 18)
+        y += 24
+      }
+      y += 16
+    }
+
+    // ── Footer ──────────────────────────────────────────
+    ctx.fillStyle = '#334155'
+    ctx.fillRect(32, H - 50, W - 64, 1)
+    ctx.font = '13px Arial'
+    ctx.fillStyle = '#475569'
+    ctx.textAlign = 'center'
+    ctx.fillText('Gerado por SIDI-E · CGB ENERGIA', W / 2, H - 20)
+    ctx.textAlign = 'left'
+
+    // ── Download ─────────────────────────────────────────
+    const link = document.createElement('a')
+    link.download = `turnos-${filterDate.value || todayStr()}-${shareGroupBy.value}.png`
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+    $q.notify({ type: 'positive', message: 'Imagem gerada com sucesso!' })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro ao gerar imagem: ' + e.message })
+  } finally {
+    generating.value = false
+  }
+}
+
+function roundRect (ctx, x, y, w, h, r) {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.lineTo(x + w - r, y)
+  ctx.arcTo(x + w, y, x + w, y + r, r)
+  ctx.lineTo(x + w, y + h - r)
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r)
+  ctx.lineTo(x + r, y + h)
+  ctx.arcTo(x, y + h, x, y + h - r, r)
+  ctx.lineTo(x, y + r)
+  ctx.arcTo(x, y, x + r, y, r)
+  ctx.closePath()
+}
 
 // ── Carregamento ──────────────────────────────────────
 async function load () {
@@ -609,6 +956,135 @@ onUnmounted(() => {
 .empty-state {
   text-align: center;
   padding: 64px 0;
+}
+
+/* ── Share dialog ───────────────────────────────────── */
+.share-group-btns {
+  display: flex;
+  gap: 8px;
+}
+.share-group-btn {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted-fg);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.share-group-btn--active {
+  background: var(--primary);
+  color: var(--primary-fg);
+  border-color: var(--primary);
+}
+
+/* Preview card */
+.share-preview {
+  background: #0f172a;
+  border-radius: 14px;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  max-height: 480px;
+  overflow-y: auto;
+}
+.sp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1e293b;
+  border-radius: 10px;
+  padding: 10px 16px;
+  margin-bottom: 14px;
+}
+.sp-brand { display: flex; align-items: center; gap: 8px; }
+.sp-logo  { font-weight: 900; font-size: 0.9rem; color: #f97316; }
+.sp-company { font-size: 0.75rem; color: #64748b; font-weight: 700; }
+.sp-date { font-size: 0.75rem; color: #64748b; }
+
+.sp-title {
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #f1f5f9;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+.sp-context {
+  text-align: center;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin-bottom: 14px;
+}
+
+.sp-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.sp-stat {
+  background: #1e293b;
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+}
+.sp-stat__val { font-size: 1.6rem; font-weight: 900; color: #94a3b8; line-height: 1; }
+.sp-stat__lbl { font-size: 0.65rem; color: #475569; margin-top: 4px; text-transform: uppercase; letter-spacing: .05em; }
+.sp-stat--green .sp-stat__val { color: #22c55e; }
+.sp-stat--red   .sp-stat__val { color: #ef4444; }
+
+.sp-progress-wrap { margin-bottom: 14px; }
+.sp-progress-bar {
+  height: 10px;
+  background: #1e293b;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.sp-progress-fill { height: 100%; background: linear-gradient(90deg,#22c55e,#16a34a); border-radius: 6px; transition: width .3s; }
+.sp-progress-pct { font-size: 0.7rem; color: #64748b; }
+
+.sp-groups { display: flex; flex-direction: column; gap: 10px; }
+.sp-group__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1e293b;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+}
+.sp-group__name { font-size: 0.8rem; font-weight: 700; color: #e2e8f0; }
+.sp-group__stats { display: flex; gap: 10px; font-size: 0.72rem; font-weight: 700; }
+.sp-gs--green { color: #22c55e; }
+.sp-gs--red   { color: #ef4444; }
+
+.sp-team {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+}
+.sp-team__dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.sp-dot--green { background: #22c55e; }
+.sp-dot--red   { background: #ef4444; }
+.sp-team__prefix { font-weight: 700; color: #e2e8f0; min-width: 110px; }
+.sp-team__status { color: #64748b; margin-left: auto; }
+.sp-team--more { color: #475569; font-style: italic; }
+
+.sp-footer {
+  text-align: center;
+  font-size: 0.65rem;
+  color: #334155;
+  margin-top: 16px;
+  padding-top: 10px;
+  border-top: 1px solid #1e293b;
 }
 
 /* ── Responsive ─────────────────────────────────────── */
