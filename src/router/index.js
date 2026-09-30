@@ -36,6 +36,11 @@ const routes = [
       },
       { path: 'evidencias', redirect: '/atividades' },
       {
+        path: 'turnos',
+        name: 'Turnos',
+        component: () => import('src/pages/desktop/TurnosPage.vue')
+      },
+      {
         path: 'relatorios',
         name: 'Relatorios',
         component: () => import('src/pages/desktop/ReportsPage.vue')
