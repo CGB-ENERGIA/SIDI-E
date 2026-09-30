@@ -367,7 +367,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useTeamsStore } from 'src/stores/teams'
 import { supabase } from 'src/services/supabase'
 import { useQuasar } from 'quasar'
