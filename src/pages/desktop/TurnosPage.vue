@@ -960,6 +960,7 @@ async function load () {
         .select('team_id, activity_name, colaboradores, created_at')
         .gte('created_at', start)
         .lte('created_at', end)
+        .limit(10000)
     ])
 
     if (sessRes.error) throw sessRes.error
