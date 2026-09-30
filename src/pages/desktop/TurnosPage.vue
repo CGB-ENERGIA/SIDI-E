@@ -772,15 +772,15 @@ async function downloadDonutChart () {
       if (error) throw error
       abriuSet    = new Set((data || []).map(s => s.team_id))
       periodLabel = 'Acumulado Geral'
+      console.log('[DonutChart] total rows returned:', (data || []).length, '| unique team_ids:', abriuSet.size)
     }
 
     const PROCESSOS = ['GERE', 'GOMAN', 'GSTC']
     const procData = PROCESSOS.map(proc => {
-      const ts   = teamsStore.teams.filter(t => t.processo === proc)
+      const ts    = teamsStore.teams.filter(t => t.processo === proc)
       const abriu = ts.filter(t => abriuSet.has(t.id)).length
-      const nao   = ts.length - abriu
-      const pct   = ts.length ? Math.round(abriu / ts.length * 100) : 0
-      return { label: proc, total: ts.length, abriu, nao, pct }
+      console.log(`[DonutChart] ${proc}: ${ts.length} equipes no store, ${abriu} com match no abriuSet`)
+      return { label: proc, total: ts.length, abriu, nao: ts.length - abriu, pct: ts.length ? Math.round(abriu / ts.length * 100) : 0 }
     })
 
     const date = periodLabel
