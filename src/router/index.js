@@ -34,11 +34,7 @@ const routes = [
         name: 'Atividades',
         component: () => import('src/pages/desktop/ActivitiesPage.vue')
       },
-      {
-        path: 'evidencias',
-        name: 'Evidencias',
-        component: () => import('src/pages/desktop/EvidencePage.vue')
-      },
+      { path: 'evidencias', redirect: '/atividades' },
       {
         path: 'relatorios',
         name: 'Relatorios',

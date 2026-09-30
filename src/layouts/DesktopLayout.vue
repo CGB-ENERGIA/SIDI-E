@@ -137,7 +137,6 @@ const allMenuItems = [
   { icon: 'groups',          label: 'Equipes',      short: 'Equi',  to: '/equipes',      adminOnly: true },
   { icon: 'verified',        label: 'Validação',    short: 'Valid', to: '/validacao' },
   { icon: 'task',            label: 'Atividades',   short: 'Ativ',  to: '/atividades' },
-  { icon: 'photo_library',   label: 'Evidências',   short: 'Evid',  to: '/evidencias' },
   { icon: 'assessment',      label: 'Relatórios',   short: 'Rela',  to: '/relatorios' },
   { icon: 'pending_actions', label: 'Solicitações', short: 'Soli',  to: '/solicitacoes', badgeDynamic: true },
   { icon: 'manage_accounts', label: 'Usuários',     short: 'User',  to: '/usuarios',     adminOnly: true }

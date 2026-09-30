@@ -1,15 +1,16 @@
 <template>
   <q-page class="act-page q-pa-lg">
 
-    <!-- Page header + tabs -->
+    <!-- Page header -->
     <div class="flex items-center justify-between q-mb-sm">
       <div class="text-h5 text-weight-bold">Atividades</div>
     </div>
 
     <q-tabs v-model="tab" dense align="left" class="q-mb-lg act-tabs"
       active-color="white" indicator-color="primary" active-bg-color="primary">
-      <q-tab name="atividades" icon="bar_chart" label="Atividades" />
-      <q-tab name="servicos"   icon="build"     label="Serviços"   />
+      <q-tab name="atividades"  icon="bar_chart"    label="Atividades"  />
+      <q-tab name="servicos"    icon="build"         label="Serviços"    />
+      <q-tab name="evidencias"  icon="photo_library" label="Evidências"  />
     </q-tabs>
 
     <q-tab-panels v-model="tab" animated keep-alive class="bg-transparent">
@@ -103,13 +104,10 @@
               </div>
 
               <div class="team-card__right">
-                <!-- Collaborator avatars -->
                 <div class="avatar-stack q-mr-lg">
                   <q-avatar
                     v-for="(c, i) in equipe.colaboradores.slice(0,4)" :key="i"
-                    size="32px"
-                    color="primary"
-                    text-color="white"
+                    size="32px" color="primary" text-color="white"
                     class="avatar-stack__item"
                     :style="`z-index:${4-i}; font-size:0.65rem;`"
                   >{{ initials(c) }}</q-avatar>
@@ -118,13 +116,11 @@
                   </div>
                 </div>
 
-                <!-- Count badge -->
                 <div class="count-badge">
                   <div class="count-badge__number">{{ equipe.total }}</div>
                   <div class="count-badge__label">{{ equipe.total === 1 ? 'serviço' : 'serviços' }}</div>
                 </div>
 
-                <!-- Expand arrow -->
                 <q-icon
                   :name="expanded.includes(equipe.teamId) ? 'keyboard_arrow_up' : 'keyboard_arrow_down'"
                   size="24px" color="grey-5" class="q-ml-md"
@@ -201,6 +197,279 @@
           </q-table>
         </q-card>
       </q-tab-panel>
+
+      <!-- ══════ TAB: EVIDÊNCIAS ══════ -->
+      <q-tab-panel name="evidencias" class="q-pa-none">
+
+        <!-- Filtro bar evidências -->
+        <div class="filter-bar q-mb-lg">
+          <q-select
+            v-model="evidFilters.teamId"
+            :options="teamOptions" label="Todas as equipes"
+            outlined dense clearable emit-value map-options bg-color="surface"
+            style="min-width:260px;"
+            @update:model-value="loadEvid"
+          />
+          <q-input
+            v-model="evidFilters.date"
+            type="date" label="Todas as datas" outlined dense clearable bg-color="surface"
+            style="min-width:190px;"
+            @update:model-value="loadEvid"
+          />
+          <q-select
+            v-model="evidFilters.supervisor"
+            :options="supervisoresList" label="Supervisor"
+            outlined dense clearable bg-color="surface"
+            style="min-width:180px;"
+          />
+          <q-select
+            v-model="evidFilters.coordenador"
+            :options="coordenadoresList" label="Coordenador"
+            outlined dense clearable bg-color="surface"
+            style="min-width:160px;"
+          />
+          <q-select
+            v-model="evidFilters.gerencia"
+            :options="gerentesList" label="Gerência"
+            outlined dense clearable bg-color="surface"
+            style="min-width:160px;"
+          />
+          <q-btn unelevated icon="refresh" label="Atualizar" color="primary"
+            :loading="loadingEvid" @click="loadEvid"
+            style="height:40px; border-radius:8px;" />
+        </div>
+
+        <q-card flat bordered style="border-radius:14px;">
+          <q-table
+            :rows="groupedRows"
+            :columns="evidColumns"
+            row-key="key"
+            flat
+            :loading="loadingEvid"
+            :pagination="{ rowsPerPage: 20 }"
+            class="clickable-rows"
+            @row-click="(_, row) => openDetail(row)"
+          >
+            <template #body-cell-equipe="{ row }">
+              <q-td>
+                <q-chip dense color="primary" text-color="white">{{ row.prefixo }}</q-chip>
+              </q-td>
+            </template>
+            <template #body-cell-atividades="{ row }">
+              <q-td>
+                <span v-if="row.atividadeNomes.length">{{ row.atividadeNomes.join(' · ') }}</span>
+                <span v-else class="text-grey-5">—</span>
+              </q-td>
+            </template>
+            <template #body-cell-fotos="{ row }">
+              <q-td>
+                <div class="flex items-center gap-xs">
+                  <q-icon name="photo_library" size="16px" color="grey-6" />
+                  <span>{{ row.totalFotos }}</span>
+                  <q-badge v-if="row.epiTotal"       color="teal" :label="`${row.epiTotal} EPI`"   class="q-ml-xs" />
+                  <q-badge v-if="row.atividadeTotal"  color="blue" :label="`${row.atividadeTotal} Ativ.`" class="q-ml-xs" />
+                </div>
+              </q-td>
+            </template>
+            <template #body-cell-servicos="{ row }">
+              <q-td>
+                <q-badge color="grey-7" :label="`${row.servicos.length} serviço${row.servicos.length !== 1 ? 's' : ''}`" />
+              </q-td>
+            </template>
+            <template #body-cell-status="{ row }">
+              <q-td>
+                <q-badge
+                  :color="row.allSynced ? 'positive' : 'orange'"
+                  :label="row.allSynced ? 'Sincronizado' : 'Pendente'"
+                />
+              </q-td>
+            </template>
+            <template #body-cell-acoes="{ row }">
+              <q-td class="text-right" @click.stop>
+                <q-btn flat round dense icon="visibility" color="primary" @click="openDetail(row)">
+                  <q-tooltip>Ver detalhes</q-tooltip>
+                </q-btn>
+                <q-btn
+                  v-if="authStore.isAdmin"
+                  flat round dense icon="delete" color="negative"
+                  @click="confirmDeleteGroup(row)"
+                >
+                  <q-tooltip>Excluir todos os registros do dia</q-tooltip>
+                </q-btn>
+              </q-td>
+            </template>
+          </q-table>
+        </q-card>
+
+        <!-- Dialog detalhe grupo -->
+        <q-dialog v-model="showDetail" maximized transition-show="slide-up" transition-hide="slide-down">
+          <q-card class="detail-card" v-if="selected">
+            <q-bar class="bg-primary text-white q-py-sm">
+              <q-icon name="photo_library" class="q-mr-sm" />
+              <span class="text-weight-bold">
+                {{ selected.prefixo }} · {{ selected.nomeEquipe }} · {{ formatDateStr(selected.dateStr) }}
+              </span>
+              <q-space />
+              <q-btn
+                v-if="authStore.isAdmin"
+                dense flat icon="delete" color="negative" class="q-mr-sm"
+                @click="confirmDeleteGroup(selected)"
+              >
+                <q-tooltip>Excluir todos os registros do dia</q-tooltip>
+              </q-btn>
+              <q-btn dense flat icon="close" v-close-popup />
+            </q-bar>
+
+            <q-card-section class="q-pa-lg">
+              <div class="row q-col-gutter-lg">
+                <!-- Painel esquerdo: resumo -->
+                <div class="col-12 col-md-3">
+                  <q-list bordered separator style="border-radius:12px;" class="q-mb-md">
+                    <q-item>
+                      <q-item-section avatar><q-icon name="groups" color="primary" /></q-item-section>
+                      <q-item-section>
+                        <q-item-label caption>Equipe</q-item-label>
+                        <q-item-label class="text-weight-bold">{{ selected.prefixo }}</q-item-label>
+                        <q-item-label caption>{{ selected.nomeEquipe }}</q-item-label>
+                      </q-item-section>
+                    </q-item>
+                    <q-item>
+                      <q-item-section avatar><q-icon name="today" color="primary" /></q-item-section>
+                      <q-item-section>
+                        <q-item-label caption>Data</q-item-label>
+                        <q-item-label>{{ formatDateStr(selected.dateStr) }}</q-item-label>
+                      </q-item-section>
+                    </q-item>
+                    <q-item>
+                      <q-item-section avatar><q-icon name="task" color="primary" /></q-item-section>
+                      <q-item-section>
+                        <q-item-label caption>Atividades</q-item-label>
+                        <div class="q-mt-xs">
+                          <q-chip
+                            v-for="nome in selected.atividadeNomes" :key="nome"
+                            dense size="sm" color="blue-grey-8" text-color="white" class="q-mb-xs"
+                          >{{ nome }}</q-chip>
+                          <span v-if="!selected.atividadeNomes.length" class="text-grey-5">—</span>
+                        </div>
+                      </q-item-section>
+                    </q-item>
+                    <q-item v-if="selected.allColaboradores.length">
+                      <q-item-section avatar><q-icon name="people" color="primary" /></q-item-section>
+                      <q-item-section>
+                        <q-item-label caption>Colaboradores</q-item-label>
+                        <div class="q-mt-xs">
+                          <q-chip
+                            v-for="nome in selected.allColaboradores" :key="nome"
+                            dense size="sm" color="primary" text-color="white" icon="person" class="q-mb-xs"
+                          >{{ nome }}</q-chip>
+                        </div>
+                      </q-item-section>
+                    </q-item>
+                    <q-item>
+                      <q-item-section avatar><q-icon name="photo_library" color="primary" /></q-item-section>
+                      <q-item-section>
+                        <q-item-label caption>Total de fotos</q-item-label>
+                        <div class="flex items-center q-gutter-xs q-mt-xs">
+                          <q-badge color="teal" :label="`${selected.epiTotal} EPI`" />
+                          <q-badge color="blue" :label="`${selected.atividadeTotal} Ativ.`" />
+                        </div>
+                      </q-item-section>
+                    </q-item>
+                    <q-item>
+                      <q-item-section avatar><q-icon name="sync" color="primary" /></q-item-section>
+                      <q-item-section>
+                        <q-item-label caption>Status</q-item-label>
+                        <q-badge
+                          :color="selected.allSynced ? 'positive' : 'orange'"
+                          :label="selected.allSynced ? 'Sincronizado' : 'Pendente'"
+                        />
+                      </q-item-section>
+                    </q-item>
+                  </q-list>
+                </div>
+
+                <!-- Painel direito: serviços com fotos -->
+                <div class="col-12 col-md-9">
+                  <div v-for="svc in selected.servicos" :key="svc.id" class="svc-block q-mb-xl">
+                    <div class="svc-header q-mb-md">
+                      <div class="flex items-center q-gutter-sm">
+                        <q-chip dense color="blue-grey-8" text-color="white" icon="schedule" size="sm">
+                          {{ formatTime(svc.created_at) }}
+                        </q-chip>
+                        <span class="text-weight-bold">{{ svc.activity_name || '—' }}</span>
+                        <q-btn
+                          v-if="authStore.isAdmin"
+                          flat round dense icon="delete" color="negative" size="sm"
+                          @click="confirmDeleteSingle(svc)"
+                        >
+                          <q-tooltip>Excluir este serviço</q-tooltip>
+                        </q-btn>
+                      </div>
+                      <div v-if="svc.descricao" class="text-caption text-grey-5 q-mt-xs">{{ svc.descricao }}</div>
+                    </div>
+
+                    <div v-if="epiPhotos(svc).length" class="q-mb-md">
+                      <div class="text-caption text-teal text-weight-bold q-mb-sm">
+                        <q-icon name="safety_check" /> EPI ({{ epiPhotos(svc).length }})
+                      </div>
+                      <div class="photo-grid">
+                        <div
+                          v-for="photo in epiPhotos(svc)" :key="photo.id"
+                          class="photo-item cursor-pointer"
+                          @click="openLightbox(photo)"
+                        >
+                          <img :src="getPhotoUrl(photo)" class="photo-thumb" />
+                          <div class="photo-overlay"><q-icon name="zoom_in" size="32px" color="white" /></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div v-if="atividadePhotos(svc).length">
+                      <div class="text-caption text-blue text-weight-bold q-mb-sm">
+                        <q-icon name="task" /> Atividade ({{ atividadePhotos(svc).length }})
+                      </div>
+                      <div class="photo-grid">
+                        <div
+                          v-for="photo in atividadePhotos(svc)" :key="photo.id"
+                          class="photo-item cursor-pointer"
+                          @click="openLightbox(photo)"
+                        >
+                          <img :src="getPhotoUrl(photo)" class="photo-thumb" />
+                          <div class="photo-overlay"><q-icon name="zoom_in" size="32px" color="white" /></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div v-if="!epiPhotos(svc).length && !atividadePhotos(svc).length" class="text-grey-5 text-caption">
+                      Nenhuma foto neste serviço.
+                    </div>
+
+                    <q-separator class="q-mt-lg" v-if="selected.servicos.indexOf(svc) < selected.servicos.length - 1" />
+                  </div>
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+        </q-dialog>
+
+        <!-- Lightbox -->
+        <q-dialog v-model="showLightbox" seamless>
+          <div class="lightbox-wrap" @click.self="showLightbox = false">
+            <q-card class="lightbox-card">
+              <q-bar dark class="bg-black">
+                <q-badge
+                  :color="lightboxPhoto?.tipo === 'epi' ? 'teal' : 'blue'"
+                  :label="lightboxPhoto?.tipo === 'epi' ? 'EPI' : 'Atividade'"
+                />
+                <q-space />
+                <q-btn dense flat icon="close" color="white" @click="showLightbox = false" />
+              </q-bar>
+              <img :src="lightboxUrl" class="lightbox-img" />
+            </q-card>
+          </div>
+        </q-dialog>
+
+      </q-tab-panel>
     </q-tab-panels>
 
     <!-- Dialog CRUD serviço -->
@@ -238,9 +507,8 @@ import { useActivitiesStore } from 'src/stores/activities'
 import { useTeamsStore } from 'src/stores/teams'
 import { useEvidenceStore } from 'src/stores/evidence'
 import { useAuthStore } from 'src/stores/auth'
-import { supabase } from 'src/services/supabase'
+import { supabase, storage } from 'src/services/supabase'
 import { useQuasar } from 'quasar'
-import { COORDENADORES } from 'src/data/equipes-filtro'
 
 const activitiesStore = useActivitiesStore()
 const teamsStore = useTeamsStore()
@@ -277,47 +545,38 @@ const teamOptions = computed(() =>
   teamsStore.teams.map(t => ({ label: `${t.prefixo} — ${t.nome}`, value: t.id }))
 )
 
-// ── Filtered refs para use-input ────────────────────────────
-const filteredTeamOptions    = ref([])
-const filteredSupervisores   = ref([])
-const filteredCoordenadores  = ref([])
-const filteredGerentes       = ref([])
+const filteredTeamOptions   = ref([])
+const filteredSupervisores  = ref([])
+const filteredCoordenadores = ref([])
+const filteredGerentes      = ref([])
 
-watch(teamOptions,    v => { filteredTeamOptions.value   = v }, { immediate: true })
+watch(teamOptions,      v => { filteredTeamOptions.value   = v }, { immediate: true })
 watch(supervisoresList, v => { filteredSupervisores.value  = v }, { immediate: true })
-watch(coordenadoresList, v => { filteredCoordenadores.value = v }, { immediate: true })
-watch(gerentesList, v => { filteredGerentes.value = v }, { immediate: true })
+watch(coordenadoresList,v => { filteredCoordenadores.value = v }, { immediate: true })
+watch(gerentesList,     v => { filteredGerentes.value      = v }, { immediate: true })
 
 function filterTeams (val, update) {
   update(() => {
     const q = val.toLowerCase()
-    filteredTeamOptions.value = q
-      ? teamOptions.value.filter(o => o.label.toLowerCase().includes(q))
-      : teamOptions.value
+    filteredTeamOptions.value = q ? teamOptions.value.filter(o => o.label.toLowerCase().includes(q)) : teamOptions.value
   })
 }
 function filterSupervisores (val, update) {
   update(() => {
     const q = val.toLowerCase()
-    filteredSupervisores.value = q
-      ? supervisoresList.value.filter(s => s.toLowerCase().includes(q))
-      : supervisoresList.value
+    filteredSupervisores.value = q ? supervisoresList.value.filter(s => s.toLowerCase().includes(q)) : supervisoresList.value
   })
 }
 function filterCoordenadores (val, update) {
   update(() => {
     const q = val.toLowerCase()
-    filteredCoordenadores.value = q
-      ? coordenadoresList.value.filter(s => s.toLowerCase().includes(q))
-      : coordenadoresList.value
+    filteredCoordenadores.value = q ? coordenadoresList.value.filter(s => s.toLowerCase().includes(q)) : coordenadoresList.value
   })
 }
 function filterGerentes (val, update) {
   update(() => {
     const q = val.toLowerCase()
-    filteredGerentes.value = q
-      ? gerentesList.value.filter(s => s.toLowerCase().includes(q))
-      : gerentesList.value
+    filteredGerentes.value = q ? gerentesList.value.filter(s => s.toLowerCase().includes(q)) : gerentesList.value
   })
 }
 
@@ -384,28 +643,24 @@ async function loadAtividades () {
     const PAGE = 1000
     let all = []
     let from = 0
-
     while (true) {
       let query = supabase
         .from('services')
         .select('id, team_id, activity_name, colaboradores, created_at, teams(prefixo, nome, supervisor)')
         .order('created_at', { ascending: false })
         .range(from, from + PAGE - 1)
-
       if (atividadesDate.value) {
         query = query
           .gte('created_at', atividadesDate.value + 'T00:00:00')
           .lte('created_at', atividadesDate.value + 'T23:59:59')
       }
       if (atividadesTeam.value) query = query.eq('team_id', atividadesTeam.value)
-
       const { data, error } = await query
       if (error) throw error
       all = all.concat(data || [])
       if (!data || data.length < PAGE) break
       from += PAGE
     }
-
     servicesData.value = all
   } catch (e) {
     $q.notify({ type: 'negative', message: 'Erro ao carregar atividades: ' + e.message })
@@ -422,9 +677,7 @@ function formatTime (iso) {
 function initials (nome) {
   if (!nome) return '?'
   const parts = nome.trim().split(' ').filter(Boolean)
-  return parts.length === 1
-    ? parts[0][0]
-    : parts[0][0] + parts[parts.length - 1][0]
+  return parts.length === 1 ? parts[0][0] : parts[0][0] + parts[parts.length - 1][0]
 }
 
 // ── SERVIÇOS ────────────────────────────────────────────
@@ -526,8 +779,7 @@ function confirmDeleteService (svc) {
   $q.dialog({
     title: 'Excluir registro',
     message: `Excluir o serviço <strong>${svc.activity_name || '—'}</strong> e suas fotos?`,
-    html: true,
-    cancel: true,
+    html: true, cancel: true,
     ok: { label: 'Excluir', color: 'negative', unelevated: true }
   }).onOk(async () => {
     try {
@@ -540,8 +792,168 @@ function confirmDeleteService (svc) {
   })
 }
 
+// ── EVIDÊNCIAS ──────────────────────────────────────────
+const loadingEvid   = ref(false)
+const evidRows      = ref([])
+const showDetail    = ref(false)
+const selected      = ref(null)
+const showLightbox  = ref(false)
+const lightboxPhoto = ref(null)
+const lightboxUrl   = ref('')
+
+const evidFilters = ref({
+  teamId: null,
+  date: null,
+  supervisor: null,
+  coordenador: null,
+  gerencia: null
+})
+
+const evidColumns = [
+  { name: 'equipe',     label: 'Equipe',     field: 'prefixo',   align: 'left',   sortable: true },
+  { name: 'atividades', label: 'Atividades', field: 'atividades', align: 'left' },
+  { name: 'servicos',   label: 'Serviços',   field: 'servicos',   align: 'left' },
+  { name: 'fotos',      label: 'Fotos',      field: 'totalFotos', align: 'left' },
+  { name: 'created',    label: 'Data',       field: r => formatDateStr(r.dateStr), align: 'left', sortable: true },
+  { name: 'status',     label: 'Status',     field: 'status',     align: 'center' },
+  { name: 'acoes',      label: '',           field: 'acoes',      align: 'right' }
+]
+
+const filteredEvidRows = computed(() =>
+  evidRows.value.filter(r => {
+    if (evidFilters.value.supervisor && r.teams?.supervisor !== evidFilters.value.supervisor) return false
+    if (evidFilters.value.coordenador) {
+      const team = teamsStore.teams.find(t => t.id === r.team_id)
+      if (team?.coordenador !== evidFilters.value.coordenador) return false
+    }
+    if (evidFilters.value.gerencia) {
+      const team = teamsStore.teams.find(t => t.id === r.team_id)
+      if (team?.gerencia !== evidFilters.value.gerencia) return false
+    }
+    return true
+  })
+)
+
+const groupedRows = computed(() => {
+  const map = {}
+  for (const svc of filteredEvidRows.value) {
+    const dateStr = (svc.created_at || '').split('T')[0]
+    const key = `${svc.team_id}_${dateStr}`
+    if (!map[key]) {
+      map[key] = {
+        key, team_id: svc.team_id,
+        prefixo: svc.teams?.prefixo || '—',
+        nomeEquipe: svc.teams?.nome || '',
+        dateStr, servicos: [], atividadeNomes: [], allColaboradores: [],
+        totalFotos: 0, epiTotal: 0, atividadeTotal: 0, allSynced: true
+      }
+    }
+    const g = map[key]
+    g.servicos.push(svc)
+    if (svc.activity_name && !g.atividadeNomes.includes(svc.activity_name))
+      g.atividadeNomes.push(svc.activity_name)
+    for (const c of (svc.colaboradores || []))
+      if (!g.allColaboradores.includes(c)) g.allColaboradores.push(c)
+    const fotos = svc.evidence_photos || []
+    g.totalFotos += fotos.length
+    g.epiTotal   += fotos.filter(p => p.tipo === 'epi').length
+    g.atividadeTotal += fotos.filter(p => p.tipo === 'atividade').length
+    if (svc.sync_status !== 'synced') g.allSynced = false
+  }
+  return Object.values(map).sort((a, b) => b.dateStr.localeCompare(a.dateStr) || a.prefixo.localeCompare(b.prefixo))
+})
+
+async function loadEvid () {
+  loadingEvid.value = true
+  try {
+    evidRows.value = await evidenceStore.fetchEvidences({
+      teamId: evidFilters.value.teamId || undefined,
+      date: evidFilters.value.date || undefined
+    }) || []
+  } catch {
+    evidRows.value = []
+  } finally {
+    loadingEvid.value = false
+  }
+}
+
+function epiPhotos (svc) { return (svc.evidence_photos || []).filter(p => p.tipo === 'epi') }
+function atividadePhotos (svc) { return (svc.evidence_photos || []).filter(p => p.tipo === 'atividade') }
+
+function openDetail (group) { selected.value = group; showDetail.value = true }
+
+function openLightbox (photo) {
+  lightboxPhoto.value = photo
+  lightboxUrl.value = getPhotoUrl(photo)
+  showLightbox.value = true
+}
+
+function getPhotoUrl (photo) {
+  if (photo.public_url) return photo.public_url
+  if (photo.file_path) return storage.getPublicUrl('evidencias', photo.file_path)
+  return ''
+}
+
+function formatDateStr (dateStr) {
+  if (!dateStr) return '—'
+  const [y, m, d] = dateStr.split('-')
+  return `${d}/${m}/${y}`
+}
+
+function confirmDeleteGroup (group) {
+  if (!authStore.isAdmin) {
+    $q.notify({ type: 'negative', message: 'Sem permissão para excluir.' })
+    return
+  }
+  $q.dialog({
+    title: 'Excluir registros do dia',
+    message: `Excluir <strong>${group.servicos.length} serviço(s)</strong> de <strong>${group.prefixo}</strong> em ${formatDateStr(group.dateStr)} e todas as fotos?`,
+    html: true, cancel: true,
+    ok: { label: 'Excluir tudo', color: 'negative', unelevated: true }
+  }).onOk(async () => {
+    try {
+      for (const svc of group.servicos) {
+        await evidenceStore.deleteService(svc.id)
+        evidRows.value = evidRows.value.filter(r => r.id !== svc.id)
+      }
+      showDetail.value = false
+      selected.value = null
+      $q.notify({ type: 'positive', message: 'Registros excluídos.' })
+    } catch (e) {
+      $q.notify({ type: 'negative', message: 'Erro ao excluir: ' + (e.message || e) })
+    }
+  })
+}
+
+function confirmDeleteSingle (svc) {
+  if (!authStore.isAdmin) return
+  $q.dialog({
+    title: 'Excluir serviço',
+    message: `Excluir o serviço de <strong>${svc.activity_name || 'sem atividade'}</strong> registrado às ${formatTime(svc.created_at)}?`,
+    html: true, cancel: true,
+    ok: { label: 'Excluir', color: 'negative', unelevated: true }
+  }).onOk(async () => {
+    try {
+      await evidenceStore.deleteService(svc.id)
+      evidRows.value = evidRows.value.filter(r => r.id !== svc.id)
+      if (selected.value) {
+        selected.value = { ...selected.value, servicos: selected.value.servicos.filter(s => s.id !== svc.id) }
+        if (selected.value.servicos.length === 0) { showDetail.value = false; selected.value = null }
+      }
+      $q.notify({ type: 'positive', message: 'Serviço excluído.' })
+    } catch (e) {
+      $q.notify({ type: 'negative', message: 'Erro ao excluir: ' + (e.message || e) })
+    }
+  })
+}
+
 onMounted(async () => {
-  await Promise.all([activitiesStore.fetchActivities(), teamsStore.fetchTeams(), loadAtividades()])
+  await Promise.all([
+    activitiesStore.fetchActivities(),
+    teamsStore.fetchTeams(),
+    loadAtividades(),
+    loadEvid()
+  ])
 })
 </script>
 
@@ -578,9 +990,7 @@ onMounted(async () => {
   box-shadow: 0 2px 8px color-mix(in oklab, var(--primary) 35%, transparent);
 }
 
-:deep(.act-tabs .q-tab__indicator) {
-  display: none;
-}
+:deep(.act-tabs .q-tab__indicator) { display: none; }
 
 /* ── Filter bar ──────────────────────────────────────── */
 .filter-bar {
@@ -700,7 +1110,6 @@ onMounted(async () => {
   gap: 0;
 }
 
-/* Avatar stack */
 .avatar-stack { display: flex; align-items: center; }
 .avatar-stack__item {
   border: 2px solid var(--background);
@@ -719,11 +1128,7 @@ onMounted(async () => {
   margin-left: -8px;
 }
 
-/* Count badge */
-.count-badge {
-  text-align: center;
-  min-width: 64px;
-}
+.count-badge { text-align: center; min-width: 64px; }
 .count-badge__number {
   font-size: 2rem;
   font-weight: 800;
@@ -738,7 +1143,6 @@ onMounted(async () => {
   letter-spacing: 0.05em;
 }
 
-/* Expanded detail rows */
 .team-card__detail {
   border-top: 1px solid var(--border);
   background: color-mix(in oklab, var(--background) 60%, transparent);
@@ -757,9 +1161,7 @@ onMounted(async () => {
   border-bottom: 1px solid color-mix(in oklab, var(--border) 40%, transparent);
   margin-bottom: 4px;
 }
-.detail-header--admin {
-  grid-template-columns: 72px 1fr 1fr 44px;
-}
+.detail-header--admin { grid-template-columns: 72px 1fr 1fr 44px; }
 
 .detail-row {
   display: grid;
@@ -770,21 +1172,14 @@ onMounted(async () => {
   border-bottom: 1px solid color-mix(in oklab, var(--border) 30%, transparent);
   align-items: center;
 }
-.detail-row--admin {
-  grid-template-columns: 72px 1fr 1fr 44px;
-}
+.detail-row--admin { grid-template-columns: 72px 1fr 1fr 44px; }
 .detail-row:last-child { border-bottom: none; }
 .detail-actions { text-align: right; }
 
-.detail-time {
-  color: var(--muted-fg);
-  font-variant-numeric: tabular-nums;
-  font-size: 0.75rem;
-}
-.detail-act  { color: var(--fg); font-weight: 500; }
+.detail-time   { color: var(--muted-fg); font-variant-numeric: tabular-nums; font-size: 0.75rem; }
+.detail-act    { color: var(--fg); font-weight: 500; }
 .detail-collabs { color: var(--muted-fg); font-size: 0.75rem; }
 
-/* Slide transition */
 .slide-enter-active, .slide-leave-active {
   transition: max-height 0.25s ease, opacity 0.2s ease;
   overflow: hidden;
@@ -792,13 +1187,90 @@ onMounted(async () => {
 }
 .slide-enter-from, .slide-leave-to { max-height: 0; opacity: 0; }
 
-/* Empty state */
-.empty-state {
-  text-align: center;
-  padding: 64px 0;
+.empty-state { text-align: center; padding: 64px 0; }
+
+/* ── Evidências ─────────────────────────────────────── */
+:deep(.clickable-rows tbody tr) {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+:deep(.clickable-rows tbody tr:hover) {
+  background: color-mix(in oklab, var(--primary) 8%, transparent) !important;
 }
 
-/* Responsive */
+.svc-block { padding: 0; }
+
+.svc-header {
+  border-left: 3px solid var(--primary);
+  padding-left: 12px;
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.photo-item {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  aspect-ratio: 1;
+  background: var(--background);
+}
+
+.photo-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s;
+}
+
+.photo-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.photo-item:hover .photo-thumb   { transform: scale(1.04); }
+.photo-item:hover .photo-overlay { opacity: 1; }
+
+.lightbox-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-width: 100vw;
+  background: rgba(0,0,0,0.85);
+}
+
+.lightbox-card {
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 92vw;
+}
+
+.lightbox-img {
+  display: block;
+  max-width: 88vw;
+  max-height: 82vh;
+  object-fit: contain;
+}
+
+.detail-card {
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+/* ── Responsive ─────────────────────────────────────── */
 @media (max-width: 768px) {
   .kpi-row { grid-template-columns: 1fr; }
   .team-card__header { flex-wrap: wrap; gap: 12px; }
