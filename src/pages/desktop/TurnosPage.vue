@@ -755,24 +755,21 @@ async function downloadDonutChart () {
     } else if (donutPeriod.value === 'range') {
       const from = donutDateFrom.value || todayStr()
       const to   = donutDateTo.value   || todayStr()
-      const { data, error } = await supabase
-        .from('services')
-        .select('team_id')
-        .gte('created_at', from + 'T00:00:00')
-        .lte('created_at', to + 'T23:59:59')
-        .limit(100000)
+      const { data, error } = await supabase.rpc('get_teams_with_services', {
+        date_from: from + 'T00:00:00',
+        date_to:   to   + 'T23:59:59'
+      })
       if (error) throw error
       abriuSet    = new Set((data || []).map(s => s.team_id))
       periodLabel = `${formatDateBR(from)} a ${formatDateBR(to)}`
     } else {
-      const { data, error } = await supabase
-        .from('services')
-        .select('team_id')
-        .limit(100000)
+      const { data, error } = await supabase.rpc('get_teams_with_services', {
+        date_from: null,
+        date_to:   null
+      })
       if (error) throw error
       abriuSet    = new Set((data || []).map(s => s.team_id))
       periodLabel = 'Acumulado Geral'
-      console.log('[DonutChart] total rows returned:', (data || []).length, '| unique team_ids:', abriuSet.size)
     }
 
     const PROCESSOS = ['GERE', 'GOMAN', 'GSTC']
