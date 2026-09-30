@@ -109,6 +109,49 @@
 
     </div>
 
+    <!-- Turnos Ativos (superadmin only) -->
+    <div v-if="authStore.isSuperAdmin" class="card-block span-full q-mt-md">
+      <div class="block-header">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="block-title">Turnos Ativos</span>
+          <span class="turns-badge">{{ activeSessions.length }} colaborador{{ activeSessions.length !== 1 ? 'es' : '' }}</span>
+        </div>
+        <q-btn flat dense no-caps icon="refresh" label="Atualizar" size="sm" color="grey-5"
+          :loading="loadingSessions" @click="fetchActiveSessions" />
+      </div>
+
+      <div v-if="loadingSessions" class="flex flex-center q-py-lg">
+        <q-spinner-dots color="primary" size="28px" />
+      </div>
+
+      <div v-else-if="!activeSessions.length" class="empty-state" style="padding:20px 0">
+        <q-icon name="schedule" size="36px" class="empty-icon" />
+        <div>Nenhum turno ativo no momento</div>
+      </div>
+
+      <div v-else class="turns-grid">
+        <div v-for="group in activeSessionsGrouped" :key="group.prefixo" class="turn-group">
+          <div class="turn-group-header">
+            <div class="turn-prefix">{{ group.prefixo }}</div>
+            <div class="turn-data">{{ group.data }}</div>
+            <q-btn flat dense no-caps icon="cancel" label="Encerrar turno" size="xs" color="negative"
+              :loading="closingTeam === group.prefixo"
+              @click="closeTeamTurn(group)" />
+          </div>
+          <div class="turn-members">
+            <div v-for="s in group.members" :key="s.id" class="turn-member">
+              <div class="member-avatar">{{ s.colaborador.charAt(0) }}</div>
+              <span class="member-name">{{ s.colaborador }}</span>
+              <q-btn flat round dense size="xs" icon="close" color="negative"
+                style="opacity:.7;margin-left:auto"
+                :loading="removingId === s.id"
+                @click="removeSession(s)" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Dialog de aprovação -->
     <q-dialog v-model="approveDialog" persistent>
       <q-card style="min-width: 360px; border-radius: 16px;">
@@ -133,11 +176,13 @@
 import { ref, onMounted, computed } from 'vue'
 import { useTeamsStore } from 'src/stores/teams'
 import { useEvidenceStore } from 'src/stores/evidence'
+import { useAuthStore } from 'src/stores/auth'
 import { supabase } from 'src/services/supabase'
 import { useQuasar } from 'quasar'
 
 const teamsStore = useTeamsStore()
 const evidenceStore = useEvidenceStore()
+const authStore = useAuthStore()
 const $q = useQuasar()
 
 const loading = ref(false)
@@ -149,6 +194,12 @@ const selectedRequest = ref(null)
 const approvingId = ref(null)
 const newTeam = ref({ nome: '', descricao: '' })
 
+// Turnos ativos
+const activeSessions = ref([])
+const loadingSessions = ref(false)
+const removingId = ref(null)
+const closingTeam = ref(null)
+
 const today = new Date().toISOString().split('T')[0]
 const dateLabel = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
 
@@ -156,10 +207,57 @@ onMounted(load)
 
 async function load () {
   loading.value = true
-  await Promise.all([teamsStore.fetchTeams(), fetchPendingRequests(), fetchPendentesValidacao()])
+  const tasks = [teamsStore.fetchTeams(), fetchPendingRequests(), fetchPendentesValidacao()]
+  if (authStore.isSuperAdmin) tasks.push(fetchActiveSessions())
+  await Promise.all(tasks)
   try { recentEvidences.value = await evidenceStore.fetchEvidences({ date: today }) }
   catch { recentEvidences.value = [] }
   finally { loading.value = false }
+}
+
+async function fetchActiveSessions () {
+  loadingSessions.value = true
+  try {
+    const { data } = await supabase
+      .from('active_sessions')
+      .select('id, team_id, prefixo, colaborador, data')
+      .order('prefixo')
+    activeSessions.value = data || []
+  } catch { activeSessions.value = [] }
+  finally { loadingSessions.value = false }
+}
+
+const activeSessionsGrouped = computed(() => {
+  const map = {}
+  for (const s of activeSessions.value) {
+    if (!map[s.prefixo]) map[s.prefixo] = { prefixo: s.prefixo, team_id: s.team_id, data: s.data, members: [] }
+    map[s.prefixo].members.push(s)
+  }
+  return Object.values(map)
+})
+
+async function removeSession (session) {
+  removingId.value = session.id
+  try {
+    const { error } = await supabase.from('active_sessions').delete().eq('id', session.id)
+    if (error) throw error
+    activeSessions.value = activeSessions.value.filter(s => s.id !== session.id)
+    $q.notify({ type: 'positive', message: `${session.colaborador} removido do turno.` })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro ao remover: ' + e.message })
+  } finally { removingId.value = null }
+}
+
+async function closeTeamTurn (group) {
+  closingTeam.value = group.prefixo
+  try {
+    const { error } = await supabase.from('active_sessions').delete().eq('team_id', group.team_id)
+    if (error) throw error
+    activeSessions.value = activeSessions.value.filter(s => s.team_id !== group.team_id)
+    $q.notify({ type: 'positive', message: `Turno da equipe ${group.prefixo} encerrado.` })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro ao encerrar turno: ' + e.message })
+  } finally { closingTeam.value = null }
 }
 
 async function fetchPendentesValidacao () {
@@ -334,6 +432,46 @@ function strColor (str = '') {
   gap: 14px;
 }
 .span-2 { grid-column: span 2; }
+.span-full { grid-column: 1 / -1; }
+
+/* ── Turnos Ativos ──────────────────────────────────────── */
+.turns-badge {
+  background: rgba(249,115,22,.12); color: #fb923c;
+  border: 1px solid rgba(249,115,22,.25);
+  border-radius: 20px; padding: 2px 10px;
+  font-size: 0.72rem; font-weight: 700;
+}
+.turns-grid {
+  display: flex; flex-wrap: wrap; gap: 12px;
+}
+.turn-group {
+  background: var(--background); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px; min-width: 220px; flex: 1;
+}
+.turn-group-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.turn-prefix {
+  background: var(--primary); color: #fff;
+  font-size: 0.72rem; font-weight: 700;
+  padding: 2px 8px; border-radius: 6px; letter-spacing: .02em;
+}
+.turn-data {
+  font-size: 0.72rem; color: var(--muted-fg); flex: 1;
+}
+.turn-members { display: flex; flex-direction: column; gap: 6px; }
+.turn-member {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 10px;
+}
+.member-avatar {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--primary); color: #fff;
+  font-size: 0.72rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.member-name { font-size: 0.8rem; font-weight: 500; flex: 1; }
 
 .card-block {
   background: var(--card);
