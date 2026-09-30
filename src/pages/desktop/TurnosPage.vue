@@ -225,7 +225,7 @@
 
           <!-- Agrupar por -->
           <div class="text-caption text-grey-5 q-mb-sm text-weight-bold" style="letter-spacing:.06em; text-transform:uppercase;">Agrupar por</div>
-          <div class="share-group-btns q-mb-lg">
+          <div class="share-group-btns q-mb-md">
             <button
               v-for="opt in shareGroupOpts" :key="opt.value"
               class="share-group-btn"
@@ -234,6 +234,23 @@
             >
               <q-icon :name="opt.icon" size="18px" class="q-mr-xs" />
               {{ opt.label }}
+            </button>
+          </div>
+
+          <!-- Mostrar -->
+          <div class="text-caption text-grey-5 q-mb-sm text-weight-bold" style="letter-spacing:.06em; text-transform:uppercase;">Mostrar</div>
+          <div class="share-group-btns q-mb-lg">
+            <button class="share-group-btn" :class="{ 'share-group-btn--active': shareStatusFilter === 'all' }"
+              @click="shareStatusFilter = 'all'">
+              <q-icon name="groups" size="18px" class="q-mr-xs" /> Todas
+            </button>
+            <button class="share-group-btn" :class="{ 'share-group-btn--active': shareStatusFilter === 'abriu' }"
+              @click="shareStatusFilter = 'abriu'" style="color:#22c55e">
+              <q-icon name="login" size="18px" class="q-mr-xs" /> Abriram
+            </button>
+            <button class="share-group-btn" :class="{ 'share-group-btn--active': shareStatusFilter === 'sem_turno' }"
+              @click="shareStatusFilter = 'sem_turno'" style="color:#ef4444">
+              <q-icon name="block" size="18px" class="q-mr-xs" /> Não Abriram
             </button>
           </div>
 
@@ -398,6 +415,7 @@ const statusFilter   = ref(null)
 // ── Compartilhar ──────────────────────────────────────
 const showShare           = ref(false)
 const shareGroupBy        = ref('coordenador')
+const shareStatusFilter   = ref('all') // 'all' | 'abriu' | 'sem_turno'
 const generating          = ref(false)
 const sharePreviewRef     = ref(null)
 const shareFrom           = ref(todayStr())
@@ -652,10 +670,17 @@ const shareTeamsEnriched = computed(() => {
   })
 })
 
+const shareTeamsFiltered = computed(() => {
+  const sf = shareStatusFilter.value
+  if (sf === 'abriu')     return shareTeamsEnriched.value.filter(t => t.status !== 'sem_turno')
+  if (sf === 'sem_turno') return shareTeamsEnriched.value.filter(t => t.status === 'sem_turno')
+  return shareTeamsEnriched.value
+})
+
 const shareGroups = computed(() => {
   const key = shareGroupBy.value
   const map = {}
-  for (const t of shareTeamsEnriched.value) {
+  for (const t of shareTeamsFiltered.value) {
     const grpKey = t[key] || `Sem ${key}`
     if (!map[grpKey]) map[grpKey] = { label: grpKey, teams: [], abriu: 0, nao: 0 }
     map[grpKey].teams.push(t)
@@ -665,8 +690,8 @@ const shareGroups = computed(() => {
   return Object.values(map).sort((a, b) => a.label.localeCompare(b.label))
 })
 
-const shareTotalEquipes = computed(() => shareTeamsEnriched.value.length)
-const shareCountAbriu   = computed(() => shareTeamsEnriched.value.filter(t => t.status !== 'sem_turno').length)
+const shareTotalEquipes  = computed(() => shareTeamsEnriched.value.length)
+const shareCountAbriu    = computed(() => shareTeamsEnriched.value.filter(t => t.status !== 'sem_turno').length)
 const shareCountSemTurno = computed(() => shareTeamsEnriched.value.filter(t => t.status === 'sem_turno').length)
 
 async function downloadImage () {
