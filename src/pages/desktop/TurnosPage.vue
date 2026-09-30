@@ -56,21 +56,7 @@
         <div class="kpi-icon kpi-icon--green"><q-icon name="login" size="22px" /></div>
         <div class="kpi-body">
           <div class="kpi-value" style="color:#22c55e;">{{ countAbriu }}</div>
-          <div class="kpi-label">Abriram turno</div>
-          <div class="kpi-sub">
-            <span class="kpi-sub--em">● {{ countEmTurno }} em campo</span>
-            <span class="kpi-sub--enc q-ml-sm">● {{ countEncerrado }} encerrado</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Em campo agora -->
-      <div class="kpi-card" :class="{ 'kpi-card--active': statusFilter === 'em_turno' }"
-        @click="statusFilter = statusFilter === 'em_turno' ? null : 'em_turno'">
-        <div class="kpi-icon kpi-icon--teal"><q-icon name="wifi_tethering" size="22px" /></div>
-        <div class="kpi-body">
-          <div class="kpi-value" style="color:#14b8a6;">{{ countEmTurno }}</div>
-          <div class="kpi-label">Em campo agora</div>
+          <div class="kpi-label">Iniciaram turno</div>
         </div>
       </div>
 
@@ -113,13 +99,10 @@
           <!-- mini stats da gerência -->
           <div class="group-mini-stats">
             <span class="mini-stat mini-stat--green">
-              <q-icon name="login" size="12px" /> {{ gerGroup.emTurno + gerGroup.encerrado }} abriram
-            </span>
-            <span class="mini-stat mini-stat--teal q-ml-sm">
-              <q-icon name="wifi_tethering" size="12px" /> {{ gerGroup.emTurno }} em campo
+              <q-icon name="login" size="12px" /> {{ gerGroup.emTurno + gerGroup.encerrado }} iniciaram
             </span>
             <span class="mini-stat mini-stat--red q-ml-sm">
-              <q-icon name="block" size="12px" /> {{ gerGroup.semTurno }} não abriram
+              <q-icon name="block" size="12px" /> {{ gerGroup.semTurno }} não iniciaram
             </span>
           </div>
         </div>
@@ -376,13 +359,13 @@ const gerentesList = computed(() => {
 
 // ── Status helpers ─────────────────────────────────────
 function statusLabel (s) {
-  return { em_turno: 'Em Turno', encerrado: 'Encerrado', sem_turno: 'Sem Turno' }[s] || s
+  return s === 'sem_turno' ? 'Sem Turno' : 'Iniciou Turno'
 }
 function statusColor (s) {
-  return { em_turno: 'positive', encerrado: 'warning', sem_turno: 'negative' }[s] || 'grey'
+  return s === 'sem_turno' ? 'negative' : 'positive'
 }
 function statusIcon (s) {
-  return { em_turno: 'login', encerrado: 'task_alt', sem_turno: 'block' }[s] || ''
+  return s === 'sem_turno' ? 'block' : 'login'
 }
 
 function initials (nome) {
@@ -448,7 +431,7 @@ const filteredTeams = computed(() => {
   const q = search.value.trim().toLowerCase()
   return allTeamsEnriched.value.filter(t => {
     if (statusFilter.value === 'abriu' && t.status === 'sem_turno') return false
-    else if (statusFilter.value && statusFilter.value !== 'abriu' && t.status !== statusFilter.value) return false
+    if (statusFilter.value === 'sem_turno' && t.status !== 'sem_turno') return false
     if (filterBase.value && t.base !== filterBase.value) return false
     if (filterProcesso.value && t.processo !== filterProcesso.value) return false
     if (filterSupervisor.value && t.supervisor !== filterSupervisor.value) return false
