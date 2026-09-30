@@ -760,6 +760,7 @@ async function downloadDonutChart () {
         .select('team_id')
         .gte('created_at', from + 'T00:00:00')
         .lte('created_at', to + 'T23:59:59')
+        .limit(100000)
       if (error) throw error
       abriuSet    = new Set((data || []).map(s => s.team_id))
       periodLabel = `${formatDateBR(from)} a ${formatDateBR(to)}`
@@ -767,6 +768,7 @@ async function downloadDonutChart () {
       const { data, error } = await supabase
         .from('services')
         .select('team_id')
+        .limit(100000)
       if (error) throw error
       abriuSet    = new Set((data || []).map(s => s.team_id))
       periodLabel = 'Acumulado Geral'
