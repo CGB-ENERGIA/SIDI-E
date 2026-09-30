@@ -214,6 +214,11 @@
         <q-separator />
 
         <q-card-section>
+          <!-- Data do compartilhamento -->
+          <div class="text-caption text-grey-5 q-mb-sm text-weight-bold" style="letter-spacing:.06em; text-transform:uppercase;">Data</div>
+          <q-input v-model="shareDate" type="date" outlined dense bg-color="surface"
+            class="q-mb-lg" style="max-width:200px;" :loading="shareLoadingData" />
+
           <!-- Agrupar por -->
           <div class="text-caption text-grey-5 q-mb-sm text-weight-bold" style="letter-spacing:.06em; text-transform:uppercase;">Agrupar por</div>
           <div class="share-group-btns q-mb-lg">
@@ -235,7 +240,7 @@
                 <span class="sp-logo">SIDI-E</span>
                 <span class="sp-company">CGB ENERGIA</span>
               </div>
-              <div class="sp-date">{{ formatDateBR(filterDate || todayStr()) }}</div>
+              <div class="sp-date">{{ formatDateBR(shareDate) }}</div>
             </div>
 
             <div class="sp-title">CONTROLE DE TURNOS</div>
@@ -249,15 +254,15 @@
             <!-- Stats globais -->
             <div class="sp-stats">
               <div class="sp-stat">
-                <div class="sp-stat__val">{{ totalEquipes }}</div>
+                <div class="sp-stat__val">{{ shareTotalEquipes }}</div>
                 <div class="sp-stat__lbl">Total</div>
               </div>
               <div class="sp-stat sp-stat--green">
-                <div class="sp-stat__val">{{ countAbriu }}</div>
+                <div class="sp-stat__val">{{ shareCountAbriu }}</div>
                 <div class="sp-stat__lbl">Abriram</div>
               </div>
               <div class="sp-stat sp-stat--red">
-                <div class="sp-stat__val">{{ countSemTurno }}</div>
+                <div class="sp-stat__val">{{ shareCountSemTurno }}</div>
                 <div class="sp-stat__lbl">Não Abriram</div>
               </div>
             </div>
@@ -265,9 +270,9 @@
             <!-- Barra de progresso -->
             <div class="sp-progress-wrap">
               <div class="sp-progress-bar">
-                <div class="sp-progress-fill" :style="`width:${totalEquipes ? Math.round(countAbriu / totalEquipes * 100) : 0}%`" />
+                <div class="sp-progress-fill" :style="`width:${shareTotalEquipes ? Math.round(shareCountAbriu / shareTotalEquipes * 100) : 0}%`" />
               </div>
-              <span class="sp-progress-pct">{{ totalEquipes ? Math.round(countAbriu / totalEquipes * 100) : 0 }}% abriram turno</span>
+              <span class="sp-progress-pct">{{ shareTotalEquipes ? Math.round(shareCountAbriu / shareTotalEquipes * 100) : 0 }}% abriram turno</span>
             </div>
 
             <!-- Grupos -->
@@ -387,10 +392,38 @@ const search         = ref('')
 const statusFilter   = ref(null)
 
 // ── Compartilhar ──────────────────────────────────────
-const showShare       = ref(false)
-const shareGroupBy    = ref('coordenador')
-const generating      = ref(false)
-const sharePreviewRef = ref(null)
+const showShare          = ref(false)
+const shareGroupBy       = ref('coordenador')
+const generating         = ref(false)
+const sharePreviewRef    = ref(null)
+const shareDate          = ref(todayStr())
+const shareLoadingData   = ref(false)
+const shareActiveSessions = ref([])
+const shareServicesDay   = ref([])
+
+async function loadShareData (date) {
+  if (!date) return
+  shareLoadingData.value = true
+  try {
+    const start = date + 'T00:00:00'
+    const end   = date + 'T23:59:59'
+    const [sessRes, svcRes] = await Promise.all([
+      supabase.from('active_sessions').select('id, team_id, prefixo, colaborador, data').order('prefixo'),
+      supabase.from('services')
+        .select('team_id, activity_name, colaboradores, created_at')
+        .gte('created_at', start).lte('created_at', end).limit(10000)
+    ])
+    shareActiveSessions.value = sessRes.data || []
+    shareServicesDay.value    = svcRes.data  || []
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro ao carregar data: ' + e.message })
+  } finally {
+    shareLoadingData.value = false
+  }
+}
+
+watch(shareDate, val => { if (val) loadShareData(val) })
+watch(showShare, val => { if (val) { shareDate.value = filterDate.value || todayStr(); loadShareData(shareDate.value) } })
 
 // ── Gráfico por Processo ───────────────────────────────
 const showDonutPeriod = ref(false)
@@ -571,10 +604,32 @@ const groupedTeams = computed(() => {
 })
 
 // ── Compartilhar: agrupamento para preview ─────────────
+const shareTeamsEnriched = computed(() => {
+  const activeMap = {}
+  for (const s of shareActiveSessions.value) {
+    if (!activeMap[s.team_id]) activeMap[s.team_id] = []
+    activeMap[s.team_id].push(s.colaborador)
+  }
+  const svcMap = {}
+  for (const svc of shareServicesDay.value) {
+    if (!svcMap[svc.team_id]) svcMap[svc.team_id] = 0
+    svcMap[svc.team_id]++
+  }
+  return teamsStore.teams.map(team => {
+    const isActive   = (activeMap[team.id] || []).length > 0
+    const hadActivity = (svcMap[team.id] || 0) > 0
+    let status
+    if (isActive) status = 'em_turno'
+    else if (hadActivity) status = 'encerrado'
+    else status = 'sem_turno'
+    return { ...team, status }
+  })
+})
+
 const shareGroups = computed(() => {
-  const key = shareGroupBy.value // 'coordenador' | 'base' | 'processo'
+  const key = shareGroupBy.value
   const map = {}
-  for (const t of filteredTeams.value) {
+  for (const t of shareTeamsEnriched.value) {
     const grpKey = t[key] || `Sem ${key}`
     if (!map[grpKey]) map[grpKey] = { label: grpKey, teams: [], abriu: 0, nao: 0 }
     map[grpKey].teams.push(t)
@@ -584,11 +639,15 @@ const shareGroups = computed(() => {
   return Object.values(map).sort((a, b) => a.label.localeCompare(b.label))
 })
 
+const shareTotalEquipes = computed(() => shareTeamsEnriched.value.length)
+const shareCountAbriu   = computed(() => shareTeamsEnriched.value.filter(t => t.status !== 'sem_turno').length)
+const shareCountSemTurno = computed(() => shareTeamsEnriched.value.filter(t => t.status === 'sem_turno').length)
+
 async function downloadImage () {
   generating.value = true
   try {
     const groups = shareGroups.value
-    const date   = formatDateBR(filterDate.value || todayStr())
+    const date   = formatDateBR(shareDate.value || todayStr())
     const W      = 1080
     const PAD    = 32
     const SEC_H  = 52
@@ -770,7 +829,7 @@ async function downloadImage () {
       // Download this group's image
       const safeLabel = grp.label.replace(/[^a-zA-Z0-9_-]/g, '_')
       const link = document.createElement('a')
-      link.download = `turnos-${filterDate.value || todayStr()}-${shareGroupBy.value}-${safeLabel}.png`
+      link.download = `turnos-${shareDate.value || todayStr()}-${shareGroupBy.value}-${safeLabel}.png`
       link.href = canvas.toDataURL('image/png')
       link.click()
 
