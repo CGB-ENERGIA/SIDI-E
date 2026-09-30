@@ -21,7 +21,7 @@
     <!-- Filtros -->
     <div class="filter-bar q-mb-lg">
       <q-input v-model="filterDate" type="date" label="Data" outlined dense clearable
-        bg-color="surface" style="min-width:180px;" @update:model-value="load" />
+        bg-color="surface" style="min-width:180px;" @update:model-value="onDateChange" />
       <q-select v-model="filterBase" :options="basesList" label="Base"
         outlined dense clearable bg-color="surface" style="min-width:140px;" />
       <q-select v-model="filterProcesso" :options="processosList" label="Processo"
@@ -947,6 +947,11 @@ function roundRect (ctx, x, y, w, h, r) {
 }
 
 // ── Carregamento ──────────────────────────────────────
+function onDateChange (val) {
+  if (!val) filterDate.value = todayStr()
+  load()
+}
+
 async function load () {
   loading.value = true
   try {
