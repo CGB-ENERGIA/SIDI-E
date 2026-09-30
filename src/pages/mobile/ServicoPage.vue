@@ -71,6 +71,46 @@
         </q-card-section>
       </q-card>
 
+      <!-- Escada (opcional) -->
+      <q-card flat bordered class="q-mb-md" style="border-radius: 12px;">
+        <q-card-section>
+          <div class="text-subtitle1 text-weight-bold q-mb-xs">
+            <q-icon name="stairs" color="warning" class="q-mr-xs" />
+            Amarração de escada
+            <q-badge color="grey-5" label="opcional" class="q-ml-sm" />
+          </div>
+          <div class="text-caption text-grey-6 q-mb-md">
+            Se houver escada, registre a amarração com foto.
+          </div>
+
+          <div class="flex justify-between items-center q-mb-sm" v-if="escadaPhotos.length">
+            <span class="text-caption">Fotos tiradas:</span>
+            <q-badge color="positive" :label="`${escadaPhotos.length} foto(s) ✓`" text-color="white" />
+          </div>
+
+          <div class="photo-grid q-mb-md" v-if="escadaPhotos.length">
+            <div v-for="(photo, idx) in escadaPhotos" :key="idx" class="relative-position">
+              <img :src="photo.previewUrl" class="photo-thumb" />
+              <q-btn
+                round dense icon="close" color="negative" size="xs"
+                class="absolute-top-right q-ma-xs"
+                @click="removePhoto(escadaPhotos, idx)"
+              />
+            </div>
+          </div>
+
+          <q-btn
+            :unelevated="escadaPhotos.length === 0"
+            :outline="escadaPhotos.length > 0"
+            rounded color="warning"
+            :icon="escadaPhotos.length === 0 ? 'camera_alt' : 'add_a_photo'"
+            :label="escadaPhotos.length === 0 ? 'Fotografar amarração' : 'Adicionar mais fotos'"
+            class="full-width"
+            @click="openCamera('escada')"
+          />
+        </q-card-section>
+      </q-card>
+
       <q-btn
         unelevated rounded color="primary"
         label="Próximo" icon-right="arrow_forward"
@@ -162,46 +202,6 @@
             :label="atividadePhotos.length === 0 ? 'Tirar foto da atividade' : 'Adicionar mais fotos'"
             class="full-width"
             @click="openCamera('atividade')"
-          />
-        </q-card-section>
-      </q-card>
-
-      <!-- Escada (opcional) -->
-      <q-card flat bordered class="q-mb-md" style="border-radius: 12px;">
-        <q-card-section>
-          <div class="text-subtitle1 text-weight-bold q-mb-xs">
-            <q-icon name="stairs" color="warning" class="q-mr-xs" />
-            Amarração de escada
-            <q-badge color="grey-5" label="opcional" class="q-ml-sm" />
-          </div>
-          <div class="text-caption text-grey-6 q-mb-md">
-            Se houver escada, registre a amarração com foto.
-          </div>
-
-          <div class="flex justify-between items-center q-mb-sm" v-if="escadaPhotos.length">
-            <span class="text-caption">Fotos tiradas:</span>
-            <q-badge color="positive" :label="`${escadaPhotos.length} foto(s) ✓`" text-color="white" />
-          </div>
-
-          <div class="photo-grid q-mb-md" v-if="escadaPhotos.length">
-            <div v-for="(photo, idx) in escadaPhotos" :key="idx" class="relative-position">
-              <img :src="photo.previewUrl" class="photo-thumb" />
-              <q-btn
-                round dense icon="close" color="negative" size="xs"
-                class="absolute-top-right q-ma-xs"
-                @click="removePhoto(escadaPhotos, idx)"
-              />
-            </div>
-          </div>
-
-          <q-btn
-            :unelevated="escadaPhotos.length === 0"
-            :outline="escadaPhotos.length > 0"
-            rounded color="warning"
-            :icon="escadaPhotos.length === 0 ? 'camera_alt' : 'add_a_photo'"
-            :label="escadaPhotos.length === 0 ? 'Fotografar amarração' : 'Adicionar mais fotos'"
-            class="full-width"
-            @click="openCamera('escada')"
           />
         </q-card-section>
       </q-card>
