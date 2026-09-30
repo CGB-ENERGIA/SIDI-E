@@ -166,6 +166,46 @@
         </q-card-section>
       </q-card>
 
+      <!-- Escada (opcional) -->
+      <q-card flat bordered class="q-mb-md" style="border-radius: 12px;">
+        <q-card-section>
+          <div class="text-subtitle1 text-weight-bold q-mb-xs">
+            <q-icon name="stairs" color="warning" class="q-mr-xs" />
+            Amarração de escada
+            <q-badge color="grey-5" label="opcional" class="q-ml-sm" />
+          </div>
+          <div class="text-caption text-grey-6 q-mb-md">
+            Se houver escada, registre a amarração com foto.
+          </div>
+
+          <div class="flex justify-between items-center q-mb-sm" v-if="escadaPhotos.length">
+            <span class="text-caption">Fotos tiradas:</span>
+            <q-badge color="positive" :label="`${escadaPhotos.length} foto(s) ✓`" text-color="white" />
+          </div>
+
+          <div class="photo-grid q-mb-md" v-if="escadaPhotos.length">
+            <div v-for="(photo, idx) in escadaPhotos" :key="idx" class="relative-position">
+              <img :src="photo.previewUrl" class="photo-thumb" />
+              <q-btn
+                round dense icon="close" color="negative" size="xs"
+                class="absolute-top-right q-ma-xs"
+                @click="removePhoto(escadaPhotos, idx)"
+              />
+            </div>
+          </div>
+
+          <q-btn
+            :unelevated="escadaPhotos.length === 0"
+            :outline="escadaPhotos.length > 0"
+            rounded color="warning"
+            :icon="escadaPhotos.length === 0 ? 'camera_alt' : 'add_a_photo'"
+            :label="escadaPhotos.length === 0 ? 'Fotografar amarração' : 'Adicionar mais fotos'"
+            class="full-width"
+            @click="openCamera('escada')"
+          />
+        </q-card-section>
+      </q-card>
+
       <div class="flex gap-sm">
         <q-btn outline rounded color="grey" label="Voltar" class="col" @click="step = 2" />
         <q-btn
@@ -210,6 +250,13 @@
               <q-item-section>
                 <q-item-label caption>Fotos da atividade</q-item-label>
                 <q-item-label>{{ atividadePhotos.length }} foto(s) ✓</q-item-label>
+              </q-item-section>
+            </q-item>
+            <q-item v-if="escadaPhotos.length">
+              <q-item-section avatar><q-icon name="stairs" color="warning" /></q-item-section>
+              <q-item-section>
+                <q-item-label caption>Amarração de escada</q-item-label>
+                <q-item-label>{{ escadaPhotos.length }} foto(s) ✓</q-item-label>
               </q-item-section>
             </q-item>
           </q-list>
@@ -283,6 +330,7 @@ function releaseWakeLock () {
 
 const epiPhotos = ref([])
 const atividadePhotos = ref([])
+const escadaPhotos = ref([])
 const filteredActivities = ref([])
 
 const form = ref({
@@ -344,7 +392,8 @@ function openCamera (tipo) {
 
 function onPhotoCaptured (blob) {
   const previewUrl = URL.createObjectURL(blob)
-  const target = cameraTipo.value === 'epi' ? epiPhotos : atividadePhotos
+  const map = { epi: epiPhotos, atividade: atividadePhotos, escada: escadaPhotos }
+  const target = map[cameraTipo.value] || atividadePhotos
   target.value.push({ blob, previewUrl })
   showCamera.value = false
 }
@@ -378,6 +427,11 @@ async function saveService () {
     // Salva fotos da atividade
     for (const photo of atividadePhotos.value) {
       await offlineDB.savePhoto({ serviceId, tipo: 'atividade', blob: photo.blob })
+    }
+
+    // Salva fotos da amarração de escada (opcional)
+    for (const photo of escadaPhotos.value) {
+      await offlineDB.savePhoto({ serviceId, tipo: 'escada', blob: photo.blob })
     }
 
     if (onlineStore.isOnline) {

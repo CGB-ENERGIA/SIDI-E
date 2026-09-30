@@ -266,8 +266,9 @@
                 <div class="flex items-center gap-xs">
                   <q-icon name="photo_library" size="16px" color="grey-6" />
                   <span>{{ row.totalFotos }}</span>
-                  <q-badge v-if="row.epiTotal"       color="teal" :label="`${row.epiTotal} EPI`"   class="q-ml-xs" />
-                  <q-badge v-if="row.atividadeTotal"  color="blue" :label="`${row.atividadeTotal} Ativ.`" class="q-ml-xs" />
+                  <q-badge v-if="row.epiTotal"       color="teal"   :label="`${row.epiTotal} EPI`"      class="q-ml-xs" />
+                  <q-badge v-if="row.atividadeTotal"  color="blue"   :label="`${row.atividadeTotal} Ativ.`" class="q-ml-xs" />
+                  <q-badge v-if="row.escadaTotal"     color="warning" :label="`${row.escadaTotal} Escada`"  class="q-ml-xs" />
                 </div>
               </q-td>
             </template>
@@ -370,8 +371,9 @@
                       <q-item-section>
                         <q-item-label caption>Total de fotos</q-item-label>
                         <div class="flex items-center q-gutter-xs q-mt-xs">
-                          <q-badge color="teal" :label="`${selected.epiTotal} EPI`" />
-                          <q-badge color="blue" :label="`${selected.atividadeTotal} Ativ.`" />
+                          <q-badge color="teal"    :label="`${selected.epiTotal} EPI`" />
+                          <q-badge color="blue"    :label="`${selected.atividadeTotal} Ativ.`" />
+                          <q-badge v-if="selected.escadaTotal" color="warning" :label="`${selected.escadaTotal} Escada`" />
                         </div>
                       </q-item-section>
                     </q-item>
@@ -440,7 +442,23 @@
                       </div>
                     </div>
 
-                    <div v-if="!epiPhotos(svc).length && !atividadePhotos(svc).length" class="text-grey-5 text-caption">
+                    <div v-if="escadaPhotos(svc).length" class="q-mt-md">
+                      <div class="text-caption text-weight-bold q-mb-sm" style="color: #f59e0b;">
+                        <q-icon name="stairs" /> Amarração de escada ({{ escadaPhotos(svc).length }})
+                      </div>
+                      <div class="photo-grid">
+                        <div
+                          v-for="photo in escadaPhotos(svc)" :key="photo.id"
+                          class="photo-item cursor-pointer"
+                          @click="openLightbox(photo)"
+                        >
+                          <img :src="getPhotoUrl(photo)" class="photo-thumb" />
+                          <div class="photo-overlay"><q-icon name="zoom_in" size="32px" color="white" /></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div v-if="!epiPhotos(svc).length && !atividadePhotos(svc).length && !escadaPhotos(svc).length" class="text-grey-5 text-caption">
                       Nenhuma foto neste serviço.
                     </div>
 
@@ -458,8 +476,8 @@
             <q-card class="lightbox-card">
               <q-bar dark class="bg-black">
                 <q-badge
-                  :color="lightboxPhoto?.tipo === 'epi' ? 'teal' : 'blue'"
-                  :label="lightboxPhoto?.tipo === 'epi' ? 'EPI' : 'Atividade'"
+                  :color="lightboxPhoto?.tipo === 'epi' ? 'teal' : lightboxPhoto?.tipo === 'escada' ? 'warning' : 'blue'"
+                  :label="lightboxPhoto?.tipo === 'epi' ? 'EPI' : lightboxPhoto?.tipo === 'escada' ? 'Escada' : 'Atividade'"
                 />
                 <q-space />
                 <q-btn dense flat icon="close" color="white" @click="showLightbox = false" />
@@ -845,7 +863,7 @@ const groupedRows = computed(() => {
         prefixo: svc.teams?.prefixo || '—',
         nomeEquipe: svc.teams?.nome || '',
         dateStr, servicos: [], atividadeNomes: [], allColaboradores: [],
-        totalFotos: 0, epiTotal: 0, atividadeTotal: 0, allSynced: true
+        totalFotos: 0, epiTotal: 0, atividadeTotal: 0, escadaTotal: 0, allSynced: true
       }
     }
     const g = map[key]
@@ -856,8 +874,9 @@ const groupedRows = computed(() => {
       if (!g.allColaboradores.includes(c)) g.allColaboradores.push(c)
     const fotos = svc.evidence_photos || []
     g.totalFotos += fotos.length
-    g.epiTotal   += fotos.filter(p => p.tipo === 'epi').length
+    g.epiTotal       += fotos.filter(p => p.tipo === 'epi').length
     g.atividadeTotal += fotos.filter(p => p.tipo === 'atividade').length
+    g.escadaTotal    += fotos.filter(p => p.tipo === 'escada').length
     if (svc.sync_status !== 'synced') g.allSynced = false
   }
   return Object.values(map).sort((a, b) => b.dateStr.localeCompare(a.dateStr) || a.prefixo.localeCompare(b.prefixo))
@@ -879,6 +898,7 @@ async function loadEvid () {
 
 function epiPhotos (svc) { return (svc.evidence_photos || []).filter(p => p.tipo === 'epi') }
 function atividadePhotos (svc) { return (svc.evidence_photos || []).filter(p => p.tipo === 'atividade') }
+function escadaPhotos (svc) { return (svc.evidence_photos || []).filter(p => p.tipo === 'escada') }
 
 function openDetail (group) { selected.value = group; showDetail.value = true }
 
