@@ -134,6 +134,11 @@
               {{ coordGroup.coordenador || 'Sem Coordenador' }}
             </span>
             <span class="text-caption text-grey-6 q-ml-sm">· {{ coordGroup.teams.length }} equipe{{ coordGroup.teams.length !== 1 ? 's' : '' }}</span>
+            <q-btn flat dense round icon="download" size="xs" color="grey-5" class="q-ml-sm"
+              :loading="generating"
+              @click.stop="downloadGroupQuick(coordGroup.coordenador || 'Sem Coordenador', coordGroup.teams)">
+              <q-tooltip>Baixar imagem deste coordenador</q-tooltip>
+            </q-btn>
           </div>
 
           <div class="team-list">
@@ -693,6 +698,118 @@ const shareGroups = computed(() => {
 const shareTotalEquipes  = computed(() => shareTeamsEnriched.value.length)
 const shareCountAbriu    = computed(() => shareTeamsEnriched.value.filter(t => t.status !== 'sem_turno').length)
 const shareCountSemTurno = computed(() => shareTeamsEnriched.value.filter(t => t.status === 'sem_turno').length)
+
+async function downloadGroupQuick (label, teams) {
+  generating.value = true
+  try {
+    const abriramTeams = teams.filter(t => t.status !== 'sem_turno')
+    const naoTeams     = teams.filter(t => t.status === 'sem_turno')
+    const showAbriu    = abriramTeams.length > 0
+    const showNao      = naoTeams.length > 0
+
+    const dateStr = acumuladoMode.value
+      ? (acumFrom.value && acumTo.value ? `${formatDateBR(acumFrom.value)} a ${formatDateBR(acumTo.value)}` : 'Acumulado Geral')
+      : formatDateBR(filterDate.value || todayStr())
+
+    const W = 1080, PAD = 32, SEC_H = 52, ROW_H = 38, PROC_H = 30
+    const statsH = 90
+
+    // Sub-group by processo
+    const PROCS = ['GERE', 'GOMAN', 'GSTC']
+    const mkProcGroups = (ts) => {
+      const map = {}
+      for (const t of ts) { const p = t.processo || 'Outros'; if (!map[p]) map[p] = []; map[p].push(t) }
+      return PROCS.filter(p => map[p]?.length).map(p => ({ proc: p, teams: map[p] }))
+        .concat(map['Outros']?.length ? [{ proc: 'Outros', teams: map['Outros'] }] : [])
+    }
+    const abriramGroups = mkProcGroups(abriramTeams)
+    const naoGroups     = mkProcGroups(naoTeams)
+    const procH = (groups) => groups.length * PROC_H
+    const secRows = (n, nProc) => SEC_H + (n > 0 ? n * ROW_H + nProc * PROC_H : ROW_H) + 16
+
+    const H = 240 + statsH + 16
+      + (showAbriu ? secRows(abriramTeams.length, abriramGroups.length) : 0)
+      + (showNao   ? secRows(naoTeams.length,     naoGroups.length)     : 0)
+      + 60
+
+    const canvas = document.createElement('canvas')
+    canvas.width = W; canvas.height = H
+    const ctx = canvas.getContext('2d')
+
+    const bg = ctx.createLinearGradient(0, 0, 0, H)
+    bg.addColorStop(0, '#0f172a'); bg.addColorStop(1, '#111827')
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H)
+
+    // Header
+    ctx.fillStyle = '#1e293b'; roundRect(ctx, PAD, 28, W - PAD * 2, 68, 14); ctx.fill()
+    ctx.font = 'bold 22px Arial'; ctx.fillStyle = '#f97316'; ctx.fillText('SIDI-E', PAD + 28, 72)
+    ctx.font = 'bold 16px Arial'; ctx.fillStyle = '#94a3b8'; ctx.fillText('CGB ENERGIA', PAD + 96, 72)
+    ctx.font = '14px Arial'; ctx.fillStyle = '#64748b'; ctx.textAlign = 'right'; ctx.fillText(dateStr, W - PAD - 28, 72); ctx.textAlign = 'left'
+
+    ctx.font = 'bold 30px Arial'; ctx.fillStyle = '#f1f5f9'; ctx.textAlign = 'center'; ctx.fillText('CONTROLE DE TURNOS', W / 2, 138)
+    ctx.font = 'bold 20px Arial'; ctx.fillStyle = '#f97316'; ctx.fillText(label, W / 2, 165); ctx.textAlign = 'left'
+
+    // Stats cards (1 when filtered, 3 when both)
+    const statsY = 184
+    const cards = showAbriu && showNao
+      ? [['#94a3b8', teams.length, 'Total'], ['#22c55e', abriramTeams.length, 'Abriram Turno'], ['#ef4444', naoTeams.length, 'Não Abriram']]
+      : showAbriu ? [['#22c55e', abriramTeams.length, 'Abriram Turno']]
+                  : [['#ef4444', naoTeams.length, 'Não Abriram']]
+    const statW = cards.length === 1 ? 300 : cards.length === 2 ? 260 : 210
+    const startX = (W - cards.length * statW + 10) / 2
+    cards.forEach(([color, val, lbl], i) => {
+      const sx = startX + i * statW
+      ctx.fillStyle = '#1e293b'; roundRect(ctx, sx, statsY, statW - 10, 68, 10); ctx.fill()
+      ctx.font = 'bold 34px Arial'; ctx.fillStyle = color; ctx.textAlign = 'center'
+      ctx.fillText(val, sx + (statW - 10) / 2, statsY + 40)
+      ctx.font = '12px Arial'; ctx.fillStyle = '#64748b'; ctx.fillText(lbl, sx + (statW - 10) / 2, statsY + 58)
+    })
+    ctx.textAlign = 'left'
+
+    let y = statsY + statsH + 16
+
+    const drawRow = (t) => {
+      const opened = t.status !== 'sem_turno'
+      ctx.fillStyle = opened ? 'rgba(34,197,94,0.07)' : 'rgba(239,68,68,0.06)'
+      roundRect(ctx, PAD + 8, y, W - PAD * 2 - 16, ROW_H - 4, 8); ctx.fill()
+      ctx.beginPath(); ctx.arc(PAD + 30, y + (ROW_H - 4) / 2, 5, 0, Math.PI * 2); ctx.fillStyle = opened ? '#22c55e' : '#ef4444'; ctx.fill()
+      ctx.font = 'bold 13px Arial'; ctx.fillStyle = '#e2e8f0'; ctx.fillText(t.prefixo || '', PAD + 46, y + 25)
+      const maxW = W - PAD * 2 - 180; ctx.font = '12px Arial'; ctx.fillStyle = '#94a3b8'
+      let nome = t.nome || ''
+      while (nome.length > 0 && ctx.measureText(nome).width > maxW) nome = nome.slice(0, -1)
+      if (nome !== (t.nome || '')) nome += '…'
+      ctx.fillText(nome, PAD + 160, y + 25)
+      const lbl2 = opened ? (t.status === 'em_turno' ? 'Em Campo' : 'Encerrado') : 'Não Abriu'
+      ctx.font = 'bold 12px Arial'; ctx.fillStyle = opened ? '#22c55e' : '#ef4444'; ctx.textAlign = 'right'
+      ctx.fillText(lbl2, W - PAD - 20, y + 25); ctx.textAlign = 'left'; y += ROW_H
+    }
+
+    const drawSec = (title, ts, color, bg2, procGroups) => {
+      ctx.fillStyle = bg2; roundRect(ctx, PAD, y, W - PAD * 2, SEC_H, 12); ctx.fill()
+      ctx.font = 'bold 17px Arial'; ctx.fillStyle = color; ctx.fillText(title, PAD + 20, y + SEC_H / 2 + 7); y += SEC_H + 6
+      if (!ts.length) { ctx.font = '14px Arial'; ctx.fillStyle = '#475569'; ctx.textAlign = 'center'; ctx.fillText('Nenhuma equipe', W / 2, y + 20); ctx.textAlign = 'left'; y += ROW_H }
+      else { for (const g of procGroups) { ctx.font = 'bold 11px Arial'; ctx.fillStyle = '#f97316'; ctx.fillText(`▸  ${g.proc}  (${g.teams.length})`, PAD + 16, y + 20); ctx.fillStyle = '#334155'; ctx.fillRect(PAD + 16 + ctx.measureText(`▸  ${g.proc}  (${g.teams.length})`).width + 8, y + 14, W - PAD * 2 - 160, 1); y += PROC_H; for (const t of g.teams) drawRow(t) } }
+      y += 16
+    }
+
+    if (showAbriu) drawSec(`✓  ABRIRAM TURNO  (${abriramTeams.length})`, abriramTeams, '#22c55e', 'rgba(34,197,94,0.13)', abriramGroups)
+    if (showNao)   drawSec(`✗  NÃO ABRIRAM  (${naoTeams.length})`,     naoTeams,     '#ef4444', 'rgba(239,68,68,0.11)', naoGroups)
+
+    ctx.fillStyle = '#334155'; ctx.fillRect(PAD, H - 46, W - PAD * 2, 1)
+    ctx.font = '13px Arial'; ctx.fillStyle = '#475569'; ctx.textAlign = 'center'; ctx.fillText('Gerado por SIDI-E · CGB ENERGIA', W / 2, H - 16); ctx.textAlign = 'left'
+
+    const safeLabel = label.replace(/[^a-zA-Z0-9_-]/g, '_')
+    const link = document.createElement('a')
+    link.download = `turnos-${filterDate.value || todayStr()}-coord-${safeLabel}.png`
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+    $q.notify({ type: 'positive', message: `Imagem de ${label} gerada!` })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro: ' + e.message })
+  } finally {
+    generating.value = false
+  }
+}
 
 async function downloadImage () {
   generating.value = true
