@@ -363,6 +363,8 @@ const $q = useQuasar()
 const loading        = ref(false)
 const activeSessions = ref([])
 const servicesDay    = ref([])
+const acumuladoMode  = ref(false)
+const acumuladoSet   = ref(new Set())
 const filterDate     = ref(todayStr())
 const filterBase         = ref(null)
 const filterProcesso     = ref(null)
@@ -477,6 +479,18 @@ const servicesMap = computed(() => {
 // ── Equipes enriquecidas ───────────────────────────────
 const allTeamsEnriched = computed(() =>
   teamsStore.teams.map(team => {
+    if (acumuladoMode.value) {
+      const hadActivity = acumuladoSet.value.has(team.id)
+      return {
+        ...team,
+        status: hadActivity ? 'encerrado' : 'sem_turno',
+        activeMembers: [],
+        servicoColabs: [],
+        servicosCount: 0,
+        firstAt: null
+      }
+    }
+
     const activeMembers  = activeMap.value[team.id] || []
     const svcData        = servicesMap.value[team.id] || { count: 0, colaboradores: [], firstAt: null }
     const isActive       = activeMembers.length > 0
@@ -947,12 +961,25 @@ function roundRect (ctx, x, y, w, h, r) {
 }
 
 // ── Carregamento ──────────────────────────────────────
-function onDateChange (val) {
+async function onDateChange (val) {
   if (!val) {
-    activeSessions.value = []
-    servicesDay.value    = []
+    loading.value = true
+    try {
+      const { data, error } = await supabase.rpc('get_teams_with_services', { date_from: null, date_to: null })
+      if (error) throw error
+      acumuladoSet.value  = new Set((data || []).map(r => r.team_id))
+      acumuladoMode.value = true
+      activeSessions.value = []
+      servicesDay.value    = []
+    } catch (e) {
+      $q.notify({ type: 'negative', message: 'Erro ao carregar acumulado: ' + e.message })
+    } finally {
+      loading.value = false
+    }
     return
   }
+  acumuladoMode.value = false
+  acumuladoSet.value  = new Set()
   load()
 }
 
