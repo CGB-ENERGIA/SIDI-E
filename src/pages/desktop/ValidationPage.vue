@@ -478,17 +478,6 @@ const currentPhotoUrl   = ref('')
 const currentPhotoList  = ref([])
 const currentPhotoIndex = ref(0)
 
-const kpis = computed(() => [
-  { label: 'ANALISADAS', value: 'analisadas', icon: 'analytics',     color: '#60a5fa',
-    count: services.value.filter(s => s.validation_status === 'aprovada' || s.validation_status === 'reprovada').length },
-  { label: 'PENDENTES',  value: 'pendente',   icon: 'hourglass_top', color: '#f59e0b',
-    count: services.value.filter(s => !s.validation_status || s.validation_status === 'pendente').length },
-  { label: 'APROVADAS',  value: 'aprovada',   icon: 'check_circle',  color: '#4ade80',
-    count: services.value.filter(s => s.validation_status === 'aprovada').length },
-  { label: 'REPROVADAS', value: 'reprovada',  icon: 'cancel',        color: '#f87171',
-    count: services.value.filter(s => s.validation_status === 'reprovada').length }
-])
-
 const supervisoresList = computed(() => {
   const s = new Set(teamsStore.teams.map(t => t.supervisor).filter(Boolean))
   return [...s].sort()
@@ -502,12 +491,10 @@ const gerentesList = computed(() => {
   return [...s].sort()
 })
 
-const filteredServices = computed(() => {
+// Aplica supervisor/coordenador/gerência/search mas NÃO o filtro de status
+// Os kpis e o donut contam daqui para refletir os filtros ativos
+const baseFiltered = computed(() => {
   let list = services.value
-  const v = filterStatus.value
-  if (v === 'pendente')   list = list.filter(s => !s.validation_status || s.validation_status === 'pendente')
-  else if (v === 'analisadas') list = list.filter(s => s.validation_status === 'aprovada' || s.validation_status === 'reprovada')
-  else if (v)             list = list.filter(s => s.validation_status === v)
   if (filterSupervisor.value)  list = list.filter(s => s.teams?.supervisor === filterSupervisor.value)
   if (filterCoordenador.value) {
     list = list.filter(s => {
@@ -531,14 +518,34 @@ const filteredServices = computed(() => {
   return list
 })
 
+const kpis = computed(() => [
+  { label: 'ANALISADAS', value: 'analisadas', icon: 'analytics',     color: '#60a5fa',
+    count: baseFiltered.value.filter(s => s.validation_status === 'aprovada' || s.validation_status === 'reprovada').length },
+  { label: 'PENDENTES',  value: 'pendente',   icon: 'hourglass_top', color: '#f59e0b',
+    count: baseFiltered.value.filter(s => !s.validation_status || s.validation_status === 'pendente').length },
+  { label: 'APROVADAS',  value: 'aprovada',   icon: 'check_circle',  color: '#4ade80',
+    count: baseFiltered.value.filter(s => s.validation_status === 'aprovada').length },
+  { label: 'REPROVADAS', value: 'reprovada',  icon: 'cancel',        color: '#f87171',
+    count: baseFiltered.value.filter(s => s.validation_status === 'reprovada').length }
+])
+
+const filteredServices = computed(() => {
+  let list = baseFiltered.value
+  const v = filterStatus.value
+  if (v === 'pendente')        list = list.filter(s => !s.validation_status || s.validation_status === 'pendente')
+  else if (v === 'analisadas') list = list.filter(s => s.validation_status === 'aprovada' || s.validation_status === 'reprovada')
+  else if (v)                  list = list.filter(s => s.validation_status === v)
+  return list
+})
+
 // ── Donut chart ───────────────────────────────────────────────
 const donutC = 2 * Math.PI * 76
 
 const donutSegments = computed(() => {
-  const total = services.value.length
+  const total = baseFiltered.value.length
   if (!total) return []
-  const approved = services.value.filter(s => s.validation_status === 'aprovada').length
-  const rejected = services.value.filter(s => s.validation_status === 'reprovada').length
+  const approved = baseFiltered.value.filter(s => s.validation_status === 'aprovada').length
+  const rejected = baseFiltered.value.filter(s => s.validation_status === 'reprovada').length
   const pending  = total - approved - rejected
   const aLen = (approved / total) * donutC
   const rLen = (rejected / total) * donutC
@@ -551,10 +558,10 @@ const donutSegments = computed(() => {
 })
 
 const donutLegend = computed(() => {
-  const total = services.value.length
+  const total = baseFiltered.value.length
   if (!total) return []
-  const approved = services.value.filter(s => s.validation_status === 'aprovada').length
-  const rejected = services.value.filter(s => s.validation_status === 'reprovada').length
+  const approved = baseFiltered.value.filter(s => s.validation_status === 'aprovada').length
+  const rejected = baseFiltered.value.filter(s => s.validation_status === 'reprovada').length
   const pending  = total - approved - rejected
   return [
     { label: 'Aprovados',  color: '#4ade80', count: approved, pct: Math.round(approved / total * 100) },
