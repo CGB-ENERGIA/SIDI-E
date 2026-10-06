@@ -265,17 +265,18 @@ const filterSupervisor  = ref(null)
 const filterCoordenador = ref(null)
 const filterGerencia    = ref(null)
 
-// Opções dos filtros vindas da store de equipes (sempre atualizadas)
+// Opções dos filtros derivadas dos serviços carregados no período (join atual com teams)
+// Isso garante que só aparecem valores que existem nos dados reais — sem nomes antigos/removidos
 const supervisoresList = computed(() => {
-  const s = new Set(teamsStore.teams.map(t => t.supervisor).filter(Boolean))
+  const s = new Set(services.value.map(s => s.teams?.supervisor).filter(Boolean))
   return [...s].sort()
 })
 const coordenadoresList = computed(() => {
-  const s = new Set(teamsStore.teams.map(t => t.coordenador).filter(Boolean))
+  const s = new Set(services.value.map(s => s.teams?.coordenador).filter(Boolean))
   return [...s].sort()
 })
 const gerentesList = computed(() => {
-  const s = new Set(teamsStore.teams.map(t => t.gerencia).filter(Boolean))
+  const s = new Set(services.value.map(s => s.teams?.gerencia).filter(Boolean))
   return [...s].sort()
 })
 
@@ -320,6 +321,10 @@ async function load () {
       offset += PAGE
     }
     services.value = all
+    // Limpa filtros que não existem mais nos novos dados
+    if (filterSupervisor.value  && !supervisoresList.value.includes(filterSupervisor.value))  filterSupervisor.value  = null
+    if (filterCoordenador.value && !coordenadoresList.value.includes(filterCoordenador.value)) filterCoordenador.value = null
+    if (filterGerencia.value    && !gerentesList.value.includes(filterGerencia.value))         filterGerencia.value    = null
   } catch (e) {
     $q.notify({ type: 'negative', message: 'Erro ao carregar relatório: ' + e.message })
     services.value = []
