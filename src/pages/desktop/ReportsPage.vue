@@ -11,12 +11,12 @@
       <div class="rp-filters">
         <div class="date-field">
           <span class="date-label">De</span>
-          <input type="date" class="date-input" v-model="dateFrom" @change="load" />
+          <input type="date" class="date-input" v-model="dateFrom" :disabled="loading" @change="load" />
         </div>
         <div class="date-sep">→</div>
         <div class="date-field">
           <span class="date-label">Até</span>
-          <input type="date" class="date-input" v-model="dateTo" @change="load" />
+          <input type="date" class="date-input" v-model="dateTo" :disabled="loading" @change="load" />
         </div>
         <q-select v-model="filterSupervisor" :options="supervisoresList" label="Supervisor"
           outlined dense clearable style="min-width:170px; background: transparent;" />
@@ -24,9 +24,10 @@
           outlined dense clearable style="min-width:155px; background: transparent;" />
         <q-select v-model="filterGerencia" :options="gerentesList" label="Gerência"
           outlined dense clearable style="min-width:145px; background: transparent;" />
-        <button class="export-btn" :disabled="!filteredServices.length" @click="exportCsv">
-          <q-icon name="download" size="16px" />
-          Exportar CSV
+        <button class="export-btn" :disabled="loading || !filteredServices.length" @click="exportCsv">
+          <q-spinner-dots v-if="loading" size="14px" />
+          <q-icon v-else name="download" size="16px" />
+          {{ loading ? 'Carregando…' : 'Exportar CSV' }}
         </button>
       </div>
     </div>
@@ -251,18 +252,20 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useEvidenceStore } from 'src/stores/evidence'
 import { useTeamsStore } from 'src/stores/teams'
 import { useQuasar } from 'quasar'
+import { supabase } from 'src/services/supabase'
 
-const evidenceStore = useEvidenceStore()
 const $q = useQuasar()
-
-const services = ref([])
-const filterSupervisor = ref(null)
-const filterCoordenador = ref(null)
-const filterGerencia = ref(null)
 const teamsStore = useTeamsStore()
+
+const services  = ref([])
+const loading   = ref(false)
+const filterSupervisor  = ref(null)
+const filterCoordenador = ref(null)
+const filterGerencia    = ref(null)
+
+// Opções dos filtros vindas da store de equipes (sempre atualizadas)
 const supervisoresList = computed(() => {
   const s = new Set(teamsStore.teams.map(t => t.supervisor).filter(Boolean))
   return [...s].sort()
@@ -279,39 +282,49 @@ const gerentesList = computed(() => {
 const today = new Date()
 const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
 const dateFrom = ref(monthStart)
-const dateTo = ref(today.toISOString().split('T')[0])
+const dateTo   = ref(today.toISOString().split('T')[0])
 
 const filteredServices = computed(() => {
   return services.value.filter(s => {
-    const prefixo = s.teams?.prefixo
-    if (filterSupervisor.value && s.teams?.supervisor !== filterSupervisor.value) return false
-    if (filterCoordenador.value) {
-      const team = teamsStore.teams.find(t => t.id === s.team_id)
-      if (team?.coordenador !== filterCoordenador.value) return false
-    }
-    if (filterGerencia.value) {
-      const team = teamsStore.teams.find(t => t.id === s.team_id)
-      if (team?.gerencia !== filterGerencia.value) return false
-    }
+    if (filterSupervisor.value  && s.teams?.supervisor  !== filterSupervisor.value)  return false
+    if (filterCoordenador.value && s.teams?.coordenador !== filterCoordenador.value) return false
+    if (filterGerencia.value    && s.teams?.gerencia    !== filterGerencia.value)    return false
     return true
   })
 })
 
-onMounted(() => {
-  teamsStore.fetchTeams()
+onMounted(async () => {
+  await teamsStore.fetchTeams()
   load()
 })
 
 async function load () {
+  loading.value = true
   try {
-    const all = await evidenceStore.fetchEvidences({ date: dateFrom.value }) || []
-    const to = dateTo.value ? new Date(dateTo.value + 'T23:59:59') : null
-    services.value = all.filter(s => {
-      const d = new Date(s.created_at)
-      return !to || d <= to
-    })
-  } catch {
+    const from = dateFrom.value ? dateFrom.value + 'T00:00:00' : null
+    const to   = dateTo.value   ? dateTo.value   + 'T23:59:59' : null
+    const PAGE = 1000
+    let all = [], offset = 0
+    while (true) {
+      let q = supabase
+        .from('services')
+        .select('*, evidence_photos(*), teams(prefixo, nome, supervisor, coordenador, gerencia)')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + PAGE - 1)
+      if (from) q = q.gte('created_at', from)
+      if (to)   q = q.lte('created_at', to)
+      const { data, error } = await q
+      if (error) throw error
+      all = all.concat(data || [])
+      if (!data || data.length < PAGE) break
+      offset += PAGE
+    }
+    services.value = all
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro ao carregar relatório: ' + e.message })
     services.value = []
+  } finally {
+    loading.value = false
   }
 }
 
