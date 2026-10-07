@@ -42,8 +42,8 @@
         outlined dense clearable bg-color="surface" style="min-width:160px;" />
       <q-select v-model="filterGerencia" :options="gerentesList" label="Gerência"
         outlined dense clearable bg-color="surface" style="min-width:160px;" />
-      <q-input v-model="search" outlined dense placeholder="Buscar prefixo ou equipe..."
-        clearable bg-color="surface" style="min-width:200px;">
+      <q-input v-model="search" outlined dense placeholder="Prefixo, equipe ou colaborador..."
+        clearable bg-color="surface" style="min-width:220px;">
         <template #prepend><q-icon name="search" /></template>
       </q-input>
     </div>
@@ -704,7 +704,10 @@ const filteredTeams = computed(() => {
     if (filterSupervisor.value && t.supervisor !== filterSupervisor.value) return false
     if (filterCoordenador.value && t.coordenador !== filterCoordenador.value) return false
     if (filterGerencia.value && t.gerencia !== filterGerencia.value) return false
-    if (q && !t.prefixo?.toLowerCase().includes(q) && !t.nome?.toLowerCase().includes(q)) return false
+    if (q && !t.prefixo?.toLowerCase().includes(q) && !t.nome?.toLowerCase().includes(q) &&
+        !t.supervisor?.toLowerCase().includes(q) &&
+        !t.activeMembers.some(m => m.toLowerCase().includes(q)) &&
+        !t.servicoColabs.some(m => m.toLowerCase().includes(q))) return false
     return true
   })
 })
