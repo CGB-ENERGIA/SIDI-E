@@ -203,15 +203,22 @@
                 text-color="white"
                 :icon="statusIcon(team.status)"
                 class="status-chip"
-              >{{ statusLabel(team.status) }}</q-chip>
+                :style="team.activeMembers.length ? 'cursor:pointer' : ''"
+                @click.stop="team.activeMembers.length && openMembersDialog(team)"
+              >
+                {{ statusLabel(team.status) }}
+                <q-tooltip v-if="team.activeMembers.length">Clique para gerenciar colaboradores</q-tooltip>
+              </q-chip>
 
               <!-- Botão gerenciar colaboradores (apenas em_turno) -->
               <q-btn
                 v-if="team.activeMembers.length"
-                flat round dense icon="manage_accounts" color="amber" size="sm"
+                unelevated dense icon="manage_accounts" color="amber" text-color="dark"
+                size="xs" style="border-radius:6px; padding:2px 8px;"
                 @click.stop="openMembersDialog(team)"
               >
-                <q-tooltip>Gerenciar colaboradores em turno</q-tooltip>
+                <span class="q-ml-xs text-caption text-weight-bold">Gerenciar</span>
+                <q-tooltip>Ver e remover colaboradores em turno ativo</q-tooltip>
               </q-btn>
             </div>
           </div>
