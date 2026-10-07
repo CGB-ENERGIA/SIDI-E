@@ -620,13 +620,19 @@ const gerentesList = computed(() => {
 
 // ── Status helpers ─────────────────────────────────────
 function statusLabel (s) {
-  return s === 'sem_turno' ? 'Sem Turno' : 'Iniciou Turno'
+  if (s === 'em_turno')  return 'Em Campo'
+  if (s === 'encerrado') return 'Encerrado'
+  return 'Sem Turno'
 }
 function statusColor (s) {
-  return s === 'sem_turno' ? 'negative' : 'positive'
+  if (s === 'em_turno')  return 'positive'
+  if (s === 'encerrado') return 'blue-grey'
+  return 'negative'
 }
 function statusIcon (s) {
-  return s === 'sem_turno' ? 'block' : 'login'
+  if (s === 'em_turno')  return 'login'
+  if (s === 'encerrado') return 'check_circle'
+  return 'block'
 }
 
 function initials (nome) {
