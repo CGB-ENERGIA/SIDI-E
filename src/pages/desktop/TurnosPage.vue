@@ -204,6 +204,15 @@
                 :icon="statusIcon(team.status)"
                 class="status-chip"
               >{{ statusLabel(team.status) }}</q-chip>
+
+              <!-- Botão gerenciar colaboradores (apenas em_turno) -->
+              <q-btn
+                v-if="team.activeMembers.length"
+                flat round dense icon="manage_accounts" color="amber" size="sm"
+                @click.stop="openMembersDialog(team)"
+              >
+                <q-tooltip>Gerenciar colaboradores em turno</q-tooltip>
+              </q-btn>
             </div>
           </div>
         </div>
