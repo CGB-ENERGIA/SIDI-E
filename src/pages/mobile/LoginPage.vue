@@ -645,13 +645,37 @@ async function validarColaborador (col) {
         .maybeSingle()
 
       if (sessaoAtiva) {
-        col.nome = ''
-        col.validated = false
-        $q.notify({
-          type: 'negative',
-          message: `"${nome}" já está em turno ativo na equipe ${sessaoAtiva.prefixo}.`
+        col.validating = false
+        const confirmar = await new Promise(resolve => {
+          $q.dialog({
+            title: 'Colaborador em outro turno',
+            message: `"${nome}" está em turno ativo na equipe ${sessaoAtiva.prefixo}.\n\nDeseja removê-lo de lá e adicioná-lo a esta equipe?`,
+            ok: { label: 'Sim, transferir', color: 'warning', unelevated: true },
+            cancel: { label: 'Cancelar', flat: true },
+            persistent: true
+          }).onOk(() => resolve(true)).onCancel(() => resolve(false))
         })
-        return
+
+        if (!confirmar) {
+          col.nome = ''
+          col.validated = false
+          return
+        }
+
+        // Remove da sessão anterior
+        const { error: delErr } = await supabase
+          .from('active_sessions')
+          .delete()
+          .ilike('colaborador', nome)
+          .eq('team_id', sessaoAtiva.team_id)
+        if (delErr) {
+          $q.notify({ type: 'negative', message: 'Erro ao transferir: ' + delErr.message })
+          col.nome = ''
+          col.validated = false
+          return
+        }
+        $q.notify({ type: 'info', message: `${nome} removido da equipe ${sessaoAtiva.prefixo}.` })
+        col.validating = true
       }
 
       // Busca por nome OU matrícula (funcao)
