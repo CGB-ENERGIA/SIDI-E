@@ -164,7 +164,13 @@
               </div>
 
               <!-- Membros em sessão ou do dia -->
-              <div class="team-members" v-if="team.activeMembers.length || team.servicoColabs.length">
+              <div
+                class="team-members"
+                v-if="team.activeMembers.length || team.servicoColabs.length"
+                :style="team.activeMembers.length ? 'cursor:pointer' : ''"
+                @click.stop="team.activeMembers.length && openMembersDialog(team)"
+              >
+                <q-tooltip v-if="team.activeMembers.length">Ver e gerenciar colaboradores em turno</q-tooltip>
                 <q-avatar
                   v-for="(m, i) in (team.activeMembers.length ? team.activeMembers : team.servicoColabs).slice(0, 4)"
                   :key="i"
@@ -203,6 +209,46 @@
         </div>
       </div>
     </div>
+
+    <!-- ── Dialog: Colaboradores em turno ───────────────── -->
+    <q-dialog v-model="showMembersDialog">
+      <q-card style="min-width:340px; max-width:420px; border-radius:16px;">
+        <q-card-section class="q-pb-sm">
+          <div class="text-h6 text-weight-bold flex items-center" style="gap:10px">
+            <q-icon name="group" color="primary" />
+            <div>
+              <div>{{ dialogTeam?.prefixo }}</div>
+              <div class="text-caption text-grey-5 text-weight-regular">{{ dialogTeam?.nome }}</div>
+            </div>
+          </div>
+        </q-card-section>
+        <q-separator />
+        <q-card-section class="q-pt-md q-pb-sm">
+          <div class="text-caption text-grey-5 q-mb-sm">Colaboradores em turno ativo</div>
+          <div v-for="s in dialogTeam?.sessions" :key="s.id"
+            class="flex items-center q-py-sm"
+            style="border-bottom:1px solid rgba(255,255,255,0.06)">
+            <q-avatar size="36px" color="primary" text-color="white" class="q-mr-md">
+              {{ initials(s.colaborador) }}
+            </q-avatar>
+            <span class="flex-1 text-body2">{{ s.colaborador }}</span>
+            <q-btn
+              flat round dense icon="logout" color="negative" size="sm"
+              :loading="removingSessionId === s.id"
+              @click="removeSessionFromTurno(s)"
+            >
+              <q-tooltip>Remover do turno</q-tooltip>
+            </q-btn>
+          </div>
+          <div v-if="!dialogTeam?.sessions?.length" class="text-grey-5 text-center q-py-md">
+            Nenhum colaborador em turno
+          </div>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Fechar" color="grey-5" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
     <!-- ── Dialog: Compartilhar no WhatsApp ─────────────── -->
     <q-dialog v-model="showShare" persistent>
@@ -417,6 +463,37 @@ const filterGerencia     = ref(null)
 const search         = ref('')
 const statusFilter   = ref(null)
 
+// ── Gerenciar colaboradores do turno ──────────────────
+const showMembersDialog  = ref(false)
+const dialogTeam         = ref(null)   // { prefixo, sessions: [{id, colaborador}] }
+const removingSessionId  = ref(null)
+
+function openMembersDialog (team) {
+  const sessions = activeSessionsFullMap.value[team.id] || []
+  if (!sessions.length) return
+  dialogTeam.value = { prefixo: team.prefixo, nome: team.nome, sessions: [...sessions] }
+  showMembersDialog.value = true
+}
+
+async function removeSessionFromTurno (session) {
+  removingSessionId.value = session.id
+  try {
+    const { error } = await supabase.from('active_sessions').delete().eq('id', session.id)
+    if (error) throw error
+    // Atualiza reativo local
+    activeSessions.value = activeSessions.value.filter(s => s.id !== session.id)
+    if (dialogTeam.value) {
+      dialogTeam.value.sessions = dialogTeam.value.sessions.filter(s => s.id !== session.id)
+      if (!dialogTeam.value.sessions.length) showMembersDialog.value = false
+    }
+    $q.notify({ type: 'positive', message: `${session.colaborador} removido do turno.` })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro ao remover: ' + e.message })
+  } finally {
+    removingSessionId.value = null
+  }
+}
+
 // ── Compartilhar ──────────────────────────────────────
 const showShare           = ref(false)
 const shareGroupBy        = ref('coordenador')
@@ -548,6 +625,16 @@ const activeMap = computed(() => {
   for (const s of activeSessions.value) {
     if (!m[s.team_id]) m[s.team_id] = []
     m[s.team_id].push(s.colaborador)
+  }
+  return m
+})
+
+// Mapa com objetos completos de sessão (para poder remover pelo id)
+const activeSessionsFullMap = computed(() => {
+  const m = {}
+  for (const s of activeSessions.value) {
+    if (!m[s.team_id]) m[s.team_id] = []
+    m[s.team_id].push(s)
   }
   return m
 })
