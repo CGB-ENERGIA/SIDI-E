@@ -293,14 +293,21 @@
       <!-- ══ ABA: HISTÓRICO ══ -->
       <template v-else-if="activeTab === 'historico'">
 
-        <!-- Barra de busca -->
+        <!-- Barra de filtros histórico -->
         <div class="filter-bar q-mb-md">
           <div class="search-wrap" style="flex:1">
             <q-icon name="search" size="18px" class="search-icon" />
             <input v-model="histSearch" class="search-input" placeholder="Buscar equipe, atividade, validador…" />
           </div>
-          <q-btn v-if="histSearch" flat icon="close" label="Limpar" size="sm" no-caps color="grey"
-            @click="histSearch = ''" />
+          <q-select v-model="histFilterSupervisor" :options="histSupervisoresList" label="Supervisor"
+            outlined dense clearable bg-color="surface" style="min-width:170px;" class="filter-select" />
+          <q-select v-model="histFilterCoordenador" :options="histCoordenadoresList" label="Coordenador"
+            outlined dense clearable bg-color="surface" style="min-width:155px;" class="filter-select" />
+          <q-select v-model="histFilterGerencia" :options="histGerentesList" label="Gerência"
+            outlined dense clearable bg-color="surface" style="min-width:145px;" class="filter-select" />
+          <q-btn v-if="histSearch || histFilterSupervisor || histFilterCoordenador || histFilterGerencia"
+            flat icon="close" label="Limpar" size="sm" no-caps color="grey"
+            @click="histSearch = ''; histFilterSupervisor = null; histFilterCoordenador = null; histFilterGerencia = null" />
         </div>
 
         <!-- Stats bar / filtros de status -->
@@ -328,7 +335,7 @@
             @click="histFilterStatus = null"
             style="cursor:pointer">
             <q-icon name="analytics" size="20px" />
-            <span class="hist-stat-num">{{ historyServices.length }}</span>
+            <span class="hist-stat-num">{{ histBaseFiltered.length }}</span>
             <span class="hist-stat-label">Total</span>
           </div>
         </div>
@@ -461,10 +468,13 @@ const editingObs        = ref(null)
 const obsText           = ref('')
 const services          = ref([])
 
-const histFilterStart   = ref('')
-const histFilterEnd     = ref(new Date().toISOString().split('T')[0])
-const histFilterStatus  = ref(null)
-const histSearch        = ref('')
+const histFilterStart       = ref('')
+const histFilterEnd         = ref(new Date().toISOString().split('T')[0])
+const histFilterStatus      = ref(null)
+const histFilterSupervisor  = ref(null)
+const histFilterCoordenador = ref(null)
+const histFilterGerencia    = ref(null)
+const histSearch            = ref('')
 const loadingHistory    = ref(false)
 const historyServices   = ref([])
 
@@ -570,57 +580,40 @@ const donutLegend = computed(() => {
   ]
 })
 
-const filteredHistory = computed(() => {
+// Opções de filtro derivadas dos dados carregados
+const histSupervisoresList  = computed(() => [...new Set(historyServices.value.map(s => s.teams?.supervisor).filter(Boolean))].sort())
+const histCoordenadoresList = computed(() => [...new Set(historyServices.value.map(s => s.teams?.coordenador).filter(Boolean))].sort())
+const histGerentesList      = computed(() => [...new Set(historyServices.value.map(s => s.teams?.gerencia).filter(Boolean))].sort())
+
+// Base filtrada por supervisor/coordenador/gerência + busca textual (sem status)
+const histBaseFiltered = computed(() => {
   let list = historyServices.value
+  if (histFilterSupervisor.value)  list = list.filter(s => s.teams?.supervisor  === histFilterSupervisor.value)
+  if (histFilterCoordenador.value) list = list.filter(s => s.teams?.coordenador === histFilterCoordenador.value)
+  if (histFilterGerencia.value)    list = list.filter(s => s.teams?.gerencia    === histFilterGerencia.value)
+  const q = histSearch.value.trim().toLowerCase()
+  if (q) list = list.filter(s =>
+    (s.teams?.prefixo || '').toLowerCase().includes(q) ||
+    (s.teams?.nome || '').toLowerCase().includes(q) ||
+    (s.activity_name || '').toLowerCase().includes(q) ||
+    (s.validated_by || '').toLowerCase().includes(q) ||
+    (s.colaboradores || []).some(c => c.toLowerCase().includes(q))
+  )
+  return list
+})
+
+const filteredHistory = computed(() => {
+  let list = histBaseFiltered.value
   if (histFilterStatus.value) list = list.filter(s => s.validation_status === histFilterStatus.value)
-  const q = histSearch.value.trim().toLowerCase()
-  if (q) list = list.filter(s =>
-    (s.teams?.prefixo || '').toLowerCase().includes(q) ||
-    (s.teams?.nome || '').toLowerCase().includes(q) ||
-    (s.activity_name || '').toLowerCase().includes(q) ||
-    (s.validated_by || '').toLowerCase().includes(q) ||
-    (s.colaboradores || []).some(c => c.toLowerCase().includes(q))
-  )
   return list
 })
 
-const histAprovados = computed(() => {
-  const q = histSearch.value.trim().toLowerCase()
-  let list = historyServices.value.filter(s => s.validation_status === 'aprovada')
-  if (q) list = list.filter(s =>
-    (s.teams?.prefixo || '').toLowerCase().includes(q) ||
-    (s.teams?.nome || '').toLowerCase().includes(q) ||
-    (s.activity_name || '').toLowerCase().includes(q) ||
-    (s.validated_by || '').toLowerCase().includes(q) ||
-    (s.colaboradores || []).some(c => c.toLowerCase().includes(q))
-  )
-  return list
-})
-
-const histReprovados = computed(() => {
-  const q = histSearch.value.trim().toLowerCase()
-  let list = historyServices.value.filter(s => s.validation_status === 'reprovada')
-  if (q) list = list.filter(s =>
-    (s.teams?.prefixo || '').toLowerCase().includes(q) ||
-    (s.teams?.nome || '').toLowerCase().includes(q) ||
-    (s.activity_name || '').toLowerCase().includes(q) ||
-    (s.validated_by || '').toLowerCase().includes(q) ||
-    (s.colaboradores || []).some(c => c.toLowerCase().includes(q))
-  )
-  return list
-})
+const histAprovados  = computed(() => histBaseFiltered.value.filter(s => s.validation_status === 'aprovada'))
+const histReprovados = computed(() => histBaseFiltered.value.filter(s => s.validation_status === 'reprovada'))
 
 const histFeed = computed(() => {
-  const q = histSearch.value.trim().toLowerCase()
-  let list = historyServices.value.slice()
+  let list = histBaseFiltered.value.slice()
   if (histFilterStatus.value) list = list.filter(s => s.validation_status === histFilterStatus.value)
-  if (q) list = list.filter(s =>
-    (s.teams?.prefixo || '').toLowerCase().includes(q) ||
-    (s.teams?.nome || '').toLowerCase().includes(q) ||
-    (s.activity_name || '').toLowerCase().includes(q) ||
-    (s.validated_by || '').toLowerCase().includes(q) ||
-    (s.colaboradores || []).some(c => c.toLowerCase().includes(q))
-  )
   return list.sort((a, b) => (b.validated_at || '').localeCompare(a.validated_at || ''))
 })
 
@@ -685,17 +678,25 @@ async function loadServices () {
 async function loadHistory () {
   loadingHistory.value = true
   try {
-    let query = supabase
-      .from('services')
-      .select('id, team_id, activity_name, colaboradores, created_at, validation_status, validation_obs, validated_at, validated_by, evidence_photos(*), teams!inner(prefixo, nome, supervisor, responsavel, processo)')
-      .eq('teams.processo', selectedGroup.value)
-      .in('validation_status', ['aprovada', 'reprovada'])
-      .order('validated_at', { ascending: false })
-    if (histFilterStart.value) query = query.gte('validated_at', histFilterStart.value + 'T00:00:00')
-    if (histFilterEnd.value)   query = query.lte('validated_at', histFilterEnd.value + 'T23:59:59')
-    const { data, error } = await query
-    if (error) throw error
-    historyServices.value = data || []
+    const PAGE = 1000
+    let all = [], offset = 0
+    while (true) {
+      let query = supabase
+        .from('services')
+        .select('id, team_id, activity_name, colaboradores, created_at, validation_status, validation_obs, validated_at, validated_by, evidence_photos(*), teams!inner(prefixo, nome, supervisor, coordenador, gerencia, responsavel, processo)')
+        .eq('teams.processo', selectedGroup.value)
+        .in('validation_status', ['aprovada', 'reprovada'])
+        .order('validated_at', { ascending: false })
+        .range(offset, offset + PAGE - 1)
+      if (histFilterStart.value) query = query.gte('validated_at', histFilterStart.value + 'T00:00:00')
+      if (histFilterEnd.value)   query = query.lte('validated_at', histFilterEnd.value + 'T23:59:59')
+      const { data, error } = await query
+      if (error) throw error
+      all = all.concat(data || [])
+      if (!data || data.length < PAGE) break
+      offset += PAGE
+    }
+    historyServices.value = all
   } catch (e) {
     $q.notify({ type: 'negative', message: 'Erro ao carregar histórico: ' + e.message })
   } finally { loadingHistory.value = false }
