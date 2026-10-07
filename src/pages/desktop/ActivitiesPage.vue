@@ -143,6 +143,10 @@
                   <span class="detail-act">{{ svc.activity_name || '—' }}</span>
                   <span class="detail-collabs">{{ (svc.colaboradores || []).join(', ') }}</span>
                   <span v-if="authStore.isAdmin" class="detail-actions">
+                    <q-btn flat round dense icon="group_add" color="primary" size="sm"
+                      @click.stop="openEditColabs(svc)">
+                      <q-tooltip>Editar colaboradores</q-tooltip>
+                    </q-btn>
                     <q-btn flat round dense icon="delete" color="negative" size="sm"
                       @click.stop="confirmDeleteService(svc)">
                       <q-tooltip>Excluir registro</q-tooltip>
@@ -516,6 +520,40 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- ── Dialog: Editar colaboradores ─────────────── -->
+    <q-dialog v-model="editColabsDialog" persistent>
+      <q-card style="min-width:360px; max-width:480px; border-radius:16px;">
+        <q-card-section class="q-pb-sm">
+          <div class="text-h6 text-weight-bold flex items-center" style="gap:8px">
+            <q-icon name="group_add" color="primary" />
+            Editar Colaboradores
+          </div>
+          <div class="text-caption text-grey-5 q-mt-xs">
+            {{ editColabsSvc?.activity_name || '—' }}
+          </div>
+        </q-card-section>
+        <q-separator />
+        <q-card-section class="q-pt-md">
+          <div v-for="(nome, i) in editColabsList" :key="i" class="flex items-center q-mb-sm" style="gap:8px">
+            <q-input
+              v-model="editColabsList[i]"
+              outlined dense class="flex-1"
+              :label="`Colaborador ${i + 1}`"
+            />
+            <q-btn flat round dense icon="close" color="negative" size="sm"
+              @click="removeColabLine(i)" />
+          </div>
+          <q-btn flat dense icon="add" color="primary" label="Adicionar colaborador"
+            class="q-mt-xs" @click="addColabLine" />
+        </q-card-section>
+        <q-card-actions align="right" class="q-pt-none">
+          <q-btn flat label="Cancelar" color="grey-5" v-close-popup />
+          <q-btn unelevated label="Salvar" color="primary" icon="save"
+            :loading="savingColabs" @click="saveColabs" style="border-radius:8px;" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -808,6 +846,54 @@ function confirmDeleteService (svc) {
       $q.notify({ type: 'negative', message: 'Erro ao excluir: ' + (e.message || e) })
     }
   })
+}
+
+// ── EDITAR COLABORADORES ────────────────────────────────
+const editColabsDialog  = ref(false)
+const editColabsSvc     = ref(null)
+const editColabsList    = ref([])
+const savingColabs      = ref(false)
+
+function openEditColabs (svc) {
+  editColabsSvc.value  = svc
+  editColabsList.value = [...(svc.colaboradores || [])]
+  editColabsDialog.value = true
+}
+
+function addColabLine () {
+  editColabsList.value.push('')
+}
+
+function removeColabLine (i) {
+  editColabsList.value.splice(i, 1)
+}
+
+async function saveColabs () {
+  const lista = editColabsList.value
+    .map(n => n.trim().toUpperCase())
+    .filter(Boolean)
+  if (!lista.length) {
+    $q.notify({ type: 'warning', message: 'Adicione pelo menos um colaborador.' })
+    return
+  }
+  savingColabs.value = true
+  try {
+    const { error } = await supabase
+      .from('services')
+      .update({ colaboradores: lista })
+      .eq('id', editColabsSvc.value.id)
+    if (error) throw error
+    // Atualiza reativo local
+    editColabsSvc.value.colaboradores = lista
+    const svcInData = servicesData.value.find(s => s.id === editColabsSvc.value.id)
+    if (svcInData) svcInData.colaboradores = lista
+    editColabsDialog.value = false
+    $q.notify({ type: 'positive', message: 'Colaboradores atualizados.' })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro: ' + e.message })
+  } finally {
+    savingColabs.value = false
+  }
 }
 
 // ── EVIDÊNCIAS ──────────────────────────────────────────
