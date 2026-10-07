@@ -48,6 +48,44 @@
       </q-input>
     </div>
 
+    <!-- Busca direta em sessões ativas por nome de colaborador -->
+    <div class="q-mb-lg" style="display:flex;gap:10px;align-items:center;">
+      <q-input
+        v-model="sessionSearch"
+        outlined dense clearable bg-color="surface"
+        placeholder="Buscar colaborador em sessão ativa..."
+        style="max-width:340px;"
+        @keyup.enter="searchActiveSessions"
+      >
+        <template #prepend><q-icon name="manage_search" /></template>
+      </q-input>
+      <q-btn unelevated dense color="primary" label="Buscar sessão" icon="search"
+        :loading="searchingSession" @click="searchActiveSessions" style="border-radius:8px;" />
+    </div>
+
+    <!-- Resultado da busca de sessão -->
+    <div v-if="sessionResults.length" class="q-mb-lg">
+      <div class="text-caption text-grey-5 q-mb-sm">
+        {{ sessionResults.length }} sessão(ões) ativa(s) encontrada(s) para "{{ sessionSearch }}"
+      </div>
+      <div v-for="s in sessionResults" :key="s.id"
+        class="flex items-center q-pa-md q-mb-sm"
+        style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:12px;">
+        <q-icon name="warning" color="negative" size="20px" class="q-mr-md" />
+        <div class="flex-1">
+          <div class="text-weight-bold">{{ s.colaborador }}</div>
+          <div class="text-caption text-grey-5">Equipe: {{ s.prefixo || s.team_id }} · {{ s.data }}</div>
+        </div>
+        <q-btn unelevated dense icon="logout" color="negative" label="Remover" size="sm"
+          style="border-radius:6px;"
+          :loading="removingSessionId === s.id"
+          @click="removeOrphanSession(s)" />
+      </div>
+    </div>
+    <div v-else-if="sessionSearchDone && !sessionResults.length" class="q-mb-md text-caption text-grey-5">
+      Nenhuma sessão ativa encontrada para "{{ sessionSearch }}".
+    </div>
+
     <!-- KPI cards (clicáveis para filtrar) -->
     <div class="kpi-row q-mb-xl">
       <!-- Total -->
@@ -478,6 +516,48 @@ const filterCoordenador  = ref(null)
 const filterGerencia     = ref(null)
 const search         = ref('')
 const statusFilter   = ref(null)
+
+// ── Busca direta em active_sessions por nome ──────────
+const sessionSearch    = ref('')
+const sessionResults   = ref([])
+const searchingSession = ref(false)
+const sessionSearchDone = ref(false)
+
+async function searchActiveSessions () {
+  const q = sessionSearch.value.trim()
+  if (!q) return
+  searchingSession.value = true
+  sessionSearchDone.value = false
+  try {
+    const { data, error } = await supabase
+      .from('active_sessions')
+      .select('id, team_id, prefixo, colaborador, data')
+      .ilike('colaborador', `%${q}%`)
+    if (error) throw error
+    sessionResults.value = data || []
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro: ' + e.message })
+    sessionResults.value = []
+  } finally {
+    searchingSession.value = false
+    sessionSearchDone.value = true
+  }
+}
+
+async function removeOrphanSession (session) {
+  removingSessionId.value = session.id
+  try {
+    const { error } = await supabase.from('active_sessions').delete().eq('id', session.id)
+    if (error) throw error
+    sessionResults.value = sessionResults.value.filter(s => s.id !== session.id)
+    activeSessions.value  = activeSessions.value.filter(s => s.id !== session.id)
+    $q.notify({ type: 'positive', message: `${session.colaborador} removido do turno.` })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: 'Erro ao remover: ' + e.message })
+  } finally {
+    removingSessionId.value = null
+  }
+}
 
 // ── Gerenciar colaboradores do turno ──────────────────
 const showMembersDialog  = ref(false)
