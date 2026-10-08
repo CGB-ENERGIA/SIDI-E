@@ -275,6 +275,7 @@ import { useAuthStore } from 'src/stores/auth'
 import { useEvidenceStore } from 'src/stores/evidence'
 import { offlineDB } from 'src/services/localDB'
 import { supabase } from 'src/services/supabase'
+import { hojeBrasilia } from 'src/services/dateBR'
 import { useQuasar } from 'quasar'
 import { useOnlineStore } from 'src/stores/online'
 
@@ -351,9 +352,6 @@ const filteredTeams = computed(() => {
     t.prefixo.includes(needle) || (t.nome || '').toUpperCase().includes(needle)
   )
 })
-
-// YYYY-MM-DD no fuso de Brasília (toISOString usa UTC e vira o dia às 21h)
-const hojeBrasilia = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
 
 const today = hojeBrasilia()
 

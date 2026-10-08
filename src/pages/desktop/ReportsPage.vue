@@ -255,6 +255,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useTeamsStore } from 'src/stores/teams'
 import { useQuasar } from 'quasar'
 import { supabase } from 'src/services/supabase'
+import { hojeBrasilia, diaBrasilia, inicioDiaBrasilia, fimDiaBrasilia } from 'src/services/dateBR'
 
 const $q = useQuasar()
 const teamsStore = useTeamsStore()
@@ -280,10 +281,10 @@ const gerentesList = computed(() => {
   return [...s].sort()
 })
 
-const today = new Date()
-const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
+const hoje = hojeBrasilia()
+const monthStart = hoje.slice(0, 8) + '01'
 const dateFrom = ref(monthStart)
-const dateTo   = ref(today.toISOString().split('T')[0])
+const dateTo   = ref(hoje)
 
 const filteredServices = computed(() => {
   return services.value.filter(s => {
@@ -302,8 +303,8 @@ onMounted(async () => {
 async function load () {
   loading.value = true
   try {
-    const from = dateFrom.value ? dateFrom.value + 'T00:00:00' : null
-    const to   = dateTo.value   ? dateTo.value   + 'T23:59:59' : null
+    const from = dateFrom.value ? inicioDiaBrasilia(dateFrom.value) : null
+    const to   = dateTo.value   ? fimDiaBrasilia(dateTo.value) : null
     const PAGE = 1000
     let all = [], offset = 0
     while (true) {
@@ -419,7 +420,7 @@ const maxActivity = computed(() => Math.max(1, ...byActivity.value.map(a => a.co
 const byDay = computed(() => {
   const countMap = {}
   for (const s of filteredServices.value) {
-    const d = s.created_at.split('T')[0]
+    const d = diaBrasilia(s.created_at)
     countMap[d] = (countMap[d] || 0) + 1
   }
   if (!dateFrom.value || !dateTo.value) {

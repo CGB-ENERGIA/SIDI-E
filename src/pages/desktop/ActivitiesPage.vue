@@ -564,6 +564,7 @@ import { useTeamsStore } from 'src/stores/teams'
 import { useEvidenceStore } from 'src/stores/evidence'
 import { useAuthStore } from 'src/stores/auth'
 import { supabase, storage } from 'src/services/supabase'
+import { diaBrasilia, inicioDiaBrasilia, fimDiaBrasilia } from 'src/services/dateBR'
 import { useQuasar } from 'quasar'
 
 const activitiesStore = useActivitiesStore()
@@ -707,8 +708,8 @@ async function loadAtividades () {
         .range(from, from + PAGE - 1)
       if (atividadesDate.value) {
         query = query
-          .gte('created_at', atividadesDate.value + 'T00:00:00')
-          .lte('created_at', atividadesDate.value + 'T23:59:59')
+          .gte('created_at', inicioDiaBrasilia(atividadesDate.value))
+          .lte('created_at', fimDiaBrasilia(atividadesDate.value))
       }
       if (atividadesTeam.value) query = query.eq('team_id', atividadesTeam.value)
       const { data, error } = await query
@@ -941,7 +942,7 @@ const filteredEvidRows = computed(() =>
 const groupedRows = computed(() => {
   const map = {}
   for (const svc of filteredEvidRows.value) {
-    const dateStr = (svc.created_at || '').split('T')[0]
+    const dateStr = diaBrasilia(svc.created_at)
     const key = `${svc.team_id}_${dateStr}`
     if (!map[key]) {
       map[key] = {
@@ -973,7 +974,7 @@ async function loadEvid () {
   try {
     evidRows.value = await evidenceStore.fetchEvidences({
       teamId: evidFilters.value.teamId || undefined,
-      date: evidFilters.value.date || undefined
+      date: evidFilters.value.date ? inicioDiaBrasilia(evidFilters.value.date) : undefined
     }) || []
   } catch {
     evidRows.value = []

@@ -439,6 +439,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { supabase, storage } from 'src/services/supabase'
+import { hojeBrasilia, inicioDiaBrasilia, fimDiaBrasilia } from 'src/services/dateBR'
 import { useAuthStore } from 'src/stores/auth'
 import { useTeamsStore } from 'src/stores/teams'
 import { useQuasar } from 'quasar'
@@ -469,7 +470,7 @@ const obsText           = ref('')
 const services          = ref([])
 
 const histFilterStart       = ref('')
-const histFilterEnd         = ref(new Date().toISOString().split('T')[0])
+const histFilterEnd         = ref(hojeBrasilia())
 const histFilterStatus      = ref(null)
 const histFilterSupervisor  = ref(null)
 const histFilterCoordenador = ref(null)
@@ -633,15 +634,15 @@ function switchTab (tab) {
 
 async function loadCounts () {
   loadingCounts.value = true
-  const today = new Date().toISOString().split('T')[0]
+  const today = hojeBrasilia()
   try {
     for (const g of grupos) {
       const { count: todayCount } = await supabase
         .from('services')
         .select('id, teams!inner(processo)', { count: 'exact', head: true })
         .eq('teams.processo', g.key)
-        .gte('created_at', today + 'T00:00:00')
-        .lte('created_at', today + 'T23:59:59')
+        .gte('created_at', inicioDiaBrasilia(today))
+        .lte('created_at', fimDiaBrasilia(today))
         .or('validation_status.eq.pendente,validation_status.is.null')
       const { count: totalCount } = await supabase
         .from('services')
@@ -664,8 +665,8 @@ async function loadServices () {
       .order('created_at', { ascending: false })
     if (filterDate.value) {
       query = query
-        .gte('created_at', filterDate.value + 'T00:00:00')
-        .lte('created_at', filterDate.value + 'T23:59:59')
+        .gte('created_at', inicioDiaBrasilia(filterDate.value))
+        .lte('created_at', fimDiaBrasilia(filterDate.value))
     }
     const { data, error } = await query
     if (error) throw error
@@ -688,8 +689,8 @@ async function loadHistory () {
         .in('validation_status', ['aprovada', 'reprovada'])
         .order('validated_at', { ascending: false })
         .range(offset, offset + PAGE - 1)
-      if (histFilterStart.value) query = query.gte('validated_at', histFilterStart.value + 'T00:00:00')
-      if (histFilterEnd.value)   query = query.lte('validated_at', histFilterEnd.value + 'T23:59:59')
+      if (histFilterStart.value) query = query.gte('validated_at', inicioDiaBrasilia(histFilterStart.value))
+      if (histFilterEnd.value)   query = query.lte('validated_at', fimDiaBrasilia(histFilterEnd.value))
       const { data, error } = await query
       if (error) throw error
       all = all.concat(data || [])

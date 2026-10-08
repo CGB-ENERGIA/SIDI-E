@@ -178,6 +178,7 @@ import { useTeamsStore } from 'src/stores/teams'
 import { useEvidenceStore } from 'src/stores/evidence'
 import { useAuthStore } from 'src/stores/auth'
 import { supabase } from 'src/services/supabase'
+import { hojeBrasilia, inicioDiaBrasilia } from 'src/services/dateBR'
 import { useQuasar } from 'quasar'
 
 const teamsStore = useTeamsStore()
@@ -200,7 +201,7 @@ const loadingSessions = ref(false)
 const removingId = ref(null)
 const closingTeam = ref(null)
 
-const today = new Date().toISOString().split('T')[0]
+const today = hojeBrasilia()
 const dateLabel = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
 
 onMounted(load)
@@ -210,7 +211,7 @@ async function load () {
   const tasks = [teamsStore.fetchTeams(), fetchPendingRequests(), fetchPendentesValidacao()]
   if (authStore.isSuperAdmin) tasks.push(fetchActiveSessions())
   await Promise.all(tasks)
-  try { recentEvidences.value = await evidenceStore.fetchEvidences({ date: today }) }
+  try { recentEvidences.value = await evidenceStore.fetchEvidences({ date: inicioDiaBrasilia(today) }) }
   catch { recentEvidences.value = [] }
   finally { loading.value = false }
 }

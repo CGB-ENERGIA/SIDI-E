@@ -308,6 +308,7 @@ import { useEvidenceStore } from 'src/stores/evidence'
 import { useTeamsStore } from 'src/stores/teams'
 import { useAuthStore } from 'src/stores/auth'
 import { storage } from 'src/services/supabase'
+import { diaBrasilia, inicioDiaBrasilia } from 'src/services/dateBR'
 
 const evidenceStore = useEvidenceStore()
 const teamsStore = useTeamsStore()
@@ -367,7 +368,7 @@ const filteredRows = computed(() => {
 const groupedRows = computed(() => {
   const map = {}
   for (const svc of filteredRows.value) {
-    const dateStr = (svc.created_at || '').split('T')[0]
+    const dateStr = diaBrasilia(svc.created_at)
     const key = `${svc.team_id}_${dateStr}`
     if (!map[key]) {
       map[key] = {
@@ -420,7 +421,7 @@ async function load () {
   try {
     rows.value = await evidenceStore.fetchEvidences({
       teamId: filters.value.teamId || undefined,
-      date: filters.value.date || undefined
+      date: filters.value.date ? inicioDiaBrasilia(filters.value.date) : undefined
     }) || []
   } catch {
     rows.value = []

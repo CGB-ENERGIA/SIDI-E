@@ -496,6 +496,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useTeamsStore } from 'src/stores/teams'
 import { supabase } from 'src/services/supabase'
+import { hojeBrasilia, inicioDiaBrasilia, fimDiaBrasilia } from 'src/services/dateBR'
 import { useQuasar } from 'quasar'
 
 const teamsStore = useTeamsStore()
@@ -612,16 +613,16 @@ async function loadShareData () {
     if (shareIsRange.value) {
       // Range: use RPC to get distinct team_ids with services in period
       const { data, error } = await supabase.rpc('get_teams_with_services', {
-        date_from: from + 'T00:00:00',
-        date_to:   to   + 'T23:59:59'
+        date_from: inicioDiaBrasilia(from),
+        date_to:   fimDiaBrasilia(to)
       })
       if (error) throw error
       shareActiveSessions.value = []
       shareServicesDay.value    = (data || []).map(r => ({ team_id: r.team_id }))
     } else {
       // Single day: fetch full service rows
-      const start = from + 'T00:00:00'
-      const end   = from + 'T23:59:59'
+      const start = inicioDiaBrasilia(from)
+      const end   = fimDiaBrasilia(from)
       const [sessRes, svcRes] = await Promise.all([
         supabase.from('active_sessions').select('id, team_id, prefixo, colaborador, data').order('prefixo'),
         supabase.from('services')
@@ -667,7 +668,7 @@ const shareGroupOpts = [
 let refreshInterval = null
 
 function todayStr () {
-  return new Date().toISOString().split('T')[0]
+  return hojeBrasilia()
 }
 
 function formatDateBR (iso) {
@@ -1250,8 +1251,8 @@ async function downloadDonutChart () {
       const from = donutDateFrom.value || todayStr()
       const to   = donutDateTo.value   || todayStr()
       const { data, error } = await supabase.rpc('get_teams_with_services', {
-        date_from: from + 'T00:00:00',
-        date_to:   to   + 'T23:59:59'
+        date_from: inicioDiaBrasilia(from),
+        date_to:   fimDiaBrasilia(to)
       })
       if (error) throw error
       abriuSet    = new Set((data || []).map(s => s.team_id))
@@ -1445,8 +1446,8 @@ async function loadAcumulado (from = null, to = null) {
   loading.value = true
   try {
     const { data, error } = await supabase.rpc('get_teams_with_services', {
-      date_from: from ? from + 'T00:00:00' : null,
-      date_to:   to   ? to   + 'T23:59:59' : null
+      date_from: from ? inicioDiaBrasilia(from) : null,
+      date_to:   to   ? fimDiaBrasilia(to) : null
     })
     if (error) throw error
     acumuladoSet.value   = new Set((data || []).map(r => r.team_id))
@@ -1480,8 +1481,8 @@ async function load () {
   loading.value = true
   try {
     const date = filterDate.value || todayStr()
-    const start = date + 'T00:00:00'
-    const end   = date + 'T23:59:59'
+    const start = inicioDiaBrasilia(date)
+    const end   = fimDiaBrasilia(date)
 
     const [sessRes, svcRes] = await Promise.all([
       supabase.from('active_sessions').select('id, team_id, prefixo, colaborador, data').order('prefixo'),
