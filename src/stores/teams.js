@@ -4,6 +4,18 @@ import { supabase } from 'src/services/supabase'
 import { offlineDB } from 'src/services/localDB'
 import { useOnlineStore } from './online'
 
+// Campos de texto das equipes gravados sempre em MAIÚSCULAS e sem espaços nas pontas
+// (status fica de fora: 'ativo'/'inativo' é comparado em minúsculas pelos filtros)
+const TEAM_TEXT_FIELDS = ['prefixo', 'nome', 'responsavel', 'supervisor', 'coordenador', 'gerencia', 'base', 'processo']
+
+function normalizeTeamPayload (payload) {
+  const out = { ...payload }
+  for (const f of TEAM_TEXT_FIELDS) {
+    if (typeof out[f] === 'string') out[f] = out[f].trim().toUpperCase()
+  }
+  return out
+}
+
 export const useTeamsStore = defineStore('teams', () => {
   const teams = ref([])
   const loading = ref(false)
@@ -44,7 +56,7 @@ export const useTeamsStore = defineStore('teams', () => {
   async function createTeam (payload) {
     const { data, error: err } = await supabase
       .from('teams')
-      .insert(payload)
+      .insert(normalizeTeamPayload(payload))
       .select()
       .single()
     if (err) throw err
@@ -56,7 +68,7 @@ export const useTeamsStore = defineStore('teams', () => {
   async function updateTeam (id, payload) {
     const { data, error: err } = await supabase
       .from('teams')
-      .update(payload)
+      .update(normalizeTeamPayload(payload))
       .eq('id', id)
       .select()
       .single()

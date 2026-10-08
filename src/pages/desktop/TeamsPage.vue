@@ -171,7 +171,7 @@
         <div class="import-legend">
           <q-badge color="positive" label="Novo" class="q-mr-sm" />registro não existe ainda
           <q-badge color="warning" label="Atualizar" class="q-mx-sm" />prefixo já existe
-          <q-badge color="negative" label="Erro" class="q-mx-sm" />linha inválida (sem prefixo)
+          <q-badge color="negative" label="Erro" class="q-mx-sm" />linha inválida (sem prefixo ou repetida na planilha)
         </div>
 
         <div class="import-table-wrap">
@@ -498,6 +498,10 @@ function exportExcel () {
   $q.notify({ type: 'positive', message: `${filtered.value.length} equipes exportadas!` })
 }
 
+// Prefixo comparado sem espaços nas pontas e sem diferença de maiúsculas
+const normPrefixo = v => String(v ?? '').trim().toUpperCase()
+const up = v => String(v ?? '').trim().toUpperCase()
+
 // ── Import Excel ─────────────────────────────────────────
 const fileInput  = ref(null)
 const importing  = ref(false)
@@ -542,23 +546,26 @@ async function handleImport (evt) {
     const iS = col('superv'), iC = col('coord'), iG = col('gerenc')
     const iB = col('base'), iO = col('process'), iT = col('status')
 
-    const existingPrefixos = new Set(teamsStore.teams.map(t => t.prefixo))
+    const existingPrefixos = new Set(teamsStore.teams.map(t => normPrefixo(t.prefixo)))
+    const vistosNaPlanilha = new Set()
 
     importRows.value = raw.slice(1)
       .filter(r => r.some(c => c !== ''))
       .map(r => {
-        const prefixo = String(r[iP] ?? '').trim().toUpperCase()
+        const prefixo = normPrefixo(r[iP])
+        const repetido = !!prefixo && vistosNaPlanilha.has(prefixo)
+        if (prefixo) vistosNaPlanilha.add(prefixo)
         return {
           prefixo,
-          nome:        String(r[iN] ?? '').trim(),
-          responsavel: String(r[iR] ?? '').trim(),
-          supervisor:  iS >= 0 ? String(r[iS] ?? '').trim() : '',
-          coordenador: iC >= 0 ? String(r[iC] ?? '').trim() : '',
-          gerencia:    iG >= 0 ? String(r[iG] ?? '').trim() : '',
-          base:        iB >= 0 ? String(r[iB] ?? '').trim() : '',
-          processo:    iO >= 0 ? String(r[iO] ?? '').trim() : '',
+          nome:        up(r[iN]),
+          responsavel: up(r[iR]),
+          supervisor:  iS >= 0 ? up(r[iS]) : '',
+          coordenador: iC >= 0 ? up(r[iC]) : '',
+          gerencia:    iG >= 0 ? up(r[iG]) : '',
+          base:        iB >= 0 ? up(r[iB]) : '',
+          processo:    iO >= 0 ? up(r[iO]) : '',
           status:      iT >= 0 ? String(r[iT] ?? '').trim().toLowerCase() || 'ativo' : 'ativo',
-          _status: !prefixo ? 'erro' : existingPrefixos.has(prefixo) ? 'atualizar' : 'novo'
+          _status: !prefixo || repetido ? 'erro' : existingPrefixos.has(prefixo) ? 'atualizar' : 'novo'
         }
       })
 
@@ -583,7 +590,7 @@ async function applyImport () {
           await teamsStore.createTeam(payload)
           created++
         } else {
-          const team = teamsStore.teams.find(t => t.prefixo === payload.prefixo)
+          const team = teamsStore.teams.find(t => normPrefixo(t.prefixo) === payload.prefixo)
           if (team) { await teamsStore.updateTeam(team.id, payload); updated++ }
         }
       } catch { errors++ }
@@ -831,6 +838,7 @@ async function applyImport () {
 }
 .field-inp:focus { border-color: color-mix(in oklab, var(--primary) 60%, var(--border)); }
 .field-inp:disabled { opacity: 0.4; cursor: not-allowed; }
+input.field-inp { text-transform: uppercase; }
 
 .dialog-footer {
   display: flex; align-items: center; justify-content: flex-end; gap: 10px;
