@@ -352,7 +352,10 @@ const filteredTeams = computed(() => {
   )
 })
 
-const today = new Date().toISOString().split('T')[0]
+// YYYY-MM-DD no fuso de Brasília (toISOString usa UTC e vira o dia às 21h)
+const hojeBrasilia = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
+
+const today = hojeBrasilia()
 
 const emptyColab = () => ({ nome: '', validated: false, validating: false, isNew: false, filteredOptions: [] })
 
@@ -799,7 +802,7 @@ async function login () {
   loading.value = true
   try {
     // Data sempre é o dia atual — não permite alteração
-    const dataHoje = new Date().toISOString().split('T')[0]
+    const dataHoje = hojeBrasilia()
     form.value.data = dataHoje
 
     const nomes = form.value.colaboradores
