@@ -39,7 +39,7 @@
           <input
             v-model="search"
             class="search-input"
-            placeholder="Buscar por prefixo, nome ou responsável…"
+            placeholder="Buscar por prefixo, nome, supervisor ou responsável…"
           />
         </div>
 
@@ -51,6 +51,11 @@
         <select v-model="filterProcesso" class="filter-select">
           <option value="">Todos os processos</option>
           <option v-for="p in processos" :key="p" :value="p">{{ p }}</option>
+        </select>
+
+        <select v-model="filterSupervisor" class="filter-select">
+          <option value="">Todos supervisores</option>
+          <option v-for="s in supervisoresList" :key="s" :value="s">{{ s }}</option>
         </select>
 
         <select v-model="filterStatus" class="filter-select">
@@ -84,6 +89,7 @@
           <colgroup>
             <col style="width:155px" />
             <col style="width:22%" />
+            <col style="width:150px" />
             <col style="width:120px" />
             <col style="width:120px" />
             <col style="width:80px" />
@@ -98,6 +104,7 @@
               <th @click="sortBy('nome')" class="sortable" style="text-align:left">Nome
                 <q-icon :name="sortCol === 'nome' ? (sortAsc ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'" size="14px" />
               </th>
+              <th>Supervisor</th>
               <th>Coordenador</th>
               <th>Gerência</th>
               <th>Base</th>
@@ -111,6 +118,7 @@
                 <span class="prefix-chip">{{ team.prefixo }}</span>
               </td>
               <td class="cell-nome">{{ team.nome }}</td>
+              <td>{{ team.supervisor || '—' }}</td>
               <td>{{ team.coordenador || '—' }}</td>
               <td>{{ team.gerencia || '—' }}</td>
               <td>
@@ -131,7 +139,7 @@
               </td>
             </tr>
             <tr v-if="!paginated.length">
-              <td colspan="6" class="empty-row">Nenhuma equipe encontrada</td>
+              <td colspan="8" class="empty-row">Nenhuma equipe encontrada</td>
             </tr>
           </tbody>
         </table>
@@ -318,6 +326,7 @@ const filterBase      = ref('')
 const filterProcesso  = ref('')
 const filterStatus    = ref('')
 const filterCoordenador = ref('')
+const filterSupervisor  = ref('')
 const filterGerencia  = ref('')
 const page            = ref(1)
 const perPage       = 20
@@ -326,17 +335,21 @@ const sortAsc       = ref(true)
 
 const hasFilters = computed(() =>
   search.value || filterBase.value || filterProcesso.value || filterStatus.value ||
-  filterCoordenador.value || filterGerencia.value
+  filterCoordenador.value || filterGerencia.value || filterSupervisor.value
 )
 
 function clearFilters () {
   search.value = filterBase.value = filterProcesso.value = filterStatus.value =
-    filterCoordenador.value = filterGerencia.value = ''
+    filterCoordenador.value = filterGerencia.value = filterSupervisor.value = ''
   page.value = 1
 }
 
 const coordenadoresList = computed(() => {
   const s = new Set(teamsStore.teams.map(t => t.coordenador).filter(Boolean))
+  return [...s].sort()
+})
+const supervisoresList = computed(() => {
+  const s = new Set(teamsStore.teams.map(t => t.supervisor).filter(Boolean))
   return [...s].sort()
 })
 const gerentesList = computed(() => {
@@ -364,11 +377,13 @@ const filtered = computed(() => {
       if (q && !t.prefixo?.toLowerCase().includes(q) &&
                 !t.nome?.toLowerCase().includes(q) &&
                 !t.responsavel?.toLowerCase().includes(q) &&
+                !t.supervisor?.toLowerCase().includes(q) &&
                 !t.coordenador?.toLowerCase().includes(q) &&
                 !t.gerencia?.toLowerCase().includes(q)) return false
       if (filterBase.value      && t.base       !== filterBase.value)      return false
       if (filterProcesso.value  && t.processo   !== filterProcesso.value)  return false
       if (filterStatus.value    && t.status     !== filterStatus.value)    return false
+      if (filterSupervisor.value  && t.supervisor  !== filterSupervisor.value)  return false
       if (filterCoordenador.value && t.coordenador !== filterCoordenador.value) return false
       if (filterGerencia.value  && t.gerencia   !== filterGerencia.value)  return false
       return true
