@@ -1,6 +1,16 @@
 import { defineRouter } from '#q-app/wrappers'
 import { createRouter, createWebHistory } from 'vue-router'
+import { Notify } from 'quasar'
 import { useAuthStore } from 'src/stores/auth'
+import { queueSessionRelease } from 'src/services/sessionRelease'
+
+const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000
+
+function isMobileSessionStale (session) {
+  const ref = session.loginAt ? new Date(session.loginAt) : new Date(session.data + 'T00:00:00')
+  const t = ref.getTime()
+  return Number.isFinite(t) && Date.now() - t > SESSION_MAX_AGE_MS
+}
 
 const routes = [
   // ── Desktop login ─────────────────────────────────────────────
@@ -160,6 +170,20 @@ export default defineRouter(function () {
     // Restrict super-admin-only pages (somente matrícula 12690)
     if (to.meta.superAdminOnly && !authStore.isSuperAdmin && !shotPreview) {
       return { path: '/dashboard' }
+    }
+
+    // Turno esquecido aberto há mais de 24h: encerra localmente e enfileira a liberação
+    // no servidor (sem rede aqui, para não travar a navegação). Pendências de serviços/fotos
+    // continuam no IndexedDB e sincronizam normalmente.
+    if (to.path.startsWith('/m') && authStore.mobileSession && isMobileSessionStale(authStore.mobileSession)) {
+      queueSessionRelease(authStore.mobileSession)
+      authStore.mobileLogout()
+      Notify.create({
+        type: 'warning',
+        message: 'Turno anterior encerrado automaticamente',
+        caption: 'Ele estava aberto há mais de 24h. Inicie um novo turno.',
+        timeout: 6000
+      })
     }
 
     // PWA start_url aponta fixo para /m/login — se já existe turno ativo salvo

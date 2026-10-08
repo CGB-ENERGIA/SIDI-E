@@ -808,6 +808,9 @@ async function login () {
 
     // Registra sessão ativa para cada colaborador (online)
     if (onlineStore.isOnline) {
+      // Limpa linhas antigas da própria equipe (turno anterior esquecido ou encerrado
+      // offline) — senão colaboradores de dias anteriores ficam presos para outras equipes
+      await supabase.from('active_sessions').delete().eq('team_id', equipeEncontrada.value.id)
       await supabase.from('active_sessions').insert(
         nomes.map(nome => ({
           team_id: equipeEncontrada.value.id,

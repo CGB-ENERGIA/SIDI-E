@@ -135,6 +135,7 @@ import { useOnlineStore } from 'src/stores/online'
 import { useEvidenceStore } from 'src/stores/evidence'
 import { useQuasar } from 'quasar'
 import { supabase } from 'src/services/supabase'
+import { queueSessionRelease } from 'src/services/sessionRelease'
 
 const route = useRoute()
 const router = useRouter()
@@ -282,11 +283,21 @@ function logoutConfirm () {
         $q.loading.hide()
       }
       if (session?.equipeId) {
-        await supabase
-          .from('active_sessions')
-          .delete()
-          .eq('team_id', session.equipeId)
+        let releaseFailed = false
+        try {
+          const { error } = await supabase
+            .from('active_sessions')
+            .delete()
+            .eq('team_id', session.equipeId)
+          releaseFailed = !!error
+        } catch {
+          releaseFailed = true
+        }
+        // Sinal caiu no meio: não deixa o colaborador preso no turno antigo
+        if (releaseFailed) queueSessionRelease(session)
       }
+    } else {
+      queueSessionRelease(session)
     }
 
     if (onlineStore.pendingCount > 0) {

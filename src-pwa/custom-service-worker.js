@@ -1,6 +1,6 @@
 import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching'
 import { registerRoute, NavigationRoute } from 'workbox-routing'
-import { NetworkFirst, CacheFirst, StaleWhileRevalidate } from 'workbox-strategies'
+import { NetworkFirst, NetworkOnly, CacheFirst, StaleWhileRevalidate } from 'workbox-strategies'
 import { ExpirationPlugin } from 'workbox-expiration'
 
 // Injeta o precache gerado pelo Quasar
@@ -35,6 +35,19 @@ self.clients.claim()
 // sempre que uma gravação falhasse por timeout/queda de conexão. Deixando essas
 // rotas sem registro, o navegador usa o fetch normal — falha rápido e visível,
 // e a fila da própria app é a ÚNICA responsável por reenviar.
+
+// ── Leituras de validação: NUNCA servir do cache ─────────────────────
+// active_sessions e collaborators decidem se alguém pode entrar num turno (e
+// collaborators ainda alimenta deletes/updates). Com sinal fraco, o NetworkFirst
+// abaixo devolvia uma resposta de até 7 dias — ex.: "já está em turno ativo" para
+// quem já havia saído. Aqui falha de rede vira erro visível, nunca dado velho.
+// Esta rota precisa vir ANTES da genérica do Supabase (vale a primeira que casar).
+registerRoute(
+  ({ url }) =>
+    url.hostname.endsWith('supabase.co') &&
+    /^\/rest\/v1\/(active_sessions|collaborators)\/?$/.test(url.pathname),
+  new NetworkOnly({ networkTimeoutSeconds: 10 })
+)
 
 // ── GETs ao Supabase: NetworkFirst com cache longo ───────────────────
 registerRoute(

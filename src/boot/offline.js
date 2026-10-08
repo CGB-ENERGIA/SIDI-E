@@ -2,6 +2,7 @@ import { boot } from 'quasar/wrappers'
 import { useOnlineStore } from 'src/stores/online'
 import { useEvidenceStore } from 'src/stores/evidence'
 import { offlineDB } from 'src/services/localDB'
+import { hasPendingSessionReleases } from 'src/services/sessionRelease'
 import { Notify } from 'quasar'
 
 export default boot(({ app }) => {
@@ -29,7 +30,7 @@ export default boot(({ app }) => {
     if (!online.isOnline || evidence.syncing) return
     try {
       await refreshPendingCount()
-      if (online.pendingCount === 0) return
+      if (online.pendingCount === 0 && !hasPendingSessionReleases()) return
       await evidence.syncPending()
       await refreshPendingCount()
     } catch (e) {

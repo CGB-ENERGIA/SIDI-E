@@ -3,6 +3,8 @@ import { ref } from 'vue'
 import { supabase, storage } from 'src/services/supabase'
 import { offlineDB } from 'src/services/localDB'
 import { useOnlineStore } from './online'
+import { useAuthStore } from './auth'
+import { flushSessionReleases } from 'src/services/sessionRelease'
 
 export const useEvidenceStore = defineStore('evidence', () => {
   const currentService = ref(null)
@@ -68,6 +70,13 @@ export const useEvidenceStore = defineStore('evidence', () => {
     let synced = 0
 
     try {
+      // Turnos encerrados/expirados offline: libera os colaboradores no servidor
+      try {
+        await flushSessionReleases(useAuthStore().mobileSession)
+      } catch (e) {
+        console.warn('Falha ao liberar sessões pendentes:', e?.message || e)
+      }
+
       const before = await offlineDB.getPendingCount()
       await syncPendingServices()
       await syncPendingPhotos()
