@@ -111,6 +111,10 @@ export const useEvidenceStore = defineStore('evidence', () => {
           status:        'concluido',
           sync_status:   'synced'
         }
+        // Preserva o horário real do registro (senão o servidor grava a hora do sync)
+        if (svc.createdAt && !Number.isNaN(new Date(svc.createdAt).getTime())) {
+          payload.created_at = svc.createdAt
+        }
         let { data, error } = await supabase
           .from('services')
           .insert(payload)
@@ -122,6 +126,19 @@ export const useEvidenceStore = defineStore('evidence', () => {
           const res = await supabase
             .from('services')
             .insert({ ...payload, activity_id: null })
+            .select()
+            .single()
+          data = res.data
+          error = res.error
+        }
+
+        // Banco recusou o created_at enviado: reenvia sem ele em vez de travar o sync
+        if (error?.code && error.code !== '23503' && payload.created_at) {
+          console.warn('Sync service: created_at recusado, reenviando sem ele:', error.message)
+          const { created_at: _omit, ...semCreatedAt } = payload
+          const res = await supabase
+            .from('services')
+            .insert(semCreatedAt)
             .select()
             .single()
           data = res.data
@@ -150,6 +167,8 @@ export const useEvidenceStore = defineStore('evidence', () => {
   }
 
   async function syncPendingPhotos () {
+    // Fotos que falharam 3x ficam em 'error'; recoloca na fila (como já é feito com serviços)
+    await offlineDB.resetErrorPhotos()
     const pendingPhotos = await offlineDB.getPendingPhotos()
     for (const photo of pendingPhotos) {
       try {

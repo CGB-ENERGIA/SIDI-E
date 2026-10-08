@@ -24,8 +24,31 @@ export default boot(({ app }) => {
     online.setOnline(false)
   })
 
-  // Contagem inicial
-  refreshPendingCount()
+  // Sincroniza só se houver pendências e conexão; nunca lança (roda em timer/eventos)
+  async function autoSync () {
+    if (!online.isOnline || evidence.syncing) return
+    try {
+      await refreshPendingCount()
+      if (online.pendingCount === 0) return
+      await evidence.syncPending()
+      await refreshPendingCount()
+    } catch (e) {
+      console.warn('autoSync falhou:', e?.message || e)
+    }
+  }
+
+  // Contagem inicial + tentativa de sync ao abrir o app
+  refreshPendingCount().then(autoSync)
+
+  // Ao voltar para o app (troca de aba/app, tela desbloqueada)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') autoSync()
+  })
+
+  // Retry periódico: "online" só dispara na transição e sinal fraco falha em silêncio
+  setInterval(() => {
+    if (document.visibilityState === 'visible') autoSync()
+  }, 60 * 1000)
 
   // ── Storage persistente ──────────────────────────────────────────────
   // Sem isso, o navegador (Android sob pressão de espaço, iOS Safari) pode

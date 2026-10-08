@@ -228,6 +228,14 @@ export const offlineDB = {
     return db.evidencePhotos.update(id, { syncStatus: 'synced', filePath, blob: null })
   },
 
+  /** Recoloca na fila fotos em 'error' que ainda têm dados locais. */
+  async resetErrorPhotos () {
+    return db.evidencePhotos
+      .where('syncStatus').equals('error')
+      .filter(p => !!p.blob)
+      .modify({ syncStatus: 'pending', attempts: 0 })
+  },
+
   async markPhotoError (id) {
     const photo = await db.evidencePhotos.get(id)
     const attempts = (photo?.attempts || 0) + 1

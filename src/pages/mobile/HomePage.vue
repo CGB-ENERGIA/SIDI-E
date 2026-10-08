@@ -87,11 +87,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from 'src/stores/auth'
+import { useEvidenceStore } from 'src/stores/evidence'
 import { offlineDB } from 'src/services/localDB'
 
 const authStore = useAuthStore()
+const evidenceStore = useEvidenceStore()
 const session = authStore.mobileSession
 const services = ref([])
 
@@ -102,6 +104,11 @@ async function loadServices () {
     (s.data === session.data || s.createdAt?.startsWith(session.data))
   )
 }
+
+// Atualiza a lista quando qualquer sync termina (manual, automático ou ao reconectar)
+watch(() => evidenceStore.syncing, syncing => {
+  if (!syncing) loadServices()
+})
 
 onMounted(() => {
   loadServices()
