@@ -207,6 +207,14 @@
 
         <!-- Filtro bar evidências -->
         <div class="filter-bar q-mb-lg">
+          <q-input
+            v-model="evidSearch"
+            outlined dense clearable bg-color="surface"
+            placeholder="Buscar equipe, atividade ou colaborador..."
+            style="min-width:300px;"
+          >
+            <template #prepend><q-icon name="search" /></template>
+          </q-input>
           <q-select
             v-model="evidFilters.teamId"
             :options="teamOptions" label="Todas as equipes"
@@ -906,6 +914,10 @@ const showLightbox  = ref(false)
 const lightboxPhoto = ref(null)
 const lightboxUrl   = ref('')
 
+const evidSearch = ref('')
+const normBusca  = v => String(v ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+const evidQuery  = computed(() => normBusca(evidSearch.value).trim())
+
 const evidFilters = ref({
   teamId: null,
   date: null,
@@ -926,6 +938,13 @@ const evidColumns = [
 
 const filteredEvidRows = computed(() =>
   evidRows.value.filter(r => {
+    if (evidQuery.value) {
+      const alvo = normBusca([
+        r.teams?.prefixo, r.teams?.nome, r.teams?.supervisor,
+        r.activity_name, r.descricao, ...(r.colaboradores || [])
+      ].join(' | '))
+      if (!alvo.includes(evidQuery.value)) return false
+    }
     if (evidFilters.value.supervisor && r.teams?.supervisor !== evidFilters.value.supervisor) return false
     if (evidFilters.value.coordenador) {
       const team = teamsStore.teams.find(t => t.id === r.team_id)
