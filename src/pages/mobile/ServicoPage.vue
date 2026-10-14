@@ -362,6 +362,8 @@ import { offlineDB } from 'src/services/localDB'
 import { useQuasar } from 'quasar'
 import CameraCapture from 'src/components/mobile/CameraCapture.vue'
 
+const DRAFT_KEY = 'sgp_rascunho_servico'
+
 const router = useRouter()
 const authStore = useAuthStore()
 const evidenceStore = useEvidenceStore()
@@ -375,6 +377,10 @@ const showCamera = ref(false)
 const cameraTipo = ref('epi')
 const showTip = ref(false)
 const activities = ref([])
+
+// ID do rascunho atual — prefixo 'draft_' para que o sync engine ignore
+// até que o serviço seja finalizado e as fotos sejam remapeadas para 'local_*'
+const draftId = ref(null)
 
 // Wake Lock — mantém tela ligada durante o registro no campo
 let wakeLock = null
@@ -422,12 +428,54 @@ function createActivity (val, done) {
   }
 }
 
+function readDraftMeta () {
+  try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null') } catch { return null }
+}
+
+function writeDraftMeta (id) {
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ id, equipeId: session.equipeId })) } catch {}
+}
+
+function clearDraftMeta () {
+  try { localStorage.removeItem(DRAFT_KEY) } catch {}
+}
+
+async function restoreDraftPhotos (id) {
+  const rows = await offlineDB.getPhotosByService(id)
+  for (const row of rows) {
+    const blobData = row.blob instanceof ArrayBuffer
+      ? new Blob([row.blob], { type: 'image/jpeg' })
+      : row.blob
+    if (!blobData) continue
+    const previewUrl = URL.createObjectURL(blobData)
+    const map = { epi: epiPhotos, atividade: atividadePhotos, escada: escadaPhotos }
+    const target = map[row.tipo] || atividadePhotos
+    target.value.push({ blob: blobData, previewUrl, dbId: row.id })
+  }
+}
+
 onMounted(async () => {
-  showTip.value = true
   acquireWakeLock()
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') acquireWakeLock()
   })
+
+  // Verifica rascunho salvo de sessão anterior (app minimizado/encerrado)
+  const draft = readDraftMeta()
+  if (draft?.id && draft.equipeId === session.equipeId) {
+    draftId.value = draft.id
+    await restoreDraftPhotos(draft.id)
+    // Só exibe dica se não há fotos restauradas
+    showTip.value = epiPhotos.value.length === 0
+  } else {
+    // Rascunho de outra equipe: descarta as fotos órfãs
+    if (draft?.id) {
+      offlineDB.deletePhotosByServiceId(draft.id).catch(() => {})
+    }
+    draftId.value = `draft_${Date.now()}`
+    writeDraftMeta(draftId.value)
+    showTip.value = true
+  }
 
   try {
     if (onlineStore.isOnline) {
@@ -451,16 +499,24 @@ function openCamera (tipo) {
   showCamera.value = true
 }
 
-function onPhotoCaptured (blob) {
+async function onPhotoCaptured (blob) {
+  // Persiste imediatamente no IndexedDB — sobrevive ao app ser encerrado pelo SO
+  const dbId = await offlineDB.savePhoto({
+    serviceId: draftId.value,
+    tipo: cameraTipo.value,
+    blob
+  })
   const previewUrl = URL.createObjectURL(blob)
   const map = { epi: epiPhotos, atividade: atividadePhotos, escada: escadaPhotos }
   const target = map[cameraTipo.value] || atividadePhotos
-  target.value.push({ blob, previewUrl })
+  target.value.push({ blob, previewUrl, dbId })
   showCamera.value = false
 }
 
-function removePhoto (list, idx) {
-  URL.revokeObjectURL(list.value[idx].previewUrl)
+async function removePhoto (list, idx) {
+  const photo = list.value[idx]
+  URL.revokeObjectURL(photo.previewUrl)
+  if (photo.dbId) await offlineDB.deletePhoto(photo.dbId)
   list.value.splice(idx, 1)
 }
 
@@ -471,6 +527,7 @@ async function saveService () {
       ? (form.value.activity?.id || null)
       : null
 
+    // Cria o registro do serviço e obtém o localId (local_*)
     const serviceId = await offlineDB.saveService({
       teamId: session.equipeId,
       activityId,
@@ -480,20 +537,12 @@ async function saveService () {
       data: session.data
     })
 
-    // Salva fotos EPI
-    for (const photo of epiPhotos.value) {
-      await offlineDB.savePhoto({ serviceId, tipo: 'epi', blob: photo.blob })
-    }
+    // Remapeia as fotos do rascunho para o serviço real —
+    // a partir daqui o sync engine passa a enxergá-las
+    await offlineDB.updatePhotosServiceId(draftId.value, serviceId)
 
-    // Salva fotos da atividade
-    for (const photo of atividadePhotos.value) {
-      await offlineDB.savePhoto({ serviceId, tipo: 'atividade', blob: photo.blob })
-    }
-
-    // Salva fotos da amarração de escada (opcional)
-    for (const photo of escadaPhotos.value) {
-      await offlineDB.savePhoto({ serviceId, tipo: 'escada', blob: photo.blob })
-    }
+    // Limpa o rascunho
+    clearDraftMeta()
 
     if (onlineStore.isOnline) {
       await evidenceStore.syncPending()

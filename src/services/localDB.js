@@ -246,6 +246,16 @@ export const offlineDB = {
     return db.evidencePhotos.delete(id)
   },
 
+  async updatePhotosServiceId (oldServiceId, newServiceId) {
+    return db.evidencePhotos
+      .where('serviceId').equals(oldServiceId)
+      .modify({ serviceId: newServiceId })
+  },
+
+  async deletePhotosByServiceId (serviceId) {
+    return db.evidencePhotos.where('serviceId').equals(serviceId).delete()
+  },
+
   // ── Contagem total de pendentes ───────────────────────────────
   async getPendingCount () {
     const [svcPending, svcError, photoPending, photoError] = await Promise.all([
