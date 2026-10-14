@@ -22,3 +22,18 @@ export function inicioDiaBrasilia (ymd) {
 export function fimDiaBrasilia (ymd) {
   return new Date(`${ymd}T23:59:59.999-03:00`).toISOString()
 }
+
+/** Soma (ou subtrai) dias a uma data YYYY-MM-DD. */
+export function addDiasYmd (ymd, n) {
+  const d = new Date(`${ymd}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+
+/** Lista de dias YYYY-MM-DD de from até to, inclusive. */
+export function diasEntre (from, to) {
+  const out = []
+  if (!from || !to || from > to) return out
+  for (let d = from; d <= to && out.length < 400; d = addDiasYmd(d, 1)) out.push(d)
+  return out
+}

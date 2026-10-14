@@ -67,6 +67,15 @@
             <q-icon name="cloud_sync" size="13px" class="q-mr-xs" />
             {{ onlineStore.pendingCount }} pendente{{ onlineStore.pendingCount !== 1 ? 's' : '' }}
           </q-badge>
+          <button
+            v-if="route.path !== '/evolucao'"
+            class="sgp-evo-btn"
+            title="Abrir a Evolução das equipes em uma nova guia"
+            @click="openEvolucao"
+          >
+            <q-icon name="insights" size="17px" />
+            <span class="sgp-evo-label">Evolução</span>
+          </button>
           <span class="sgp-datetime">{{ dateStr }}</span>
           <div
             class="sgp-online-chip"
@@ -89,13 +98,14 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth'
 import { useOnlineStore } from 'src/stores/online'
 import { useEvidenceStore } from 'src/stores/evidence'
 import { supabase } from 'src/services/supabase'
 
 const router        = useRouter()
+const route         = useRoute()
 const authStore     = useAuthStore()
 const onlineStore   = useOnlineStore()
 const evidenceStore = useEvidenceStore()
@@ -148,6 +158,10 @@ const menuItems = computed(() =>
 )
 
 async function triggerSync () { await evidenceStore.syncPending() }
+
+function openEvolucao () {
+  window.open(router.resolve({ path: '/evolucao' }).href, '_blank', 'noopener')
+}
 
 async function logout () {
   await authStore.desktopLogout()
@@ -350,6 +364,27 @@ async function logout () {
   align-items: center;
   gap: 14px;
 }
+
+.sgp-evo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--primary) 55%, transparent);
+  background: var(--primary);
+  color: var(--primary-fg);
+  font-family: 'Manrope', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: var(--shadow-energy);
+  transition: transform 0.15s, filter 0.15s;
+}
+.sgp-evo-btn:hover { transform: translateY(-1px); filter: brightness(1.08); }
+.sgp-evo-btn:active { transform: translateY(0); }
+@media (max-width: 640px) { .sgp-evo-label { display: none; } .sgp-evo-btn { padding: 6px 10px; } }
 
 .sgp-datetime {
   font-family: 'Manrope', sans-serif;

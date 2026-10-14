@@ -56,6 +56,11 @@ const routes = [
         component: () => import('src/pages/desktop/ReportsPage.vue')
       },
       {
+        path: 'evolucao',
+        name: 'Evolucao',
+        component: () => import('src/pages/desktop/EvolucaoPage.vue')
+      },
+      {
         path: 'validacao',
         name: 'Validacao',
         component: () => import('src/pages/desktop/ValidationPage.vue')
