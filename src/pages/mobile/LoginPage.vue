@@ -276,6 +276,7 @@ import { useEvidenceStore } from 'src/stores/evidence'
 import { offlineDB } from 'src/services/localDB'
 import { supabase } from 'src/services/supabase'
 import { hojeBrasilia } from 'src/services/dateBR'
+import { queueSessionRegister } from 'src/services/sessionRelease'
 import { useQuasar } from 'quasar'
 import { useOnlineStore } from 'src/stores/online'
 
@@ -808,19 +809,33 @@ async function login () {
       .map(c => c.nome.trim().toUpperCase())
 
     // Registra sessão ativa para cada colaborador (online)
-    if (onlineStore.isOnline) {
-      // Limpa linhas antigas da própria equipe (turno anterior esquecido ou encerrado
-      // offline) — senão colaboradores de dias anteriores ficam presos para outras equipes
-      await supabase.from('active_sessions').delete().eq('team_id', equipeEncontrada.value.id)
-      await supabase.from('active_sessions').insert(
-        nomes.map(nome => ({
-          team_id: equipeEncontrada.value.id,
-          prefixo: form.value.prefixo.toUpperCase(),
-          colaborador: nome,
-          data: dataHoje
-        }))
-      )
+    const registro = {
+      teamId: equipeEncontrada.value.id,
+      prefixo: form.value.prefixo.toUpperCase(),
+      colaboradores: nomes,
+      data: dataHoje
     }
+    let registrado = false
+    if (onlineStore.isOnline) {
+      try {
+        // Limpa linhas antigas da própria equipe (turno anterior esquecido ou encerrado
+        // offline) — senão colaboradores de dias anteriores ficam presos para outras equipes
+        const del = await supabase.from('active_sessions').delete().eq('team_id', registro.teamId)
+        if (!del.error) {
+          const ins = await supabase.from('active_sessions').insert(
+            nomes.map(nome => ({
+              team_id: registro.teamId,
+              prefixo: registro.prefixo,
+              colaborador: nome,
+              data: dataHoje
+            }))
+          )
+          registrado = !ins.error
+        }
+      } catch { registrado = false }
+    }
+    // Sem internet ou falha no servidor: o turno é registrado na próxima sincronização
+    if (!registrado) queueSessionRegister(registro)
 
     authStore.mobileLogin({
       prefixo: form.value.prefixo.toUpperCase(),

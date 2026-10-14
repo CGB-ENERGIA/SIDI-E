@@ -605,6 +605,30 @@ const shareServicesDay    = ref([])
 const shareIsRange        = computed(() => shareFrom.value && shareTo.value && shareFrom.value !== shareTo.value)
 const shareDate           = computed(() => shareIsRange.value ? `${formatDateBR(shareFrom.value)} a ${formatDateBR(shareTo.value)}` : formatDateBR(shareFrom.value || todayStr()))
 
+// PostgREST corta em 1000 linhas por requisição; busca em lotes até acabar
+async function fetchAllRows (build) {
+  const PAGE = 1000
+  const all = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await build().range(from, from + PAGE - 1)
+    if (error) throw error
+    all.push(...(data || []))
+    if (!data || data.length < PAGE) break
+  }
+  return all
+}
+
+const sessionsQuery = () =>
+  supabase.from('active_sessions')
+    .select('id, team_id, prefixo, colaborador, data')
+    .order('prefixo').order('id')
+
+const servicesQuery = (start, end) => () =>
+  supabase.from('services')
+    .select('team_id, activity_name, colaboradores, created_at')
+    .gte('created_at', start).lte('created_at', end)
+    .order('created_at').order('id')
+
 async function loadShareData () {
   const from = shareFrom.value || todayStr()
   const to   = shareTo.value   || from
@@ -623,14 +647,12 @@ async function loadShareData () {
       // Single day: fetch full service rows
       const start = inicioDiaBrasilia(from)
       const end   = fimDiaBrasilia(from)
-      const [sessRes, svcRes] = await Promise.all([
-        supabase.from('active_sessions').select('id, team_id, prefixo, colaborador, data').order('prefixo'),
-        supabase.from('services')
-          .select('team_id, activity_name, colaboradores, created_at')
-          .gte('created_at', start).lte('created_at', end).limit(10000)
+      const [sess, svc] = await Promise.all([
+        fetchAllRows(sessionsQuery),
+        fetchAllRows(servicesQuery(start, end))
       ])
-      shareActiveSessions.value = sessRes.data || []
-      shareServicesDay.value    = svcRes.data  || []
+      shareActiveSessions.value = sess
+      shareServicesDay.value    = svc
     }
   } catch (e) {
     $q.notify({ type: 'negative', message: 'Erro ao carregar: ' + e.message })
@@ -1484,20 +1506,13 @@ async function load () {
     const start = inicioDiaBrasilia(date)
     const end   = fimDiaBrasilia(date)
 
-    const [sessRes, svcRes] = await Promise.all([
-      supabase.from('active_sessions').select('id, team_id, prefixo, colaborador, data').order('prefixo'),
-      supabase.from('services')
-        .select('team_id, activity_name, colaboradores, created_at')
-        .gte('created_at', start)
-        .lte('created_at', end)
-        .limit(10000)
+    const [sess, svc] = await Promise.all([
+      fetchAllRows(sessionsQuery),
+      fetchAllRows(servicesQuery(start, end))
     ])
 
-    if (sessRes.error) throw sessRes.error
-    if (svcRes.error) throw svcRes.error
-
-    activeSessions.value = sessRes.data || []
-    servicesDay.value    = svcRes.data  || []
+    activeSessions.value = sess
+    servicesDay.value    = svc
   } catch (e) {
     $q.notify({ type: 'negative', message: 'Erro ao carregar turnos: ' + e.message })
   } finally {

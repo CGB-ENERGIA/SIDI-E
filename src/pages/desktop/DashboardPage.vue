@@ -219,11 +219,19 @@ async function load () {
 async function fetchActiveSessions () {
   loadingSessions.value = true
   try {
-    const { data } = await supabase
-      .from('active_sessions')
-      .select('id, team_id, prefixo, colaborador, data')
-      .order('prefixo')
-    activeSessions.value = data || []
+    const PAGE = 1000
+    const all = []
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await supabase
+        .from('active_sessions')
+        .select('id, team_id, prefixo, colaborador, data')
+        .order('prefixo').order('id')
+        .range(from, from + PAGE - 1)
+      if (error) throw error
+      all.push(...(data || []))
+      if (!data || data.length < PAGE) break
+    }
+    activeSessions.value = all
   } catch { activeSessions.value = [] }
   finally { loadingSessions.value = false }
 }
