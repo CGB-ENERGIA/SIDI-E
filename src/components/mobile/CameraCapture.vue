@@ -139,26 +139,34 @@ onBeforeUnmount(() => {
   stopCamera()
 })
 
-async function startCamera () {
+async function startCamera (isSwitch = false) {
+  stopCamera()
   try {
-    stopCamera()
     stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode,
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
-      },
+      video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
       audio: false
     })
-    if (videoEl.value) {
-      videoEl.value.srcObject = stream
+    if (videoEl.value) videoEl.value.srcObject = stream
+  } catch {
+    if (!isSwitch) {
+      // Falha ao abrir câmera pela primeira vez — não há como continuar
+      $q.notify({ type: 'negative', message: 'Sem acesso à câmera. Verifique as permissões do navegador.' })
+      emit('cancel')
+      return
     }
-  } catch (e) {
-    $q.notify({
-      type: 'negative',
-      message: 'Sem acesso à câmera. Verifique as permissões do navegador.'
-    })
-    emit('cancel')
+    // Falha ao trocar de câmera — reverte para a câmera anterior sem fechar o componente
+    facingMode = facingMode === 'environment' ? 'user' : 'environment'
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false
+      })
+      if (videoEl.value) videoEl.value.srcObject = stream
+      $q.notify({ type: 'warning', message: 'Câmera alternativa indisponível neste dispositivo.' })
+    } catch {
+      $q.notify({ type: 'negative', message: 'Sem acesso à câmera. Verifique as permissões do navegador.' })
+      emit('cancel')
+    }
   }
 }
 
@@ -171,7 +179,7 @@ function stopCamera () {
 
 async function switchCamera () {
   facingMode = facingMode === 'environment' ? 'user' : 'environment'
-  await startCamera()
+  await startCamera(true)
 }
 
 function getCoords () {
