@@ -701,23 +701,26 @@ function formatDateBR (iso) {
 
 const isToday = computed(() => filterDate.value === todayStr() || !filterDate.value)
 
+// Apenas equipes ativas — inativas não participam do controle de turnos
+const activeTeams = computed(() => teamsStore.teams.filter(t => (t.status || 'ativo') !== 'inativo'))
+
 // ── Listas de filtros ─────────────────────────────────
 const basesList = computed(() => {
-  const s = new Set(teamsStore.teams.map(t => t.base).filter(Boolean))
+  const s = new Set(activeTeams.value.map(t => t.base).filter(Boolean))
   return [...s].sort()
 })
 const processosList = ['GERE', 'GOMAN', 'GSTC']
 
 const supervisoresList = computed(() => {
-  const s = new Set(teamsStore.teams.map(t => t.supervisor).filter(Boolean))
+  const s = new Set(activeTeams.value.map(t => t.supervisor).filter(Boolean))
   return [...s].sort()
 })
 const coordenadoresList = computed(() => {
-  const s = new Set(teamsStore.teams.map(t => t.coordenador).filter(Boolean))
+  const s = new Set(activeTeams.value.map(t => t.coordenador).filter(Boolean))
   return [...s].sort()
 })
 const gerentesList = computed(() => {
-  const s = new Set(teamsStore.teams.map(t => t.gerencia).filter(Boolean))
+  const s = new Set(activeTeams.value.map(t => t.gerencia).filter(Boolean))
   return [...s].sort()
 })
 
@@ -784,7 +787,7 @@ const servicesMap = computed(() => {
 
 // ── Equipes enriquecidas ───────────────────────────────
 const allTeamsEnriched = computed(() =>
-  teamsStore.teams.map(team => {
+  activeTeams.value.map(team => {
     if (acumuladoMode.value) {
       const hadActivity = acumuladoSet.value.has(team.id)
       return {
@@ -879,7 +882,7 @@ const shareTeamsEnriched = computed(() => {
     if (!svcMap[svc.team_id]) svcMap[svc.team_id] = 0
     svcMap[svc.team_id]++
   }
-  return teamsStore.teams.map(team => {
+  return activeTeams.value.map(team => {
     const isActive   = (activeMap[team.id] || []).length > 0
     const hadActivity = (svcMap[team.id] || 0) > 0
     let status
@@ -1291,7 +1294,7 @@ async function downloadDonutChart () {
 
     const PROCESSOS = ['GERE', 'GOMAN', 'GSTC']
     const procData = PROCESSOS.map(proc => {
-      const ts    = teamsStore.teams.filter(t => t.processo === proc)
+      const ts    = activeTeams.value.filter(t => t.processo === proc)
       const abriu = ts.filter(t => abriuSet.has(t.id)).length
       console.log(`[DonutChart] ${proc}: ${ts.length} equipes no store, ${abriu} com match no abriuSet`)
       return { label: proc, total: ts.length, abriu, nao: ts.length - abriu, pct: ts.length ? Math.round(abriu / ts.length * 100) : 0 }
