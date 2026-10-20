@@ -57,7 +57,7 @@ create index if not exists services_created_at_idx on public.services(created_at
 create table if not exists public.evidence_photos (
   id uuid primary key default gen_random_uuid(),
   service_id uuid references public.services(id) on delete cascade,
-  tipo text not null check (tipo in ('epi', 'atividade')),
+  tipo text not null check (tipo in ('epi', 'atividade', 'escada')),
   file_path text not null,
   created_at timestamptz not null default now()
 );
